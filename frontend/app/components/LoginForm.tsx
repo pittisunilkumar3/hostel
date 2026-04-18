@@ -50,7 +50,7 @@ export default function LoginForm({
     setLoading(true);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const apiBase = "http://localhost:3001";
       const rolePath = role === "SUPER_ADMIN" ? "admin" : role === "OWNER" ? "owner" : "user";
 
       const res = await fetch(`${apiBase}/api/auth/login/${rolePath}`, {
@@ -61,19 +61,20 @@ export default function LoginForm({
 
       const data = await res.json();
 
-      if (!data.success) {
-        setError(data.message || "Login failed");
+      if (!res.ok || !data.success) {
+        setError(data.message || `Login failed (${res.status})`);
         return;
       }
 
       // Store token and user info
-      localStorage.setItem("token", data.data.token);
-      localStorage.setItem("user", JSON.stringify(data.data.user));
+      const { token, user } = data.data;
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
 
       // Redirect to dashboard
       router.push(dashboardPath);
     } catch (err: any) {
-      setError("Network error. Please check if the server is running.");
+      setError("Network error. Please check if the backend server is running on port 3001.");
     } finally {
       setLoading(false);
     }
