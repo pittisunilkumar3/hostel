@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ============================================
+// USER MODEL - Admin & Students
+// ============================================
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  role      Role     @default(CUSTOMER)
+  phone     String?  @db.VarChar(20)
+  avatar    String?  @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookings Booking[]
+
+  @@map("users")
+}
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  CUSTOMER
+}
+
+// ============================================
+// ROOM MODEL - Hostel Rooms
+// ============================================
+model Room {
+  id               Int           @id @default(autoincrement())
+  roomNumber       String        @unique @map("room_number") @db.VarChar(20)
+  floor            Int
+  capacity         Int           @default(1)
+  currentOccupancy Int           @default(0) @map("current_occupancy")
+  type             RoomType      @default(SINGLE)
+  status           RoomStatus    @default(AVAILABLE)
+  pricePerMonth    Float         @map("price_per_month")
+  amenities        String?       @db.Text
+  description      String?       @db.Text
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  bookings Booking[]
+
+  @@map("rooms")
+}
+
+enum RoomType {
+  SINGLE
+  DOUBLE
+  TRIPLE
+  DORMITORY
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+// ============================================
+// BOOKING MODEL - Room Bookings
+// ============================================
+model Booking {
+  id            Int            @id @default(autoincrement())
+  studentId     Int            @map("student_id")
+  roomId        Int            @map("room_id")
+  checkIn       DateTime       @map("check_in")
+  checkOut      DateTime?      @map("check_out")
+  status        BookingStatus  @default(PENDING)
+  paymentStatus PaymentStatus  @default(PENDING) @map("payment_status")
+  totalAmount   Float          @map("total_amount")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  room    Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
