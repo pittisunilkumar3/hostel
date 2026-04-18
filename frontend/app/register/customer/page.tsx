@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function CustomerRegister() {
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", phone: "", address: "" });
+  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,16 +48,14 @@ export default function CustomerRegister() {
     setError("");
     if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
     if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
-    if (!form.name.trim()) { setError("Name is required"); return; }
-
     setLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: form.name, email: form.email, password: form.password,
-          role: "CUSTOMER", phone: form.phone, address: form.address,
+          name: form.email.split("@")[0], email: form.email, password: form.password,
+          role: "CUSTOMER",
         }),
       });
       const data = await res.json();
@@ -170,25 +168,12 @@ export default function CustomerRegister() {
 
           {/* ====== EMAIL + PASSWORD FORM ====== */}
           <form onSubmit={handleSubmit} className="space-y-3.5">
-            <div className="bg-white/[0.03] rounded-xl p-3.5 space-y-3 border border-white/5">
-              <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-widest">👤 Your Details</p>
-              <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                </div>
-                <input type="text" value={form.name} onChange={(e) => update("name", e.target.value)} required placeholder="Full Name *" className={ic + " pl-10"} />
-              </div>
+            <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 </div>
                 <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required placeholder="Email Address *" className={ic + " pl-10"} />
-              </div>
-              <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                </div>
-                <input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="Phone Number" className={ic + " pl-10"} />
               </div>
             </div>
 
