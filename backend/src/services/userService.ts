@@ -14,7 +14,7 @@ interface UserRow extends RowDataPacket {
   updated_at: Date;
 }
 
-export const registerUser = async (data: RegisterInput) => {
+export const registerUser = async (data: any) => {
   const [existing] = await db.execute<RowDataPacket[]>(
     "SELECT id FROM users WHERE email = ?",
     [data.email]
@@ -28,8 +28,18 @@ export const registerUser = async (data: RegisterInput) => {
   const role = data.role || "CUSTOMER";
 
   const [result] = await db.execute<ResultSetHeader>(
-    "INSERT INTO users (name, email, password, role, phone) VALUES (?, ?, ?, ?, ?)",
-    [data.name, data.email, hashedPassword, role, data.phone || null]
+    "INSERT INTO users (name, email, password, role, phone, address, hostel_name, hostel_address, id_proof) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [
+      data.name,
+      data.email,
+      hashedPassword,
+      role,
+      data.phone || null,
+      data.address || null,
+      data.hostel_name || null,
+      data.hostel_address || null,
+      data.id_proof || null,
+    ]
   );
 
   const token = generateToken(result.insertId, role);

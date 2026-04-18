@@ -392,7 +392,14 @@ export default function EnhancedUserLogin() {
           )}
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">
+        <p className="text-center text-gray-400 text-sm mt-5">
+          Don't have an account?{" "}
+          <Link href="/register/customer" className="text-blue-400 font-semibold hover:underline">
+            Create Account
+          </Link>
+        </p>
+
+        <p className="text-center text-gray-600 text-xs mt-3">
           © 2026 Hostel Management System. All rights reserved.
         </p>
       </div>

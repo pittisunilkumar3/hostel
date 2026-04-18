@@ -6,13 +6,13 @@ import { successResponse, errorResponse } from "../utils";
 export async function registerController(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, password, role, phone } = body;
+    const { name, email, password, role, phone, address, hostel_name, hostel_address, id_proof } = body;
 
     if (!name || !email || !password) {
       return errorResponse("Name, email and password are required", 400);
     }
 
-    const result = await userService.registerUser({ name, email, password, role, phone });
+    const result = await userService.registerUser({ name, email, password, role, phone, address, hostel_name, hostel_address, id_proof });
 
     return successResponse(result, "User registered successfully", 201);
   } catch (error: any) {

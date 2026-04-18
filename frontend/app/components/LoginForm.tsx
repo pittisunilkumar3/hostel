@@ -19,6 +19,8 @@ interface LoginFormProps {
   backLink: string;
   backLabel: string;
   dashboardPath: string;
+  registerPath?: string;
+  registerLabel?: string;
 }
 
 export default function LoginForm({
@@ -36,6 +38,8 @@ export default function LoginForm({
   backLink,
   backLabel,
   dashboardPath,
+  registerPath,
+  registerLabel,
 }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -185,7 +189,16 @@ export default function LoginForm({
           </form>
         </div>
 
-        <p className="text-center text-gray-500 text-sm mt-6">
+        {registerPath && (
+          <p className="text-center text-gray-400 text-sm mt-5">
+            Don't have an account?{" "}
+            <Link href={registerPath} className={`${accentColor} font-semibold hover:underline`}>
+              {registerLabel || "Register"}
+            </Link>
+          </p>
+        )}
+
+        <p className="text-center text-gray-500 text-sm mt-3">
           © 2026 Hostel Management System
         </p>
       </div>
