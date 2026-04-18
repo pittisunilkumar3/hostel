@@ -6,134 +6,102 @@ import { useRouter } from "next/navigation";
 
 export default function CustomerRegister() {
   const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  // OTP
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState("");
   const [phone, setPhone] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
-
-  // Feature flags
   const [googleActive, setGoogleActive] = useState(false);
   const [twilioActive, setTwilioActive] = useState(false);
   const [googleClientId, setGoogleClientId] = useState("");
-
   const router = useRouter();
 
   useEffect(() => {
-    const check = async () => {
+    (async () => {
       try {
-        const g = await fetch("http://localhost:3001/api/settings/google-status");
-        const gd = await g.json();
+        const gd = await (await fetch("http://localhost:3001/api/settings/google-status")).json();
         if (gd.success && gd.data.active) { setGoogleActive(true); setGoogleClientId(gd.data.clientId); }
-
-        const t = await fetch("http://localhost:3001/api/settings/twilio-status");
-        const td = await t.json();
+        const td = await (await fetch("http://localhost:3001/api/settings/twilio-status")).json();
         if (td.success && td.data.active) setTwilioActive(true);
       } catch (e) { console.error(e); }
-    };
-    check();
+    })();
   }, []);
 
   const update = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  // Email register
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
     if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
     if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.email.split("@")[0], email: form.email, password: form.password,
-          role: "CUSTOMER",
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.email.split("@")[0], email: form.email, password: form.password, role: "CUSTOMER" }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.message || "Registration failed"); return; }
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
       router.push("/user/dashboard");
-    } catch { setError("Network error"); }
-    finally { setLoading(false); }
+    } catch { setError("Network error"); } finally { setLoading(false); }
   };
 
-  // Google register
   const handleGoogle = async () => {
     if (!googleActive || !googleClientId) { setError("Google sign-up is not available"); return; }
     try {
       const ga = (window as any).google?.accounts;
-      if (!ga) { setError("Google SDK not loaded. Refresh the page."); return; }
+      if (!ga) { setError("Google SDK not loaded"); return; }
       ga.id.initialize({
         client_id: googleClientId,
         callback: async (response: any) => {
           try {
-            const payload = JSON.parse(atob(response.credential.split(".")[1]));
+            const p = JSON.parse(atob(response.credential.split(".")[1]));
             const res = await fetch("http://localhost:3001/api/auth/google", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: payload.email, name: payload.name, googleId: payload.sub }),
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: p.email, name: p.name, googleId: p.sub }),
             });
             const data = await res.json();
             if (!data.success) { setError(data.message); return; }
             localStorage.setItem("token", data.data.token);
             localStorage.setItem("user", JSON.stringify(data.data.user));
             router.push("/user/dashboard");
-          } catch { setError("Google sign-up failed"); }
+          } catch { setError("Google auth failed"); }
         },
       });
       ga.id.prompt();
     } catch { setError("Google error"); }
   };
 
-  // Send OTP
   const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
     if (!phone || phone.length < 10) { setError("Enter a valid phone number"); return; }
     setOtpLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message); return; }
       setOtpSent(true);
       if (data.data?.otp) setDevOtp(data.data.otp);
-    } catch { setError("Network error"); }
-    finally { setOtpLoading(false); }
+    } catch { setError("Network error"); } finally { setOtpLoading(false); }
   };
 
-  // Verify OTP
   const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!otp || otp.length < 6) { setError("Enter the 6-digit OTP"); return; }
+    e.preventDefault(); setError("");
     setOtpLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, otp }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, otp }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message); return; }
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
       router.push("/user/dashboard");
-    } catch { setError("Network error"); }
-    finally { setOtpLoading(false); }
+    } catch { setError("Network error"); } finally { setOtpLoading(false); }
   };
 
   const ic = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm";
@@ -141,7 +109,6 @@ export default function CustomerRegister() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       {googleActive && googleClientId && <script src="https://accounts.google.com/gsi/client" async defer />}
-
       <div className="w-full max-w-[420px]">
         <Link href="/login/user" className="inline-flex items-center text-blue-300 text-sm mb-5 hover:underline">
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -149,8 +116,6 @@ export default function CustomerRegister() {
         </Link>
 
         <div className="bg-white/[0.07] backdrop-blur-xl rounded-3xl p-7 shadow-2xl shadow-blue-900/20 border border-white/10">
-
-          {/* Header */}
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-3 shadow-lg shadow-blue-600/30">
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
@@ -166,7 +131,6 @@ export default function CustomerRegister() {
             </div>
           )}
 
-          {/* ====== EMAIL + PASSWORD FORM ====== */}
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
               <div className="relative">
@@ -183,18 +147,28 @@ export default function CustomerRegister() {
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
-                <input type={showPassword ? "text" : "password"} value={form.password} onChange={(e) => update("password", e.target.value)} required placeholder="Password (min 6 chars) *" className={ic + " pl-10"} />
+                <input type={showPw ? "text" : "password"} value={form.password} onChange={(e) => update("password", e.target.value)} required placeholder="Password (min 6 chars) *" className={ic + " pl-10 pr-10"} />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                  {showPw ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  )}
+                </button>
               </div>
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                 </div>
-                <input type={showPassword ? "text" : "password"} value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} required placeholder="Confirm Password *" className={ic + " pl-10"} />
+                <input type={showPw ? "text" : "password"} value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} required placeholder="Confirm Password *" className={ic + " pl-10 pr-10"} />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                  {showPw ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  )}
+                </button>
               </div>
-              <label className="flex items-center gap-2 text-gray-400 text-xs cursor-pointer select-none">
-                <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} className="rounded accent-blue-500 w-3.5 h-3.5" />
-                Show passwords
-              </label>
             </div>
 
             <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/25 disabled:opacity-50 transition-all text-sm">
@@ -202,7 +176,6 @@ export default function CustomerRegister() {
             </button>
           </form>
 
-          {/* ====== DIVIDER ====== */}
           {(googleActive || twilioActive) && (
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
@@ -211,7 +184,6 @@ export default function CustomerRegister() {
             </div>
           )}
 
-          {/* ====== GOOGLE + OTP ====== */}
           {(googleActive || twilioActive) && (
             <div className="space-y-3">
               {googleActive && (
