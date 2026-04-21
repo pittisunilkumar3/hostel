@@ -2,19 +2,20 @@ import { NextRequest } from "next/server";
 import db, { RowDataPacket, ResultSetHeader } from "../config/database";
 import { successResponse, errorResponse } from "../utils";
 import { hashPassword, generateToken } from "../helpers";
-import { isSettingActive, getSettingValue } from "../services/settingsService";
+import { sendOTPViaProvider, getActiveOTPProvider } from "../services/otpProviderService";
 
 // Helper: generate 6-digit OTP
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// POST /api/auth/otp/send — send OTP to phone
+// POST /api/auth/otp/send — send OTP to phone via active provider
 export async function sendOTPController(request: NextRequest) {
   try {
-    const active = await isSettingActive("twilio_account_sid");
-    if (!active) {
-      return errorResponse("OTP login is disabled by admin", 403);
+    // Check if any OTP provider is active
+    const activeProvider = await getActiveOTPProvider();
+    if (!activeProvider || !activeProvider.is_active) {
+      return errorResponse("OTP login is disabled by admin. No active OTP provider.", 403);
     }
 
     const body = await request.json();
@@ -48,36 +49,24 @@ export async function sendOTPController(request: NextRequest) {
       [otp, expires, phone]
     );
 
-    // Send OTP via Twilio
-    const accountSid = await getSettingValue("twilio_account_sid");
-    const authToken = await getSettingValue("twilio_auth_token");
-    const twilioPhone = await getSettingValue("twilio_phone_number");
+    // Send OTP via the active provider
+    const sent = await sendOTPViaProvider(phone, otp);
 
-    if (accountSid && authToken && twilioPhone) {
-      try {
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-        const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-
-        await fetch(twilioUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${credentials}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: `To=whatsapp:${phone}&From=${twilioPhone}&Body=Your Hostel login OTP is: ${otp}. Valid for 5 minutes.`,
-        });
-      } catch (twilioErr: any) {
-        console.error("Twilio error:", twilioErr.message);
-        // Still return success — OTP is saved in DB for development
-      }
+    if (!sent) {
+      console.warn(`Failed to send OTP via ${activeProvider.provider_type}. OTP still saved in DB.`);
     }
 
     // In development mode, return OTP in response (remove in production)
     const isDev = process.env.NODE_ENV !== "production";
 
     return successResponse(
-      { phone, otp: isDev ? otp : undefined, message: "OTP sent successfully" },
-      "OTP sent to your phone"
+      {
+        phone,
+        provider: activeProvider.provider_type,
+        otp: isDev ? otp : undefined,
+        message: "OTP sent successfully",
+      },
+      `OTP sent via ${activeProvider.name}`
     );
   } catch (error: any) {
     return errorResponse(error.message, 500);
