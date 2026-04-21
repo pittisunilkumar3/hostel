@@ -26,7 +26,6 @@ interface Zone {
 
 export default function ZonesPage() {
   const router = useRouter();
-  // Zone list state
   const [zones, setZones] = useState<Zone[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -42,13 +41,11 @@ export default function ZonesPage() {
   // Map state
   const [mapApiKey, setMapApiKey] = useState("");
   const [mapReady, setMapReady] = useState(false);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const drawingManagerRef = useRef<any>(null);
   const lastPolygonRef = useRef<any>(null);
   const mapInitDone = useRef(false);
-  const overlayPolygonsRef = useRef<any[]>([]);
 
   // Warning modal
   const [showWarning, setShowWarning] = useState(false);
@@ -62,6 +59,8 @@ export default function ZonesPage() {
     } catch { /* ignore */ } finally { setListLoading(false); }
   }, [search]);
 
+  useEffect(() => { fetchZones(); }, [fetchZones]);
+
   // Fetch map key on mount
   useEffect(() => {
     (async () => {
@@ -72,31 +71,23 @@ export default function ZonesPage() {
     })();
   }, []);
 
-  useEffect(() => { fetchZones(); }, [fetchZones]);
-
-  // ---- Overlay existing zones on the map ----
-  const loadExistingZoneOverlays = useCallback(async () => {
-    if (!mapInstanceRef.current) return;
-    // Clear old overlays
-    overlayPolygonsRef.current.forEach((p) => p.setMap(null));
-    overlayPolygonsRef.current = [];
-
-    try {
-      const res = await apiFetch("/api/zones/coordinates");
-      if (res.success) {
-        res.data.forEach((z: any) => {
-          if (z.coordinates?.length > 0) {
-            const poly = new window.google.maps.Polygon({
-              paths: z.coordinates.map((c: number[]) => ({ lat: c[0], lng: c[1] })),
-              strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
-              fillColor: "#FF0000", fillOpacity: 0.1,
-              map: mapInstanceRef.current,
-            });
-            overlayPolygonsRef.current.push(poly);
-          }
-        });
+  // ---- Cleanup map on unmount ----
+  useEffect(() => {
+    return () => {
+      if (lastPolygonRef.current) {
+        lastPolygonRef.current.setEditable(false);
+        lastPolygonRef.current.setMap(null);
+        lastPolygonRef.current = null;
       }
-    } catch { /* ignore */ }
+      if (drawingManagerRef.current) {
+        drawingManagerRef.current.setMap(null);
+        drawingManagerRef.current = null;
+      }
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null;
+      }
+      mapInitDone.current = false;
+    };
   }, []);
 
   // ---- Initialize Google Map ----
@@ -155,16 +146,13 @@ export default function ZonesPage() {
       });
     }
 
-    // Show existing zones
-    loadExistingZoneOverlays();
-
     // Geolocate
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
         map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       });
     }
-  }, [loadExistingZoneOverlays]);
+  }, []);
 
   // Trigger init when script loads
   useEffect(() => {
@@ -250,10 +238,7 @@ export default function ZonesPage() {
     setDeleting(id);
     try {
       const res = await apiFetch(`/api/zones/${id}`, { method: "DELETE" });
-      if (res.success) {
-        fetchZones();
-        loadExistingZoneOverlays();
-      }
+      if (res.success) fetchZones();
     } catch { /* ignore */ }
     setDeleting(null);
   };
@@ -286,7 +271,7 @@ export default function ZonesPage() {
       </div>
 
       {/* ====== CREATE FORM SECTION ====== */}
-      <div ref={mapContainerRef} className="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
         <form onSubmit={handleCreate}>
           <div className="flex flex-col lg:flex-row" style={{ height: "500px" }}>
             {/* Left — Instructions + Form */}
@@ -343,7 +328,7 @@ export default function ZonesPage() {
               </div>
             </div>
 
-            {/* Right — Map */}
+            {/* Right — Map (clean canvas, no overlays) */}
             <div className="lg:w-7/12 relative">
               {!mapApiKey ? (
                 <div className="flex items-center justify-center h-full p-8 text-center">
@@ -367,7 +352,6 @@ export default function ZonesPage() {
 
       {/* ====== ZONE LIST TABLE ====== */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        {/* Card Header */}
         <div className="p-3 border-b border-gray-200 flex flex-wrap items-center gap-3">
           <h5 className="text-sm font-semibold text-gray-800">
             Zone List
@@ -375,7 +359,6 @@ export default function ZonesPage() {
               {zones.length}
             </span>
           </h5>
-
           <form onSubmit={(e) => { e.preventDefault(); fetchZones(); }} className="ml-auto flex">
             <div className="flex">
               <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -387,7 +370,6 @@ export default function ZonesPage() {
           </form>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           {listLoading ? (
             <div className="text-center py-10">
@@ -465,7 +447,7 @@ export default function ZonesPage() {
         </div>
       </div>
 
-      {/* ====== WARNING MODAL ====== */}
+      {/* Warning Modal */}
       {showWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">

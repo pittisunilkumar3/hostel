@@ -30,16 +30,14 @@ export default function EditZonePage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const lastPolygonRef = useRef<any>(null);
-  const otherZonesRef = useRef<any[]>([]);
   const initCalledRef = useRef(false);
 
   // Fetch zone data + map key + other zones
   useEffect(() => {
     (async () => {
       try {
-        const [zoneRes, coordsRes, mapRes] = await Promise.all([
+        const [zoneRes, mapRes] = await Promise.all([
           apiFetch(`/api/zones/${zoneId}`),
-          apiFetch(`/api/zones/coordinates?exclude=${zoneId}`).catch(() => ({ success: false, data: [] })),
           fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/settings/map`).then((r) => r.json()),
         ]);
         if (zoneRes.success) {
@@ -55,7 +53,6 @@ export default function EditZonePage() {
             } catch { /* ignore */ }
           }
         }
-        if (coordsRes.success) otherZonesRef.current = coordsRes.data;
         if (mapRes.success && mapRes.data?.mapApiKeyClient) {
           setMapApiKey(mapRes.data.mapApiKeyClient);
         }
@@ -144,22 +141,6 @@ export default function EditZonePage() {
       lastPolygonRef.current = event.overlay;
     });
 
-    // Show other zones as red
-    otherZonesRef.current.forEach((z: any) => {
-      if (z.coordinates && z.coordinates.length > 0) {
-        const paths = z.coordinates.map((c: number[]) => ({ lat: c[0], lng: c[1] }));
-        new window.google.maps.Polygon({
-          paths,
-          strokeColor: "#FF0000",
-          strokeOpacity: 0.8,
-          strokeWeight: 2,
-          fillColor: "#FF0000",
-          fillOpacity: 0.1,
-          map,
-        });
-      }
-    });
-
     // Search box
     const input = document.getElementById("zone-edit-search-input") as HTMLInputElement;
     if (input) {
@@ -194,6 +175,21 @@ export default function EditZonePage() {
       setMapReady(true);
     }
   }, [dataLoaded, mapApiKey]);
+
+  // Cleanup map on unmount
+  useEffect(() => {
+    return () => {
+      if (lastPolygonRef.current) {
+        lastPolygonRef.current.setEditable(false);
+        lastPolygonRef.current.setMap(null);
+        lastPolygonRef.current = null;
+      }
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null;
+      }
+      initCalledRef.current = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
