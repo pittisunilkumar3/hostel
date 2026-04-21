@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import { API_URL } from "@/lib/auth";
+import Script from "next/script";
 
 const sidebarItems = getSidebarItems();
+
+declare global { interface Window { google: any; } }
 
 const ic = "w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all";
 
@@ -55,7 +58,109 @@ export default function BusinessSetup() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
 
-  useEffect(() => { setUser(getCurrentUser()); fetchSettings(); }, []);
+  // Map state
+  const [mapApiKey, setMapApiKey] = useState("");
+  const [mapReady, setMapReady] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const mapInitDone = useRef(false);
+
+  useEffect(() => { setUser(getCurrentUser()); fetchSettings(); fetchMapKey(); }, []);
+
+  const fetchMapKey = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/settings/map`).then((r) => r.json());
+      if (res.success && res.data?.mapApiKeyClient) setMapApiKey(res.data.mapApiKeyClient);
+    } catch { /* ignore */ }
+  };
+
+  // ---- Init map ----
+  const initMap = useCallback(() => {
+    if (!window.google || !mapRef.current || mapInitDone.current) return;
+    mapInitDone.current = true;
+
+    const lat = parseFloat(companyLatitude) || 17.385;
+    const lng = parseFloat(companyLongitude) || 78.4867;
+
+    const map = new window.google.maps.Map(mapRef.current, {
+      center: { lat, lng },
+      zoom: 13,
+      mapTypeControl: false,
+    });
+    mapInstanceRef.current = map;
+
+    // Marker
+    const marker = new window.google.maps.Marker({
+      position: { lat, lng },
+      map,
+      draggable: true,
+    });
+    markerRef.current = marker;
+
+    // Update lat/lng when marker is dragged
+    marker.addListener("dragend", () => {
+      const pos = marker.getPosition();
+      if (pos) {
+        setCompanyLatitude(pos.lat().toFixed(6));
+        setCompanyLongitude(pos.lng().toFixed(6));
+      }
+    });
+
+    // Search box
+    const input = document.getElementById("biz-map-search") as HTMLInputElement;
+    if (input) {
+      const searchBox = new window.google.maps.places.SearchBox(input);
+      map.controls[window.google.maps.ControlPosition.TOP_CENTER].push(input);
+      map.addListener("bounds_changed", () => searchBox.setBounds(map.getBounds()));
+      searchBox.addListener("places_changed", () => {
+        const places = searchBox.getPlaces();
+        if (!places || !places.length) return;
+        const loc = places[0].geometry?.location;
+        if (loc) {
+          map.setCenter(loc);
+          marker.setPosition(loc);
+          setCompanyLatitude(loc.lat().toFixed(6));
+          setCompanyLongitude(loc.lng().toFixed(6));
+        }
+      });
+    }
+  }, [companyLatitude, companyLongitude]);
+
+  useEffect(() => {
+    if (mapReady && window.google) {
+      const t = setTimeout(() => initMap(), 150);
+      return () => clearTimeout(t);
+    }
+  }, [mapReady, initMap]);
+
+  // Handle google already loaded
+  useEffect(() => {
+    if (window.google && !mapInitDone.current && mapApiKey) {
+      setMapReady(true);
+    }
+  }, [mapApiKey]);
+
+  // Update marker when lat/lng inputs change
+  useEffect(() => {
+    if (!mapInstanceRef.current || !markerRef.current || !window.google) return;
+    const lat = parseFloat(companyLatitude);
+    const lng = parseFloat(companyLongitude);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      const pos = { lat, lng };
+      mapInstanceRef.current.setCenter(pos);
+      markerRef.current.setPosition(pos);
+    }
+  }, [companyLatitude, companyLongitude]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (markerRef.current) { markerRef.current.setMap(null); markerRef.current = null; }
+      if (mapInstanceRef.current) { mapInstanceRef.current = null; }
+      mapInitDone.current = false;
+    };
+  }, []);
 
   const fetchSettings = async () => {
     try {
@@ -404,13 +509,24 @@ export default function BusinessSetup() {
                   <input type="text" value={companyLongitude} onChange={(e) => setCompanyLongitude(e.target.value)} placeholder="77.594566" className={ic} />
                 </div>
               </div>
-              <div className="border border-dashed border-gray-300 rounded-xl h-48 bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                  <svg className="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  <p className="text-xs text-gray-400">Map placeholder</p>
-                  {companyLatitude && companyLongitude && <p className="text-[10px] text-gray-400 mt-1">📍 {companyLatitude}, {companyLongitude}</p>}
-                </div>
+              <div className="border border-gray-300 rounded-xl h-52 relative bg-gray-50">
+                {!mapApiKey ? (
+                  <div className="flex items-center justify-center h-full text-center p-4">
+                    <div>
+                      <svg className="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      <p className="text-xs text-gray-400">Map API Key not configured</p>
+                      <p className="text-[10px] text-gray-300 mt-1">Add it in <a href="/admin/settings" className="underline">System Settings → Map API Key</a></p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <input id="biz-map-search" type="text" placeholder="Search location..."
+                      className="absolute top-2 left-2 z-10 w-64 px-3 py-1.5 border border-gray-300 rounded text-sm shadow bg-white focus:outline-none" />
+                    <div ref={mapRef} className="w-full h-full" />
+                  </>
+                )}
               </div>
+              <p className="text-[10px] text-gray-400 mt-1">Drag the marker or search a location to set latitude &amp; longitude automatically</p>
             </div>
           </div>
 
@@ -613,6 +729,15 @@ export default function BusinessSetup() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Google Maps Script */}
+      {mapApiKey && (
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=places`}
+          onLoad={() => setMapReady(true)}
+          strategy="lazyOnload"
+        />
       )}
     </DashboardShell>
   );
