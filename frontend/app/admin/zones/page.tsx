@@ -221,9 +221,6 @@ export default function ZonesPage() {
           drawingManagerRef.current.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
         }
 
-        // Refresh overlays on the map
-        loadExistingZoneOverlays();
-
         // Refresh table
         fetchZones();
 
