@@ -44,7 +44,7 @@ const PI: Record<string, React.ReactNode> = {
   alphanet: <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>,
 };
 
-type Tab = "sms" | "social" | "login" | "mail" | "map" | "recaptcha" | "payment";
+type Tab = "sms" | "social" | "login" | "mail" | "map" | "recaptcha" | "payment" | "language";
 
 export default function AdminSettings() {
   const [providers, setProviders] = useState<OTPProvider[]>([]);
@@ -95,6 +95,17 @@ export default function AdminSettings() {
   const [recaptchaSecretKey, setRecaptchaSecretKey] = useState("");
   const [recaptchaActive, setRecaptchaActive] = useState(false);
 
+  // Language
+  const [languages, setLanguages] = useState<any[]>([]);
+  const [showAddLang, setShowAddLang] = useState(false);
+  const [newLangCode, setNewLangCode] = useState("");
+  const [newLangDir, setNewLangDir] = useState("ltr");
+  const [langTransCode, setLangTransCode] = useState<string | null>(null);
+  const [translations, setTranslations] = useState<any[]>([]);
+  const [transSearch, setTransSearch] = useState("");
+  const [editTransKey, setEditTransKey] = useState<string | null>(null);
+  const [editTransValue, setEditTransValue] = useState("");
+
   // Login Setup
   const [manualLogin, setManualLogin] = useState(true);
   const [otpLogin, setOtpLogin] = useState(false);
@@ -110,7 +121,7 @@ export default function AdminSettings() {
   const [gwConfigs, setGwConfigs] = useState<Record<number, Record<string, string>>>({});
   const [gwExpandedId, setGwExpandedId] = useState<number | null>(null);
 
-  useEffect(() => { setUser(getCurrentUser()); Promise.all([fetchProviders(), fetchSettings(), fetchGateways(), fetchLoginSetup()]); }, []);
+  useEffect(() => { setUser(getCurrentUser()); Promise.all([fetchProviders(), fetchSettings(), fetchGateways(), fetchLoginSetup(), fetchLanguages()]); }, []);
 
   const fetchProviders = async () => {
     try {
@@ -315,6 +326,86 @@ export default function AdminSettings() {
     sslcommerz: <span className="text-2xl">🔒</span>,
   };
 
+  // -- Language --
+  const fetchLanguages = async () => {
+    try {
+      const res = await apiFetch("/api/languages");
+      if (res.success) setLanguages(res.data);
+    } catch (e) { console.error(e); }
+  };
+  const addLang = async () => {
+    if (!newLangCode) return;
+    setSaving(-6); clearMsg();
+    try {
+      const res = await apiFetch("/api/languages", { method: "POST", body: JSON.stringify({ code: newLangCode, direction: newLangDir }) });
+      res.success ? (msg("success", `✅ ${res.data.name} added!`), setShowAddLang(false), setNewLangCode(""), fetchLanguages()) : msg("error", res.message || "Failed");
+    } catch { msg("error", "Network error"); } finally { setSaving(null); }
+  };
+  const toggleLang = async (code: string, isActive: boolean) => {
+    clearMsg();
+    try {
+      const res = await apiFetch(`/api/languages/${code}/toggle`, { method: "PATCH", body: JSON.stringify({ is_active: isActive }) });
+      res.success ? (msg("success", `✅ Updated!`), fetchLanguages()) : msg("error", res.message || "Failed");
+    } catch { msg("error", "Network error"); }
+  };
+  const setDefaultLang = async (code: string) => {
+    clearMsg();
+    try {
+      const res = await apiFetch(`/api/languages/${code}/default`, { method: "PATCH" });
+      res.success ? (msg("success", `✅ Default changed!`), fetchLanguages()) : msg("error", res.message || "Failed");
+    } catch { msg("error", "Network error"); }
+  };
+  const deleteLang = async (code: string) => {
+    if (!confirm(`Delete language "${code}"? All translations will be lost.`)) return;
+    clearMsg();
+    try {
+      const res = await apiFetch(`/api/languages/${code}`, { method: "DELETE" });
+      res.success ? (msg("success", `✅ Deleted!`), fetchLanguages()) : msg("error", res.message || "Failed");
+    } catch { msg("error", "Network error"); }
+  };
+  const editLangDir = async (code: string, direction: string) => {
+    clearMsg();
+    try {
+      await apiFetch(`/api/languages/${code}`, { method: "PUT", body: JSON.stringify({ direction }) });
+      fetchLanguages();
+    } catch {}
+  };
+  const openTranslations = async (code: string) => {
+    setLangTransCode(code); setTransSearch("");
+    try {
+      const res = await apiFetch(`/api/languages/${code}/translations`);
+      if (res.success) setTranslations(res.data);
+    } catch (e) { console.error(e); }
+  };
+  const searchTranslations = async (code: string, q: string) => {
+    setTransSearch(q);
+    try {
+      const res = await apiFetch(`/api/languages/${code}/translations?search=${encodeURIComponent(q)}`);
+      if (res.success) setTranslations(res.data);
+    } catch {}
+  };
+  const saveTranslation = async (code: string, key: string, value: string) => {
+    try {
+      await apiFetch(`/api/languages/${code}/translations`, { method: "PUT", body: JSON.stringify({ key, value }) });
+      setEditTransKey(null);
+      openTranslations(code);
+    } catch {}
+  };
+  const autoTranslateKey = async (code: string, key: string) => {
+    try {
+      const res = await apiFetch(`/api/languages/${code}/auto-translate`, { method: "POST", body: JSON.stringify({ key }) });
+      if (res.success) { msg("success", `Translated: ${res.data.value}`); openTranslations(code); }
+    } catch {}
+  };
+  const autoTranslateAll = async (code: string) => {
+    setSaving(-7); clearMsg();
+    try {
+      const res = await apiFetch(`/api/languages/${code}/auto-translate-all`, { method: "POST" });
+      res.success ? msg("success", `✅ Auto-translated ${res.data.count} strings!`) : msg("error", "Failed");
+      openTranslations(code);
+    } catch { msg("error", "Network error"); } finally { setSaving(null); }
+  };
+
   const activeProvider = providers.find(p => p.is_active === 1);
 
   const Inp = ({ label, value, onChange, type = "text", placeholder = "", required = false, mono = false }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; required?: boolean; mono?: boolean }) => (
@@ -349,6 +440,7 @@ export default function AdminSettings() {
     { key: "map", label: "Map API", color: "emerald", icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> },
     { key: "recaptcha", label: "reCAPTCHA", color: "amber", icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg> },
     { key: "payment", label: "Payment", color: "teal", icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg> },
+    { key: "language", label: "Language", color: "sky", icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg> },
   ];
 
   return (
@@ -907,6 +999,157 @@ export default function AdminSettings() {
           <div><p className="text-sm font-medium text-teal-800">Digital Payment Methods</p><p className="text-xs text-teal-600 mt-1">Activate gateways that support your target currency. Multiple gateways can be active simultaneously. Users will see all active options at checkout.</p></div>
         </div>
       </div>}
+
+      {/* ===================== LANGUAGE ===================== */}
+      {tab === "language" && !langTransCode && <div className="max-w-4xl">
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="p-5 flex items-center justify-between border-b border-gray-50">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-sky-50 rounded-xl flex items-center justify-center"><svg className="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg></div>
+              <h3 className="font-bold text-gray-900">Language List</h3>
+            </div>
+            <button onClick={() => setShowAddLang(true)} className="px-4 py-2 bg-sky-600 text-white rounded-xl text-sm font-semibold hover:bg-sky-700 flex items-center gap-1.5"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>Add New Language</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-gray-50 text-gray-600">
+                <th className="px-5 py-3 text-left font-semibold">#</th>
+                <th className="px-5 py-3 text-left font-semibold">Code</th>
+                <th className="px-5 py-3 text-left font-semibold">Language</th>
+                <th className="px-5 py-3 text-left font-semibold">Direction</th>
+                <th className="px-5 py-3 text-center font-semibold">Status</th>
+                <th className="px-5 py-3 text-center font-semibold">Default</th>
+                <th className="px-5 py-3 text-center font-semibold">Action</th>
+              </tr></thead>
+              <tbody className="divide-y divide-gray-50">
+                {languages.map((lang, i) => (
+                  <tr key={lang.code} className={`hover:bg-gray-50/50 ${lang.is_default ? "bg-sky-50/30" : ""}`}>
+                    <td className="px-5 py-3 text-gray-500">{i + 1}</td>
+                    <td className="px-5 py-3 font-mono text-gray-700 font-medium">{lang.code}</td>
+                    <td className="px-5 py-3 font-medium text-gray-900">{lang.name}</td>
+                    <td className="px-5 py-3">
+                      <select value={lang.direction} onChange={e => editLangDir(lang.code, e.target.value)} disabled={lang.code === "en"} className="px-2 py-1 border border-gray-200 rounded-lg text-xs bg-white">
+                        <option value="ltr">LTR</option><option value="rtl">RTL</option>
+                      </select>
+                    </td>
+                    <td className="px-5 py-3 text-center"><Toggle checked={!!lang.is_active} onChange={v => toggleLang(lang.code, v)} /></td>
+                    <td className="px-5 py-3 text-center">
+                      {lang.is_default ? <span className="px-2.5 py-1 bg-sky-100 text-sky-700 text-[10px] font-bold rounded-full">DEFAULT</span>
+                        : <button onClick={() => setDefaultLang(lang.code)} className="px-2.5 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-full hover:bg-sky-50 hover:text-sky-600 transition-all">SET DEFAULT</button>}
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {lang.code !== "en" && <>
+                          <button onClick={() => deleteLang(lang.code)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        </>}
+                        <button onClick={() => openTranslations(lang.code)} className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg" title="Translate"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="mt-6 bg-sky-50 border border-sky-100 rounded-xl p-4 flex items-start gap-3">
+          <svg className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <div><p className="text-sm font-medium text-sky-800">Language Management</p><p className="text-xs text-sky-600 mt-1">Add languages, set direction (LTR/RTL), toggle active/inactive, and mark one as default. Click the globe icon to translate strings.</p></div>
+        </div>
+      </div>}
+
+      {/* ===================== LANGUAGE TRANSLATE ===================== */}
+      {tab === "language" && langTransCode && <div className="max-w-4xl">
+        <div className="mb-4 flex items-center gap-3">
+          <button onClick={() => { setLangTransCode(null); setTranslations([]); }} className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200 flex items-center gap-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>Back</button>
+          <h3 className="text-lg font-bold text-gray-900">{languages.find(l => l.code === langTransCode)?.name || langTransCode} Translations</h3>
+          <span className="text-xs text-gray-400">{translations.length} strings</span>
+          <div className="ml-auto flex items-center gap-2">
+            {langTransCode !== "en" && <button onClick={() => autoTranslateAll(langTransCode)} disabled={saving === -7} className="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-semibold hover:bg-sky-700 disabled:opacity-50 flex items-center gap-1">
+              {saving === -7 ? <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : "🔄"} Translate All
+            </button>}
+            <input type="text" value={transSearch} onChange={e => searchTranslations(langTransCode, e.target.value)} placeholder="Search..." className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm w-48" />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="bg-gray-50 text-gray-600">
+              <th className="px-4 py-3 text-left font-semibold w-8">#</th>
+              <th className="px-4 py-3 text-left font-semibold">Key</th>
+              <th className="px-4 py-3 text-left font-semibold">Translated Value</th>
+              <th className="px-4 py-3 text-center font-semibold w-32">Actions</th>
+            </tr></thead>
+            <tbody className="divide-y divide-gray-50">
+              {translations.map((t, i) => (
+                <tr key={t.translation_key} className="hover:bg-gray-50/50">
+                  <td className="px-4 py-2 text-gray-400 text-xs">{i + 1}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-gray-500 max-w-[200px] truncate" title={t.translation_key}>{t.translation_key}</td>
+                  <td className="px-4 py-2">
+                    {editTransKey === t.translation_key
+                      ? <div className="flex items-center gap-2">
+                          <input type="text" value={editTransValue} onChange={e => setEditTransValue(e.target.value)} className="flex-1 px-3 py-1.5 border border-sky-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500/30" autoFocus />
+                          <button onClick={() => saveTranslation(langTransCode, t.translation_key, editTransValue)} className="px-2 py-1 bg-sky-600 text-white rounded-lg text-xs hover:bg-sky-700">Save</button>
+                          <button onClick={() => setEditTransKey(null)} className="px-2 py-1 bg-gray-200 text-gray-600 rounded-lg text-xs">✕</button>
+                        </div>
+                      : <span className="text-gray-800 cursor-pointer hover:text-sky-600" onClick={() => { setEditTransKey(t.translation_key); setEditTransValue(t.translation_value || ""); }}>{t.translation_value || <em className="text-gray-300">Click to edit</em>}</span>
+                    }
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {editTransKey !== t.translation_key && <button onClick={() => { setEditTransKey(t.translation_key); setEditTransValue(t.translation_value || ""); }} className="p-1 text-gray-400 hover:text-sky-600 rounded" title="Edit"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>}
+                      {langTransCode !== "en" && <button onClick={() => autoTranslateKey(langTransCode, t.translation_key)} className="p-1 text-gray-400 hover:text-amber-600 rounded" title="Auto-translate"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>}
+
+      {/* ===================== ADD LANGUAGE MODAL ===================== */}
+      {showAddLang && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">Add New Language</h3>
+              <button onClick={() => setShowAddLang(false)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Language <span className="text-red-500">*</span></label>
+                <select value={newLangCode} onChange={e => setNewLangCode(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400">
+                  <option value="">-- Select Language --</option>
+                  <option value="af">Afrikaans</option><option value="sq">Albanian</option><option value="ar">Arabic - العربية</option><option value="hy">Armenian</option><option value="az">Azerbaijani</option>
+                  <option value="bn">Bengali - বাংলা</option><option value="bg">Bulgarian</option><option value="zh">Chinese - 中文</option><option value="zh-CN">Chinese (Simplified)</option><option value="zh-TW">Chinese (Traditional)</option>
+                  <option value="hr">Croatian</option><option value="cs">Czech</option><option value="da">Danish</option><option value="nl">Dutch</option><option value="en">English</option>
+                  <option value="et">Estonian</option><option value="fi">Finnish</option><option value="fr">French - français</option><option value="de">German - Deutsch</option><option value="el">Greek</option>
+                  <option value="gu">Gujarati - ગુજરાતી</option><option value="he">Hebrew - עברית</option><option value="hi">Hindi - हिन्दी</option><option value="hu">Hungarian</option><option value="id">Indonesian</option>
+                  <option value="it">Italian</option><option value="ja">Japanese - 日本語</option><option value="kn">Kannada</option><option value="ko">Korean - 한국어</option><option value="ku">Kurdish</option>
+                  <option value="lv">Latvian</option><option value="lt">Lithuanian</option><option value="ms">Malay</option><option value="ml">Malayalam - മലയാളം</option><option value="mr">Marathi - मराठी</option>
+                  <option value="mn">Mongolian</option><option value="ne">Nepali - नेपाली</option><option value="no">Norwegian</option><option value="fa">Persian - فارسی</option><option value="pl">Polish</option>
+                  <option value="pt">Portuguese</option><option value="pt-BR">Portuguese (Brazil)</option><option value="pa">Punjabi - ਪੰਜਾਬੀ</option><option value="ro">Romanian</option><option value="ru">Russian - русский</option>
+                  <option value="sr">Serbian</option><option value="si">Sinhala</option><option value="sk">Slovak</option><option value="sl">Slovenian</option><option value="es">Spanish - español</option>
+                  <option value="sw">Swahili</option><option value="sv">Swedish</option><option value="tl">Tagalog</option><option value="ta">Tamil - தமிழ்</option><option value="te">Telugu - తెలుగు</option>
+                  <option value="th">Thai - ไทย</option><option value="tr">Turkish</option><option value="uk">Ukrainian</option><option value="ur">Urdu - اردو</option><option value="uz">Uzbek</option>
+                  <option value="vi">Vietnamese</option><option value="cy">Welsh</option><option value="zu">Zulu</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Direction</label>
+                <select value={newLangDir} onChange={e => setNewLangDir(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white">
+                  <option value="ltr">LTR (Left to Right)</option><option value="rtl">RTL (Right to Left)</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-5 border-t border-gray-100 bg-gray-50">
+              <button onClick={addLang} disabled={!newLangCode || saving === -6} className="flex-1 px-5 py-2.5 bg-sky-600 text-white rounded-xl text-sm font-semibold hover:bg-sky-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {saving === -6 ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>}Add Language
+              </button>
+              <button onClick={() => setShowAddLang(false)} className="px-5 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===================== TEST MAIL MODAL ===================== */}
       {showTestMail && (

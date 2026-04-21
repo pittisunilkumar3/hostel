@@ -137,7 +137,7 @@ export default function OwnerRegister() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          {loginSetup.manualLogin && <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
@@ -180,9 +180,9 @@ export default function OwnerRegister() {
             <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-600/25 disabled:opacity-50 transition-all text-sm">
               {loading ? "Creating Account..." : "Create Account"}
             </button>
-          </form>
+          </form>}
 
-          {((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
+          {loginSetup.manualLogin && ((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
               <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">or sign up with</span>

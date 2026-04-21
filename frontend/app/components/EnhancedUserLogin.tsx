@@ -217,7 +217,7 @@ export default function EnhancedUserLogin() {
           )}
 
           {/* ====== EMAIL + PASSWORD FORM ====== */}
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          {loginSetup.manualLogin && <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5">Email Address</label>
               <div className="relative">
@@ -294,10 +294,10 @@ export default function EnhancedUserLogin() {
                 "Sign In"
               )}
             </button>
-          </form>
+          </form>}
 
           {/* ====== DIVIDER ====== */}
-          {((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
+          {loginSetup.manualLogin && ((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
               <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">or continue with</span>

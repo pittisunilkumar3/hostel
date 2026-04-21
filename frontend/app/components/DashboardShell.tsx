@@ -69,7 +69,11 @@ export default function DashboardShell({
 
   const isDropdownActive = (item: SidebarItem) => {
     if (!item.children) return false;
-    return item.children.some(child => pathname === child.href);
+    return item.children.some(child => {
+      // Match ignoring query params: /admin/help-support?tab=x → /admin/help-support
+      const childPath = child.href.split('?')[0];
+      return pathname === childPath;
+    });
   };
 
   if (!checked) {
@@ -137,7 +141,27 @@ export default function DashboardShell({
                   {isOpen && (
                     <div className="ml-4 mt-1 space-y-0.5 border-l border-white/10 pl-3">
                       {item.children.map((child, cidx) => {
-                        const isChildActive = pathname === child.href;
+                        // Match ignoring query params for dropdown detection
+                        const childPath = child.href.split('?')[0];
+                        const childHasQuery = child.href.includes('?');
+                        // Basic path match
+                        const pathMatch = pathname === childPath;
+                        // For highlighting: if this child has a query param, only highlight if current URL also has that param
+                        // If this child has NO query param, highlight only if no other sibling with query matches
+                        let isChildActive = false;
+                        if (pathMatch) {
+                          if (childHasQuery) {
+                            // Check if URL has this specific query
+                            try {
+                              const urlObj = new URL(window.location.href);
+                              const childUrl = new URL(child.href, window.location.origin);
+                              isChildActive = urlObj.search === childUrl.search;
+                            } catch { isChildActive = false; }
+                          } else {
+                            // No query on child — only active if URL also has no query
+                            isChildActive = !window.location.search;
+                          }
+                        }
                         return (
                           <Link
                             key={`${child.href}-${cidx}`}

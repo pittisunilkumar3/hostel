@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLoginSetup } from "@/lib/loginSetup";
 
 export default function HostelRegister() {
   const [form, setForm] = useState({
@@ -35,6 +36,7 @@ export default function HostelRegister() {
   const [googleActive, setGoogleActive] = useState(false);
   const [twilioActive, setTwilioActive] = useState(false);
   const [googleClientId, setGoogleClientId] = useState("");
+  const loginSetup = useLoginSetup();
   const router = useRouter();
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export default function HostelRegister() {
   };
 
   const handleGoogle = async () => {
-    if (!googleActive || !googleClientId) { setError("Google sign-up is not available"); return; }
+    if (!loginSetup.socialLogin || !loginSetup.googleLogin || !googleActive || !googleClientId) { setError("Google sign-up is not available"); return; }
     try {
       const ga = (window as any).google?.accounts;
       if (!ga) { setError("Google SDK not loaded"); return; }
@@ -146,7 +148,7 @@ export default function HostelRegister() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
-      {googleActive && googleClientId && <script src="https://accounts.google.com/gsi/client" async defer />}
+      {loginSetup.socialLogin && loginSetup.googleLogin && googleActive && googleClientId && <script src="https://accounts.google.com/gsi/client" async defer />}
       <div className="w-full max-w-[460px]">
         <Link href="/login/owner" className="inline-flex items-center text-indigo-300 text-sm mb-5 hover:underline">
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -169,7 +171,7 @@ export default function HostelRegister() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          {loginSetup.manualLogin && <form onSubmit={handleSubmit} className="space-y-3.5">
             {/* Personal Info */}
             <div className="bg-white/[0.03] rounded-xl p-3.5 space-y-3 border border-white/5">
               <p className="text-[10px] text-indigo-400 font-semibold uppercase tracking-widest">👤 Owner Information</p>
@@ -277,9 +279,9 @@ export default function HostelRegister() {
             <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/25 disabled:opacity-50 transition-all text-sm">
               {loading ? "Registering Hostel..." : "Register Hostel"}
             </button>
-          </form>
+          </form>}
 
-          {(googleActive || twilioActive) && (
+          {loginSetup.manualLogin && ((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
               <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">or sign up with</span>
@@ -287,9 +289,9 @@ export default function HostelRegister() {
             </div>
           )}
 
-          {(googleActive || twilioActive) && (
+          {((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
             <div className="space-y-3">
-              {googleActive && (
+              {loginSetup.socialLogin && loginSetup.googleLogin && googleActive && (
                 <button onClick={handleGoogle} className="w-full py-3 px-4 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-white/20 text-white rounded-xl font-medium flex items-center justify-center gap-3 transition-all text-sm">
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -301,7 +303,7 @@ export default function HostelRegister() {
                 </button>
               )}
 
-              {twilioActive && (
+              {loginSetup.otpLogin && twilioActive && (
                 <div>
                   {!otpSent ? (
                     <form onSubmit={handleSendOTP} className="flex gap-2">

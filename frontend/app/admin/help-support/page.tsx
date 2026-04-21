@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
@@ -51,7 +51,9 @@ interface ConvMessage {
 
 function HelpSupportPage() {
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<Tab>("contacts");
+  const router = useRouter();
+  const currentPathname = usePathname();
+  const [tab, setTabState] = useState<Tab>("contacts");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -79,9 +81,19 @@ function HelpSupportPage() {
   useEffect(() => {
     const urlTab = searchParams.get("tab");
     if (urlTab === "conversations") {
-      setTab("conversations");
+      setTabState("conversations");
     }
   }, [searchParams]);
+
+  // Tab setter that also updates URL for proper sidebar highlighting
+  const setTab = (newTab: Tab) => {
+    setTabState(newTab);
+    if (newTab === "conversations") {
+      router.push(`${currentPathname}?tab=conversations`, { scroll: false });
+    } else {
+      router.push(currentPathname, { scroll: false });
+    }
+  };
 
   useEffect(() => {
     setUser(getCurrentUser());
