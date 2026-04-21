@@ -42,10 +42,11 @@ export default function ZonesPage() {
 
   // Map state
   const [mapApiKey, setMapApiKey] = useState("");
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const lastPolygonRef = useRef<any>(null);
+  const initCalledRef = useRef(false);
 
   // Warning modal
   const [showWarning, setShowWarning] = useState(false);
@@ -73,7 +74,9 @@ export default function ZonesPage() {
 
   // Google Maps init
   const initMap = useCallback(() => {
-    if (!window.google || !mapRef.current || mapInstanceRef.current) return;
+    if (!window.google || !mapRef.current) return;
+    if (initCalledRef.current) return;
+    initCalledRef.current = true;
 
     const map = new window.google.maps.Map(mapRef.current, {
       center: { lat: 17.385, lng: 78.4867 },
@@ -145,8 +148,18 @@ export default function ZonesPage() {
   }, []);
 
   useEffect(() => {
-    if (mapLoaded && window.google) initMap();
-  }, [mapLoaded, initMap]);
+    if (mapReady && window.google) {
+      const timer = setTimeout(() => initMap(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [mapReady, initMap]);
+
+  // Handle case where google maps was already loaded (client-side nav)
+  useEffect(() => {
+    if (window.google && !initCalledRef.current && mapApiKey) {
+      setMapReady(true);
+    }
+  }, [mapApiKey]);
 
   // Handle create zone
   const handleCreate = async (e: React.FormEvent) => {
@@ -438,7 +451,7 @@ export default function ZonesPage() {
       {mapApiKey && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=drawing,places`}
-          onLoad={() => setMapLoaded(true)}
+          onLoad={() => setMapReady(true)}
           strategy="lazyOnload"
         />
       )}

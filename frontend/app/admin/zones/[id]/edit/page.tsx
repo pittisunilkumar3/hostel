@@ -22,14 +22,16 @@ export default function EditZonePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [mapApiKey, setMapApiKey] = useState("");
   const [zoneData, setZoneData] = useState<any>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const lastPolygonRef = useRef<any>(null);
   const otherZonesRef = useRef<any[]>([]);
+  const initCalledRef = useRef(false);
 
   // Fetch zone data + map key + other zones
   useEffect(() => {
@@ -59,17 +61,28 @@ export default function EditZonePage() {
         }
       } catch { /* ignore */ }
       setLoading(false);
+      setDataLoaded(true);
     })();
   }, [zoneId]);
 
   const initMap = useCallback(() => {
-    if (!window.google || !mapRef.current || mapInstanceRef.current) return;
+    if (!window.google || !mapRef.current) return;
+    if (initCalledRef.current) return;
+    initCalledRef.current = true;
+
+    // Destroy existing map instance if any
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current = null;
+    }
 
     let center = { lat: 17.385, lng: 78.4867 };
+    let existingPaths: { lat: number; lng: number }[] = [];
+
     if (zoneData?.coordinates) {
       try {
         const coords = JSON.parse(zoneData.coordinates);
         if (coords.length > 0) {
+          existingPaths = coords.map((c: number[]) => ({ lat: c[0], lng: c[1] }));
           const avgLat = coords.reduce((s: number, c: number[]) => s + c[0], 0) / coords.length;
           const avgLng = coords.reduce((s: number, c: number[]) => s + c[1], 0) / coords.length;
           center = { lat: avgLat, lng: avgLng };
@@ -85,29 +98,23 @@ export default function EditZonePage() {
     });
     mapInstanceRef.current = map;
 
-    // Show existing zone polygon
-    if (zoneData?.coordinates) {
-      try {
-        const coords = JSON.parse(zoneData.coordinates);
-        if (coords.length > 0) {
-          const paths = coords.map((c: number[]) => ({ lat: c[0], lng: c[1] }));
-          new window.google.maps.Polygon({
-            paths,
-            strokeColor: "#4F46E5",
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
-            fillColor: "#4F46E5",
-            fillOpacity: 0.15,
-            map,
-          });
-          const bounds = new window.google.maps.LatLngBounds();
-          paths.forEach((p: any) => bounds.extend(p));
-          map.fitBounds(bounds);
-        }
-      } catch { /* ignore */ }
+    // Show existing zone polygon in blue
+    if (existingPaths.length > 0) {
+      new window.google.maps.Polygon({
+        paths: existingPaths,
+        strokeColor: "#4F46E5",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: "#4F46E5",
+        fillOpacity: 0.15,
+        map,
+      });
+      const bounds = new window.google.maps.LatLngBounds();
+      existingPaths.forEach((p) => bounds.extend(p));
+      map.fitBounds(bounds);
     }
 
-    // Drawing Manager
+    // Drawing Manager for redraw
     const drawingManager = new window.google.maps.drawing.DrawingManager({
       drawingMode: window.google.maps.drawing.OverlayType.POLYGON,
       drawingControl: true,
@@ -149,8 +156,8 @@ export default function EditZonePage() {
       }
     });
 
-    // Search
-    const input = document.getElementById("zone-search-input") as HTMLInputElement;
+    // Search box
+    const input = document.getElementById("zone-edit-search-input") as HTMLInputElement;
     if (input) {
       const searchBox = new window.google.maps.places.SearchBox(input);
       map.controls[window.google.maps.ControlPosition.TOP_CENTER].push(input);
@@ -168,9 +175,21 @@ export default function EditZonePage() {
     }
   }, [zoneData]);
 
+  // Initialize map when script is ready AND data is loaded
   useEffect(() => {
-    if (mapLoaded && window.google && zoneData) initMap();
-  }, [mapLoaded, zoneData, initMap]);
+    if (mapReady && dataLoaded && window.google) {
+      // Small delay to ensure DOM is rendered
+      const timer = setTimeout(() => initMap(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [mapReady, dataLoaded, initMap]);
+
+  // Also handle case where google maps script was already loaded (client-side nav)
+  useEffect(() => {
+    if (window.google && dataLoaded && !initCalledRef.current && mapApiKey) {
+      setMapReady(true);
+    }
+  }, [dataLoaded, mapApiKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,12 +221,13 @@ export default function EditZonePage() {
 
   if (loading) return (
     <DashboardShell role="admin" title="Super Admin" items={sidebarItems} accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10">
-      <div className="text-center py-20"><svg className="animate-spin h-8 w-8 text-indigo-600 mx-auto" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg></div>
+      <div className="text-center py-20"><svg className="animate-spin h-8 w-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg></div>
     </DashboardShell>
   );
 
   return (
     <DashboardShell role="admin" title="Super Admin" items={sidebarItems} accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => router.push("/admin/zones")} className="p-2 hover:bg-gray-100 rounded-xl transition-all">
           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
@@ -219,50 +239,51 @@ export default function EditZonePage() {
       </div>
 
       {!mapApiKey ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
-          <svg className="w-12 h-12 text-amber-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
-          <h3 className="text-lg font-bold text-amber-800 mb-2">Map API Key Required</h3>
-          <p className="text-sm text-amber-700 mb-4">Please add your Google Maps API key in <a href="/admin/settings" className="font-semibold underline">System Settings → Map API Key</a> to use the zone drawing feature.</p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+          <svg className="w-10 h-10 text-amber-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+          <p className="text-sm text-amber-700">Map API Key not configured. <a href="/admin/settings" className="font-semibold underline">Go to Settings</a></p>
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* Left — Form */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Zone Name <span className="text-red-500">*</span></label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={191}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
                   <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={255}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400" />
                 </div>
-                {error && <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>}
+                {error && <div className="px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>}
                 {coordinates && (
-                  <div className="p-3 bg-green-50 rounded-xl">
-                    <p className="text-xs font-semibold text-green-700">✅ Zone area ({coordinates.match(/\(/g)?.length || 0} points)</p>
+                  <div className="px-3 py-2 bg-green-50 border border-green-200 rounded">
+                    <p className="text-xs text-green-700">✅ Zone area ({coordinates.match(/\(/g)?.length || 0} points)</p>
                   </div>
                 )}
-                <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => router.push("/admin/zones")} className="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-200">Cancel</button>
-                  <button type="submit" disabled={saving} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 flex items-center gap-2">
-                    {saving ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Updating...</> : "Update Zone"}
+                <div className="flex gap-2 pt-2">
+                  <button type="button" onClick={() => router.push("/admin/zones")} className="px-4 py-2 border border-gray-300 text-gray-600 rounded text-sm font-medium hover:bg-gray-50">Cancel</button>
+                  <button type="submit" disabled={saving} className="px-4 py-2 bg-gray-800 text-white rounded text-sm font-medium hover:bg-gray-900 flex items-center gap-2">
+                    {saving ? "Updating..." : "Update"}
                   </button>
                 </div>
               </div>
             </div>
 
+            {/* Right — Map */}
             <div className="lg:col-span-3">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="p-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                   <span className="text-sm font-semibold text-gray-700">Edit Zone Area</span>
                   <span className="text-xs text-gray-400">Draw a new polygon to replace existing area</span>
                 </div>
-                <div className="relative" style={{ height: "600px" }}>
-                  <input id="zone-search-input" type="text" placeholder="Search location..."
-                    className="absolute top-3 left-3 z-10 w-72 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30" />
+                <div className="relative" style={{ height: "550px" }}>
+                  <input id="zone-edit-search-input" type="text" placeholder="Search location..."
+                    className="absolute top-2 left-2 z-10 w-64 px-3 py-1.5 border border-gray-300 rounded text-sm shadow focus:outline-none" />
                   <div ref={mapRef} className="w-full h-full" />
                 </div>
               </div>
@@ -271,10 +292,11 @@ export default function EditZonePage() {
         </form>
       )}
 
+      {/* Google Maps Script */}
       {mapApiKey && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=drawing,places`}
-          onLoad={() => setMapLoaded(true)}
+          onLoad={() => setMapReady(true)}
           strategy="lazyOnload"
         />
       )}
