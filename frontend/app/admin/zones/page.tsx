@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 
 const sidebarItems = getSidebarItems();
+
+declare global { interface Window { google: any; } }
 
 interface Zone {
   id: number;
@@ -17,25 +20,172 @@ interface Zone {
   hostels_count: number;
   minimum_service_charge: number | null;
   per_km_service_charge: number | null;
+  coordinates: string | null;
   created_at: string;
 }
 
-export default function ZonesListPage() {
+export default function ZonesPage() {
   const router = useRouter();
+  // Zone list state
   const [zones, setZones] = useState<Zone[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deleting, setDeleting] = useState<number | null>(null);
 
+  // Create form state
+  const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [coordinates, setCoordinates] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // Map state
+  const [mapApiKey, setMapApiKey] = useState("");
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const lastPolygonRef = useRef<any>(null);
+
+  // Warning modal
+  const [showWarning, setShowWarning] = useState(false);
+  const [newZoneId, setNewZoneId] = useState<number | null>(null);
+
+  // Fetch zones
   const fetchZones = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await apiFetch(`/api/zones${search ? `?search=${encodeURIComponent(search)}` : ""}`);
       if (res.success) setZones(res.data);
-    } catch { /* ignore */ } finally { setLoading(false); }
+    } catch { /* ignore */ } finally { setListLoading(false); }
   }, [search]);
 
+  // Fetch map key on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/settings/map`).then((r) => r.json());
+        if (res.success && res.data?.mapApiKeyClient) setMapApiKey(res.data.mapApiKeyClient);
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
   useEffect(() => { fetchZones(); }, [fetchZones]);
+
+  // Google Maps init
+  const initMap = useCallback(() => {
+    if (!window.google || !mapRef.current || mapInstanceRef.current) return;
+
+    const map = new window.google.maps.Map(mapRef.current, {
+      center: { lat: 17.385, lng: 78.4867 },
+      zoom: 12,
+      mapTypeId: window.google.maps.MapTypeId.ROADMAP,
+      mapTypeControl: false,
+    });
+    mapInstanceRef.current = map;
+
+    const drawingManager = new window.google.maps.drawing.DrawingManager({
+      drawingMode: window.google.maps.drawing.OverlayType.POLYGON,
+      drawingControl: true,
+      drawingControlOptions: {
+        position: window.google.maps.ControlPosition.TOP_CENTER,
+        drawingModes: [window.google.maps.drawing.OverlayType.POLYGON],
+      },
+      polygonOptions: { editable: true },
+    });
+    drawingManager.setMap(map);
+
+    window.google.maps.event.addListener(drawingManager, "overlaycomplete", (event: any) => {
+      if (lastPolygonRef.current) lastPolygonRef.current.setMap(null);
+      const path = event.overlay.getPath().getArray();
+      setCoordinates(path.map((p: any) => `(${p.lat()}, ${p.lng()})`).join(", "));
+      lastPolygonRef.current = event.overlay;
+    });
+
+    // Search box
+    const input = document.getElementById("zone-search-input") as HTMLInputElement;
+    if (input) {
+      const searchBox = new window.google.maps.places.SearchBox(input);
+      map.controls[window.google.maps.ControlPosition.TOP_CENTER].push(input);
+      map.addListener("bounds_changed", () => searchBox.setBounds(map.getBounds()));
+      searchBox.addListener("places_changed", () => {
+        const places = searchBox.getPlaces();
+        if (!places || !places.length) return;
+        const bounds = new window.google.maps.LatLngBounds();
+        places.forEach((p: any) => {
+          if (p.geometry?.viewport) bounds.union(p.geometry.viewport);
+          else if (p.geometry?.location) bounds.extend(p.geometry.location);
+        });
+        map.fitBounds(bounds);
+      });
+    }
+
+    // Show existing zones
+    (async () => {
+      try {
+        const res = await apiFetch("/api/zones/coordinates");
+        if (res.success) {
+          res.data.forEach((z: any) => {
+            if (z.coordinates?.length > 0) {
+              new window.google.maps.Polygon({
+                paths: z.coordinates.map((c: number[]) => ({ lat: c[0], lng: c[1] })),
+                strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
+                fillColor: "#FF0000", fillOpacity: 0.1, map,
+              });
+            }
+          });
+        }
+      } catch { /* ignore */ }
+    })();
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mapLoaded && window.google) initMap();
+  }, [mapLoaded, initMap]);
+
+  // Handle create zone
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    setSuccessMsg("");
+    if (!name.trim()) { setFormError("Zone name is required"); return; }
+    if (!coordinates) { setFormError("Please draw a zone area on the map"); return; }
+
+    setSaving(true);
+    try {
+      const pairs = coordinates.match(/\(([^)]+)\)/g);
+      if (!pairs || pairs.length < 3) { setFormError("At least 3 polygon points required"); setSaving(false); return; }
+      const coordsArray = pairs.map((p) => {
+        const nums = p.replace(/[()]/g, "").split(",").map((s) => parseFloat(s.trim()));
+        return [nums[0], nums[1]];
+      });
+
+      const res = await apiFetch("/api/zones", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), displayName: displayName.trim() || null, coordinates: JSON.stringify(coordsArray) }),
+      });
+
+      if (res.success) {
+        setName(""); setDisplayName(""); setCoordinates("");
+        if (lastPolygonRef.current) { lastPolygonRef.current.setMap(null); lastPolygonRef.current = null; }
+        setNewZoneId(res.data.id);
+        setShowWarning(true);
+        fetchZones();
+      } else {
+        setFormError(res.message || "Failed to create zone");
+      }
+    } catch { setFormError("Network error"); } finally { setSaving(false); }
+  };
+
+  const handleReset = () => {
+    setName(""); setDisplayName(""); setCoordinates(""); setFormError("");
+    if (lastPolygonRef.current) { lastPolygonRef.current.setMap(null); lastPolygonRef.current = null; }
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this zone?")) return;
@@ -43,17 +193,13 @@ export default function ZonesListPage() {
     try {
       const res = await apiFetch(`/api/zones/${id}`, { method: "DELETE" });
       if (res.success) fetchZones();
-      else alert(res.message || "Failed to delete");
-    } catch { alert("Network error"); }
+    } catch { /* ignore */ }
     setDeleting(null);
   };
 
-  const toggleStatus = async (id: number, currentStatus: number) => {
+  const toggleStatus = async (id: number, current: number) => {
     try {
-      const res = await apiFetch(`/api/zones/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: !currentStatus }),
-      });
+      const res = await apiFetch(`/api/zones/${id}/status`, { method: "PATCH", body: JSON.stringify({ status: !current }) });
       if (res.success) fetchZones();
     } catch { /* ignore */ }
   };
@@ -70,107 +216,184 @@ export default function ZonesListPage() {
       role="admin" title="Super Admin" items={sidebarItems}
       accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10"
     >
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Business Zones</h1>
-            <p className="text-gray-500 text-sm">Manage geographic zones for hostel coverage</p>
-          </div>
-        </div>
-        <button onClick={() => router.push("/admin/zones/create")}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-          Add New Zone
-        </button>
+      {/* Page Header */}
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          Add New Business Zone
+        </h1>
       </div>
 
-      {/* Search */}
-      <div className="mb-5">
-        <div className="relative max-w-sm">
-          <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by zone name..."
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400" />
-        </div>
+      {/* ====== CREATE FORM SECTION ====== */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+        <form onSubmit={handleCreate}>
+          <div className="flex flex-col lg:flex-row">
+            {/* Left — Instructions */}
+            <div className="lg:w-5/12 p-5 border-b lg:border-b-0 lg:border-r border-gray-100">
+              <h6 className="text-sm font-semibold text-gray-800 mb-2">Instructions</h6>
+              <p className="text-xs text-gray-500 mb-4">Create &amp; connect dots in a specific area on the map to add a new business zone.</p>
+
+              <div className="space-y-3 mb-4">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-7 h-7 rounded bg-gray-100 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" /></svg>
+                  </span>
+                  <p className="text-xs text-gray-600">Use this &lsquo;Hand Tool&rsquo; to find your target zone.</p>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-7 h-7 rounded bg-gray-100 flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" /></svg>
+                  </span>
+                  <p className="text-xs text-gray-600">Use this &lsquo;Shape Tool&rsquo; to point out the areas and connect the dots. A minimum of 3 points/dots is required.</p>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Business Zone Name</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+                    placeholder="Type new zone name here" maxLength={191}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Zone Display Name</label>
+                  <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Write a new display zone name" maxLength={255}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400" />
+                </div>
+              </div>
+
+              {formError && <p className="mt-2 text-xs text-red-600">{formError}</p>}
+
+              {coordinates && (
+                <p className="mt-2 text-xs text-green-700">✅ Zone area drawn ({coordinates.match(/\(/g)?.length || 0} points)</p>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-2 mt-4">
+                <button type="button" onClick={handleReset}
+                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded text-xs font-medium hover:bg-gray-50">
+                  Reset
+                </button>
+                <button type="submit" disabled={saving || !coordinates}
+                  className={`px-4 py-2 rounded text-xs font-medium ${coordinates ? "bg-gray-800 text-white hover:bg-gray-900" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}>
+                  {saving ? "Submitting..." : "Submit"}
+                </button>
+              </div>
+            </div>
+
+            {/* Right — Map */}
+            <div className="lg:w-7/12 relative" style={{ minHeight: "420px" }}>
+              {!mapApiKey ? (
+                <div className="flex items-center justify-center h-full p-8 text-center">
+                  <div>
+                    <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                    <p className="text-sm font-medium text-gray-500">Map API Key Required</p>
+                    <p className="text-xs text-gray-400 mt-1">Add your Google Maps API key in <a href="/admin/settings" className="underline">System Settings</a></p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <input id="zone-search-input" type="text" placeholder="Search here"
+                    className="absolute top-2 left-2 z-10 w-64 px-3 py-1.5 border border-gray-300 rounded text-sm shadow focus:outline-none" />
+                  <div ref={mapRef} className="w-full h-full" style={{ minHeight: "420px" }} />
+                </>
+              )}
+            </div>
+          </div>
+        </form>
       </div>
 
-      {loading ? (
-        <div className="text-center py-20">
-          <svg className="animate-spin h-8 w-8 text-indigo-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+      {/* ====== ZONE LIST TABLE ====== */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        {/* Card Header */}
+        <div className="p-3 border-b border-gray-200 flex flex-wrap items-center gap-3">
+          <h5 className="text-sm font-semibold text-gray-800">
+            Zone List
+            <span className="ml-1.5 inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded">
+              {zones.length}
+            </span>
+          </h5>
+
+          <form onSubmit={(e) => { e.preventDefault(); fetchZones(); }} className="ml-auto flex">
+            <div className="flex">
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name" className="px-3 py-1.5 border border-gray-300 border-r-0 rounded-l text-sm focus:outline-none" />
+              <button type="submit" className="px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-r text-gray-500 hover:bg-gray-200">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </button>
+            </div>
+          </form>
         </div>
-      ) : zones.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-          <svg className="w-16 h-16 text-gray-200 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          <h3 className="text-lg font-semibold text-gray-400">No zones found</h3>
-          <p className="text-gray-400 text-sm mt-1">Create your first business zone to get started</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          {listLoading ? (
+            <div className="text-center py-10">
+              <svg className="animate-spin h-6 w-6 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+            </div>
+          ) : zones.length === 0 ? (
+            <div className="text-center py-10">
+              <svg className="w-12 h-12 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+              <p className="text-sm text-gray-400">No data found</p>
+            </div>
+          ) : (
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50/80">
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3.5">SL</th>
-                  <th className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3.5">Zone ID</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3.5">Name</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3.5">Display Name</th>
-                  <th className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3.5">Hostels</th>
-                  <th className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3.5">Default</th>
-                  <th className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3.5">Status</th>
-                  <th className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3.5">Actions</th>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5">SL</th>
+                  <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Zone ID</th>
+                  <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5 pl-8">Name</th>
+                  <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5 pl-8">Display Name</th>
+                  <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Hostels</th>
+                  <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Default Status</th>
+                  <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Status</th>
+                  <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5" style={{ width: "100px" }}>Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody>
                 {zones.map((zone, idx) => (
-                  <tr key={zone.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-gray-500">{idx + 1}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700 text-center font-mono">#{zone.id}</td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm font-medium text-gray-900">{zone.name}</span>
-                      {(!zone.minimum_service_charge || !zone.per_km_service_charge) && (
-                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                          ⚠ Setup Required
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600">{zone.display_name || "—"}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700 text-center">{zone.hostels_count || 0}</td>
-                    <td className="px-4 py-4 text-center">
+                  <tr key={zone.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <td className="px-4 py-3 text-sm text-gray-600">{idx + 1}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{zone.id}</td>
+                    <td className="px-4 py-3 pl-8 text-sm text-gray-800">{zone.name}</td>
+                    <td className="px-4 py-3 pl-8 text-sm text-gray-600">{zone.display_name || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 text-center">{zone.hostels_count || 0}</td>
+                    <td className="px-4 py-3 text-center">
                       {zone.is_default ? (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                          Default
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+                          Default Zone
+                          <svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </span>
                       ) : (
                         <button onClick={() => setDefault(zone.id)}
-                          className="px-3 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-all">
+                          className="px-3 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-600 hover:bg-gray-50">
                           Make Default
                         </button>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      <button onClick={() => toggleStatus(zone.id, zone.status)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${zone.status ? "bg-indigo-600" : "bg-gray-200"}`}>
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow ${zone.status ? "translate-x-6" : "translate-x-1"}`} />
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={!!zone.status} onChange={() => toggleStatus(zone.id, zone.status)} className="sr-only peer" />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gray-800"></div>
+                        </label>
+                      </div>
                     </td>
-                    <td className="px-4 py-4 text-center">
+                    <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => router.push(`/admin/zones/${zone.id}/edit`)}
-                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit Zone">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          className="p-1.5 border border-gray-300 rounded hover:bg-gray-50" title="Edit Zone">
+                          <svg className="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                         </button>
                         <button onClick={() => router.push(`/admin/zones/${zone.id}/settings`)}
-                          className={`p-2 rounded-lg transition-all ${(!zone.minimum_service_charge || !zone.per_km_service_charge) ? "text-amber-600 hover:bg-amber-50" : "text-gray-500 hover:bg-gray-100"}`} title="Zone Settings">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          className={`p-1.5 border rounded ${(!zone.minimum_service_charge || !zone.per_km_service_charge) ? "border-amber-400 bg-amber-50 hover:bg-amber-100" : "border-gray-300 hover:bg-gray-50"}`} title="Zone Settings">
+                          <svg className={`w-3.5 h-3.5 ${(!zone.minimum_service_charge || !zone.per_km_service_charge) ? "text-amber-600" : "text-gray-600"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         </button>
                         <button onClick={() => handleDelete(zone.id)} disabled={deleting === zone.id}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50" title="Delete Zone">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          className="p-1.5 border border-gray-300 rounded hover:bg-red-50 hover:border-red-300" title="Delete">
+                          <svg className="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
                     </td>
@@ -178,11 +401,46 @@ export default function ZonesListPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-          <div className="px-6 py-3 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between">
-            <span className="text-xs text-gray-500">Total: {zones.length} zone{zones.length !== 1 ? "s" : ""}</span>
+          )}
+        </div>
+      </div>
+
+      {/* ====== WARNING MODAL (after zone creation) ====== */}
+      {showWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+            <div className="p-6">
+              <div className="text-center mb-4">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">New Business Zone Created Successfully!</h3>
+                <p className="text-sm text-gray-600">
+                  <strong>NEXT IMPORTANT STEP:</strong> You need to add &lsquo;Service Charge&rsquo; with other details from the Zone Settings. If you don&apos;t add a service charge, the Zone you created won&apos;t function properly.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button onClick={() => setShowWarning(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded text-sm font-medium hover:bg-gray-50">
+                  I Will Do It Later
+                </button>
+                <button onClick={() => { setShowWarning(false); if (newZoneId) router.push(`/admin/zones/${newZoneId}/settings`); }}
+                  className="px-4 py-2 bg-gray-800 text-white rounded text-sm font-medium hover:bg-gray-900">
+                  Go to Zone Settings
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Google Maps Script */}
+      {mapApiKey && (
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=drawing,places`}
+          onLoad={() => setMapLoaded(true)}
+          strategy="lazyOnload"
+        />
       )}
     </DashboardShell>
   );
