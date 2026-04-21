@@ -1,2 +1,2 @@
 export { config } from "./env";
-export { default as db, RowDataPacket, ResultSetHeader } from "./database";
+export { default as db, type RowDataPacket, type ResultSetHeader } from "./database";

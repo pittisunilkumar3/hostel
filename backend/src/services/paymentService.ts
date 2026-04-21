@@ -9,7 +9,7 @@ export interface PaymentTransaction {
   amount: number;
   currency: string;
   status: "pending" | "processing" | "success" | "failed" | "cancelled" | "refunded";
-  transaction_id: string | null;
+  transaction_id: string;
   gateway_reference: string | null;
   payment_data: Record<string, any> | null;
   callback_data: Record<string, any> | null;
@@ -44,7 +44,7 @@ export const createTransaction = async (data: {
     [data.booking_id || null, data.user_id, data.gateway_slug, data.gateway_mode, data.amount, data.currency || "INR", transaction_id, JSON.stringify(data.payment_data || {})]
   );
   const [rows] = await db.execute<RowDataPacket[]>("SELECT * FROM payment_transactions WHERE id = ?", [result.insertId]);
-  return rows[0] as PaymentTransaction;
+  return { ...rows[0], transaction_id: rows[0].transaction_id || transaction_id } as PaymentTransaction;
 };
 
 export const getTransactionById = async (id: number): Promise<PaymentTransaction | null> => {
@@ -57,7 +57,7 @@ export const getTransactionByTxnId = async (transaction_id: string): Promise<Pay
   return rows.length > 0 ? rows[0] as PaymentTransaction : null;
 };
 
-export const updateTransactionStatus = async (id: number, status: PaymentTransaction["status"], data?: { gateway_reference?: string; callback_data?: Record<string, any> }): Promise<void> => {
+export const updateTransactionStatus = async (id: number, status: PaymentTransaction["status"], data?: { gateway_reference?: string | null; callback_data?: Record<string, any> }): Promise<void> => {
   const updates: string[] = ["status = ?"];
   const values: any[] = [status];
   if (data?.gateway_reference) { updates.push("gateway_reference = ?"); values.push(data.gateway_reference); }

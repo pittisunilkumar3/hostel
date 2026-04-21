@@ -28,7 +28,7 @@ export async function updateTwilioSettingsController(request: NextRequest) {
 export async function getGoogleStatusController() {
   try {
     const { isSettingActive, getSettingValue } = await import("../services/settingsService");
-    const active = await isSettingActive("google_client_id");
+    const active = await isSettingActive("google_is_active");
     const clientId = active ? await getSettingValue("google_client_id") : null;
     return successResponse({ active, clientId }, "Google status");
   } catch (error: any) { return errorResponse(error.message, 500); }
@@ -37,7 +37,9 @@ export async function getGoogleStatusController() {
 export async function getTwilioStatusController() {
   try {
     const { isSettingActive } = await import("../services/settingsService");
-    return successResponse({ active: await isSettingActive("twilio_account_sid") }, "Twilio status");
+    // Check if twilio_account_sid has an active row (legacy) OR twilio_is_active
+    const active = await isSettingActive("twilio_account_sid");
+    return successResponse({ active }, "Twilio status");
   } catch (error: any) { return errorResponse(error.message, 500); }
 }
 
@@ -106,13 +108,14 @@ export async function updateSocialSettingsController(request: NextRequest) {
   try {
     const body = await request.json();
     const { updateSetting } = await import("../services/settingsService");
-    const updates = body.settings; // { google: { client_id, client_secret, is_active }, facebook: {...}, apple: {...} }
+    const updates = body.settings;
     for (const [provider, data] of Object.entries(updates as Record<string, Record<string, string>>)) {
+      const isActive = data.is_active === "1" || data.is_active === "true" || data.is_active === true;
       for (const [key, value] of Object.entries(data)) {
         if (key === "is_active") {
-          await updateSetting(`${provider}_is_active`, value, value === "1" || value === true);
+          await updateSetting(`${provider}_is_active`, String(isActive ? 1 : 0), isActive);
         } else {
-          await updateSetting(`${provider}_${key}`, value, !!data.is_active);
+          await updateSetting(`${provider}_${key}`, value, isActive);
         }
       }
     }

@@ -12,6 +12,7 @@ export default function AdminLogin() {
       iconBg="bg-purple-500/30"
       btnColor="bg-purple-600"
       btnHover="hover:bg-purple-700"
+      btnGradient="bg-gradient-to-r from-purple-600 to-violet-600"
       shadowColor="shadow-purple-900/30"
       backLink="/"
       backLabel="Back to Home"
