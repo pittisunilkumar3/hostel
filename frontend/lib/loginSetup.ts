@@ -71,7 +71,6 @@ export function useLoginSetup() {
 
     load();
 
-    // Listen for manual refresh
     const handleRefresh = () => load();
     window.addEventListener("login-setup-changed", handleRefresh);
 

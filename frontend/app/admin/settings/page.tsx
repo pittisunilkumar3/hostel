@@ -460,6 +460,7 @@ export default function AdminSettings() {
       </div>}
 
 
+
       {/* ===================== LOGIN SETUP ===================== */}
       {tab === "login" && <div className="max-w-3xl space-y-6">
         {/* Setup Login Option */}
@@ -469,7 +470,6 @@ export default function AdminSettings() {
             <p className="text-xs text-gray-500 mt-0.5">The option you select, customer will have the option to login with.</p>
           </div>
           <div className="p-6 space-y-4">
-            {/* Login Methods */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Manual Login */}
               <label className={"cursor-pointer rounded-xl border-2 p-4 transition-all " + (manualLogin ? "border-blue-400 bg-blue-50/50" : "border-gray-200 hover:border-gray-300")}>
@@ -496,7 +496,8 @@ export default function AdminSettings() {
                   </div>
                   <input type="checkbox" checked={otpLogin} onChange={(e) => setOtpLogin(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
                 </div>
-                <p className="text-[11px] text-gray-500 leading-relaxed">With OTP Login, customers can log in using their phone number. New customers can create accounts instantly.</p>
+                <p className="text-[11px] text-gray-500 leading-relaxed">With OTP
+ Login, customers can log in using their phone number. New customers can create accounts instantly.</p>
               </label>
 
               {/* Social Login */}
@@ -522,12 +523,18 @@ export default function AdminSettings() {
               </div>
             )}
 
-            {/* Social Media Sub-options */}
+            {/* Social Media Login Setup — shown when socialLogin is ON */}
             {socialLogin && (
               <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-5 space-y-4">
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900">Social Media Login Setup</h4>
-                  <p className="text-[11px] text-gray-500 mt-0.5">Choose which social media providers are available for login.</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Social Media Login Setup</h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Choose which social media providers customers can use to login.</p>
+                  </div>
+                  <button onClick={() => setTab("social")} className="text-[11px] text-purple-600 font-semibold hover:underline flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                    Configure credentials in Social Login tab
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {/* Google */}
@@ -539,37 +546,44 @@ export default function AdminSettings() {
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                       </svg>
-                      <span className="text-sm font-semibold text-gray-900">Google</span>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900">Google</span>
+                        <p className={"text-[10px] " + (googleActive ? "text-green-600" : "text-amber-500")}>{googleActive ? "✅ Credentials set" : "⚠️ Not configured"}</p>
+                      </div>
                     </div>
-                    <input type="checkbox" checked={googleLogin} onChange={(e) => setGoogleLogin(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" checked={googleLogin} onChange={(e) => setGoogleLogin(e.target.checked)} disabled={!googleActive} className="rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40" />
                   </label>
 
                   {/* Facebook */}
                   <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (facebookLogin ? "border-indigo-300 bg-indigo-50/50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                      <span className="text-sm font-semibold text-gray-900">Facebook</span>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900">Facebook</span>
+                        <p className={"text-[10px] " + (facebookActive ? "text-green-600" : "text-amber-500")}>{facebookActive ? "✅ Credentials set" : "⚠️ Not configured"}</p>
+                      </div>
                     </div>
-                    <input type="checkbox" checked={facebookLogin} onChange={(e) => setFacebookLogin(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
+                    <input type="checkbox" checked={facebookLogin} onChange={(e) => setFacebookLogin(e.target.checked)} disabled={!facebookActive} className="rounded text-indigo-600 focus:ring-indigo-500 disabled:opacity-40" />
                   </label>
 
                   {/* Apple */}
                   <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (appleLogin ? "border-gray-400 bg-gray-50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5 text-gray-900" fill="currentColor" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-                      <span className="text-sm font-semibold text-gray-900">Apple</span>
+                      <div>
+                        <span className="text-sm font-semibold text-gray-900">Apple</span>
+                        <p className={"text-[10px] " + (appleActive ? "text-green-600" : "text-amber-500")}>{appleActive ? "✅ Credentials set" : "⚠️ Not configured"}</p>
+                      </div>
                     </div>
-                    <input type="checkbox" checked={appleLogin} onChange={(e) => setAppleLogin(e.target.checked)} className="rounded text-gray-600 focus:ring-gray-500" />
+                    <input type="checkbox" checked={appleLogin} onChange={(e) => setAppleLogin(e.target.checked)} disabled={!appleActive} className="rounded text-gray-600 focus:ring-gray-500 disabled:opacity-40" />
                   </label>
                 </div>
 
-                {/* Provider warning */}
-                {socialLogin && !googleLogin && !facebookLogin && !appleLogin && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2">
-                    <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" /></svg>
-                    <p className="text-[11px] text-amber-700">At least one social login provider must be selected.</p>
-                  </div>
-                )}
+                {/* Info: link to Social Login tab */}
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-2">
+                  <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <p className="text-[11px] text-blue-700">Providers showing <strong>⚠️ Not configured</strong> are disabled. Go to the <button onClick={() => setTab("social")} className="font-bold underline text-blue-800">Social Login tab</button> to configure credentials first.</p>
+                </div>
               </div>
             )}
           </div>
@@ -583,7 +597,6 @@ export default function AdminSettings() {
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* Email Verification */}
               <label className={"flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all " + (emailVerification ? "border-blue-300 bg-blue-50/50" : "border-gray-200")}>
                 <div className="flex items-center gap-3">
                   <div className={"w-9 h-9 rounded-lg flex items-center justify-center " + (emailVerification ? "bg-blue-100" : "bg-gray-100")}>
@@ -597,7 +610,6 @@ export default function AdminSettings() {
                 <input type="checkbox" checked={emailVerification} onChange={(e) => setEmailVerification(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
               </label>
 
-              {/* Phone Verification */}
               <label className={"flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all " + (phoneVerification ? "border-emerald-300 bg-emerald-50/50" : "border-gray-200")}>
                 <div className="flex items-center gap-3">
                   <div className={"w-9 h-9 rounded-lg flex items-center justify-center " + (phoneVerification ? "bg-emerald-100" : "bg-gray-100")}>
