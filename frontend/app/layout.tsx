@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteSettingsProvider } from "@/lib/siteSettings";
 
 export const metadata: Metadata = {
-  title: "Hostel Management System",
+  title: "Hostel Management",
   description: "Manage your hostel bookings, rooms and more",
 };
 
@@ -13,7 +14,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full font-sans">{children}</body>
+      <head>
+        <link rel="icon" href="/favicon.ico" />
+      </head>
+      <body className="min-h-full font-sans">
+        <SiteSettingsProvider>
+          {children}
+        </SiteSettingsProvider>
+      </body>
     </html>
   );
 }

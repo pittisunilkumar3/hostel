@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSiteSettings } from "@/lib/siteSettings";
 
 interface LoginFormProps {
   role: "SUPER_ADMIN" | "OWNER" | "CUSTOMER";
@@ -47,6 +48,9 @@ export default function LoginForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const site = useSiteSettings();
+  const name = site.companyName || "Hostel Management";
+  const copyright = site.copyrightText || `© ${new Date().getFullYear()} ${name}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +106,11 @@ export default function LoginForm({
         <div className={`${bgColor} rounded-2xl p-8 shadow-2xl ${shadowColor}`}>
           {/* Icon */}
           <div className={`inline-flex items-center justify-center w-16 h-16 ${iconBg} rounded-xl mb-6`}>
-            {icon}
+            {site.companyLogo ? (
+              <img src={site.companyLogo} alt={name} className="w-10 h-10 rounded-lg object-contain" />
+            ) : (
+              icon
+            )}
           </div>
 
           <h1 className="text-2xl font-bold text-white mb-1">{title}</h1>
@@ -199,7 +207,7 @@ export default function LoginForm({
         )}
 
         <p className="text-center text-gray-500 text-sm mt-3">
-          © 2026 Hostel Management System
+          {copyright}
         </p>
       </div>
     </div>

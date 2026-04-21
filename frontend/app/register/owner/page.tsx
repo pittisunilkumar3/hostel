@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSiteSettings } from "@/lib/siteSettings";
 
 export default function OwnerRegister() {
   const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
@@ -106,6 +107,8 @@ export default function OwnerRegister() {
   };
 
   const ic = "w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all text-sm";
+  const site = useSiteSettings();
+  const name = site.companyName || "Hostel Management";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center p-4">
@@ -122,7 +125,7 @@ export default function OwnerRegister() {
               <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
             </div>
             <h1 className="text-xl font-bold text-white">Create Account</h1>
-            <p className="text-emerald-300/60 text-xs mt-1">Register as hostel owner and manage your property</p>
+            <p className="text-emerald-300/60 text-xs mt-1">Register as hostel owner at {name}</p>
           </div>
 
           {error && (

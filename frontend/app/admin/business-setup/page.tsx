@@ -120,6 +120,11 @@ export default function BusinessSetup() {
         }),
       });
       setMessage(res.success ? { type: "success", text: "✅ Settings saved successfully!" } : { type: "error", text: res.message || "Failed" });
+      if (res.success) {
+        // Clear cached settings so all pages refresh
+        localStorage.removeItem("siteSettings");
+        window.dispatchEvent(new Event("site-settings-changed"));
+      }
     } catch { setMessage({ type: "error", text: "Network error" }); }
     finally { setSaving(false); }
   };

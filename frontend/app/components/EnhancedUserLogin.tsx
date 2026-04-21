@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSiteSettings } from "@/lib/siteSettings";
 
 export default function EnhancedUserLogin() {
   const [email, setEmail] = useState("");
@@ -18,6 +19,9 @@ export default function EnhancedUserLogin() {
   const [twilioActive, setTwilioActive] = useState(false);
   const [googleClientId, setGoogleClientId] = useState("");
   const router = useRouter();
+  const site = useSiteSettings();
+  const name = site.companyName || "Hostel Management";
+  const copyright = site.copyrightText || `© ${new Date().getFullYear()} ${name}. All rights reserved.`;
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -188,13 +192,15 @@ export default function EnhancedUserLogin() {
 
           {/* Header */}
           <div className="text-center mb-7">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg shadow-blue-600/30">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
+            {site.companyLogo ? (
+              <img src={site.companyLogo} alt={name} className="w-16 h-16 mx-auto mb-4 rounded-2xl object-contain shadow-lg" />
+            ) : (
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg shadow-blue-600/30">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+              </div>
+            )}
             <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
-            <p className="text-blue-300/70 text-sm mt-1">Sign in to your customer account</p>
+            <p className="text-blue-300/70 text-sm mt-1">Sign in to your {name} account</p>
           </div>
 
           {/* Error */}
@@ -400,7 +406,7 @@ export default function EnhancedUserLogin() {
         </p>
 
         <p className="text-center text-gray-600 text-xs mt-3">
-          © 2026 Hostel Management System. All rights reserved.
+          {copyright}
         </p>
       </div>
     </div>
