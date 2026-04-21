@@ -185,3 +185,25 @@ enum NotificationMessageUserType {
   CUSTOMER
   OWNER
 }
+
+// ============================================
+// ZONE MODEL - Geographic business zones
+// ============================================
+model Zone {
+  id                            Int      @id @default(autoincrement())
+  name                          String   @unique @db.VarChar(191)
+  displayName                   String?  @map("display_name") @db.VarChar(255)
+  coordinates                   String?  @db.Text
+  status                        Boolean  @default(true)
+  isDefault                     Boolean  @default(false) @map("is_default")
+  minimumServiceCharge          Float?   @map("minimum_service_charge")
+  perKmServiceCharge            Float?   @map("per_km_service_charge")
+  maximumServiceCharge          Float?   @map("maximum_service_charge")
+  increasedServiceFee           Float    @default(0) @map("increased_service_fee")
+  increasedServiceFeeStatus     Boolean  @default(false) @map("increased_service_fee_status")
+  increaseServiceChargeMessage  String?  @map("increase_service_charge_message") @db.VarChar(255)
+  createdAt                     DateTime @default(now()) @map("created_at")
+  updatedAt                     DateTime @updatedAt @map("updated_at")
+
+  @@map("zones")
+}
