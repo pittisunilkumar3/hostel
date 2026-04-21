@@ -10,13 +10,12 @@ import {
   getActiveOTPProvider,
 } from "../services/otpProviderService";
 
-// GET /api/otp-providers — list all providers
+// GET /api/otp-providers
 export async function getOTPProvidersController() {
   try {
     const providers = await getAllOTPProviders();
     const active = await getActiveOTPProvider();
 
-    // Parse config JSON for each provider
     const parsed = providers.map((p) => ({
       ...p,
       config: typeof p.config === "string" ? JSON.parse(p.config) : p.config,
@@ -31,32 +30,15 @@ export async function getOTPProvidersController() {
   }
 }
 
-// GET /api/otp-providers/status — public: which provider is active?
+// GET /api/otp-providers/status — public
 export async function getOTPProviderStatusController() {
   try {
     const active = await getActiveOTPProvider();
     if (!active) {
       return successResponse({ active: false, provider: null }, "No active OTP provider");
     }
-
-    const config: Record<string, string> =
-      typeof active.config === "string" ? JSON.parse(active.config) : active.config;
-
-    // For Firebase, expose api_key publicly
-    const publicConfig: Record<string, string | null> = {};
-    if (active.provider_type === "firebase") {
-      publicConfig.api_key = config.api_key || null;
-      publicConfig.project_id = config.project_id || null;
-    }
-
     return successResponse(
-      {
-        active: true,
-        provider: active.slug,
-        providerType: active.provider_type,
-        name: active.name,
-        config: publicConfig,
-      },
+      { active: true, provider: active.slug, providerType: active.provider_type, name: active.name },
       "OTP provider status"
     );
   } catch (error: any) {
@@ -64,7 +46,7 @@ export async function getOTPProviderStatusController() {
   }
 }
 
-// GET /api/otp-providers/[id] — get single provider
+// GET /api/otp-providers/[id]
 export async function getOTPProviderController(id: number) {
   try {
     const provider = await getOTPProviderById(id);
@@ -79,19 +61,16 @@ export async function getOTPProviderController(id: number) {
   }
 }
 
-// PUT /api/otp-providers/[id] — update a provider (config, toggle, etc.)
+// PUT /api/otp-providers/[id]
 export async function updateOTPProviderController(request: NextRequest, id: number) {
   try {
     const body = await request.json();
-
     const provider = await getOTPProviderById(id);
     if (!provider) return errorResponse("Provider not found", 404);
 
     const updated = await updateOTPProvider(id, {
       name: body.name,
       description: body.description,
-      logo_url: body.logo_url,
-      color: body.color,
       config: body.config,
       is_active: body.is_active,
       sort_order: body.sort_order,
@@ -110,7 +89,7 @@ export async function updateOTPProviderController(request: NextRequest, id: numb
   }
 }
 
-// PATCH /api/otp-providers/[id]/toggle — toggle provider active status
+// PATCH /api/otp-providers/[id]/toggle
 export async function toggleOTPProviderController(request: NextRequest, id: number) {
   try {
     const body = await request.json();
@@ -133,11 +112,10 @@ export async function toggleOTPProviderController(request: NextRequest, id: numb
   }
 }
 
-// POST /api/otp-providers — create a new provider
+// POST /api/otp-providers
 export async function createOTPProviderController(request: NextRequest) {
   try {
     const body = await request.json();
-
     if (!body.name || !body.slug || !body.provider_type) {
       return errorResponse("name, slug, and provider_type are required", 400);
     }
@@ -147,8 +125,6 @@ export async function createOTPProviderController(request: NextRequest) {
       slug: body.slug,
       provider_type: body.provider_type,
       description: body.description,
-      logo_url: body.logo_url,
-      color: body.color,
       config: body.config,
       is_active: body.is_active,
       sort_order: body.sort_order,
@@ -167,7 +143,7 @@ export async function createOTPProviderController(request: NextRequest) {
   }
 }
 
-// DELETE /api/otp-providers/[id] — delete a provider
+// DELETE /api/otp-providers/[id]
 export async function deleteOTPProviderController(id: number) {
   try {
     const deleted = await deleteOTPProvider(id);

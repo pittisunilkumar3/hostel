@@ -25,8 +25,10 @@ export const getSetting = async (key: string) => {
 };
 
 export const getSettingValue = async (key: string): Promise<string | null> => {
-  const setting = await getSetting(key);
-  return setting ? setting.setting_value : null;
+  try {
+    const setting = await getSetting(key);
+    return setting ? setting.setting_value : null;
+  } catch { return null; }
 };
 
 export const isSettingActive = async (key: string): Promise<boolean> => {
@@ -61,5 +63,107 @@ export const updateTwilioSettings = async (data: {
   await updateSetting("twilio_account_sid", data.accountSid, data.isActive);
   await updateSetting("twilio_auth_token", data.authToken, data.isActive);
   await updateSetting("twilio_phone_number", data.phoneNumber, data.isActive);
+  return getAllSettings();
+};
+
+export const updateMapSettings = async (data: {
+  clientKey: string;
+  serverKey: string;
+}) => {
+  const isActive = !!(data.clientKey || data.serverKey);
+  await updateSetting("map_api_key_client", data.clientKey, isActive);
+  await updateSetting("map_api_key_server", data.serverKey, isActive);
+  return getAllSettings();
+};
+
+export const updateMailSettings = async (data: {
+  mailerName: string;
+  host: string;
+  driver: string;
+  port: string;
+  username: string;
+  email: string;
+  encryption: string;
+  password: string;
+  isActive: boolean;
+}) => {
+  await updateSetting("mail_mailer_name", data.mailerName, data.isActive);
+  await updateSetting("mail_host", data.host, data.isActive);
+  await updateSetting("mail_driver", data.driver, data.isActive);
+  await updateSetting("mail_port", data.port, data.isActive);
+  await updateSetting("mail_username", data.username, data.isActive);
+  await updateSetting("mail_email", data.email, data.isActive);
+  await updateSetting("mail_encryption", data.encryption, data.isActive);
+  await updateSetting("mail_password", data.password, data.isActive);
+  await updateSetting("mail_is_active", data.isActive ? "1" : "0", data.isActive);
+  return getAllSettings();
+};
+
+export const getBusinessSettings = async () => {
+  const keys = [
+    "maintenance_mode", "company_name", "company_email", "company_phone",
+    "company_country", "company_description", "company_latitude", "company_longitude",
+    "company_logo", "company_favicon", "time_zone", "time_format",
+    "country_picker_status", "currency_code", "currency_symbol_position",
+    "decimal_digits", "business_model", "default_commission", "commission_on_delivery",
+    "additional_charge_status", "additional_charge_name", "additional_charge_amount",
+    "copyright_text", "cookies_text"
+  ];
+  const result: Record<string, string> = {};
+  for (const key of keys) {
+    const setting = await getSetting(key);
+    result[key] = setting ? setting.setting_value : "";
+  }
+  // Also get active status for toggle fields
+  const toggleKeys = ["maintenance_mode", "country_picker_status", "additional_charge_status", "payment_cod_active", "payment_digital_active", "payment_offline_active", "payment_partial_active"];
+  for (const key of toggleKeys) {
+    const setting = await getSetting(key);
+    (result as any)[`${key}_active`] = setting ? setting.is_active : 0;
+  }
+  return result;
+};
+
+export const updateBusinessSettings = async (data: Record<string, any>) => {
+  const { maintenance_mode, maintenance_mode_active, ...rest } = data;
+
+  // Handle maintenance mode toggle specially
+  if (maintenance_mode !== undefined) {
+    await updateSetting("maintenance_mode", maintenance_mode, maintenance_mode_active === true || maintenance_mode_active === 1);
+  }
+
+  // Handle all other string fields
+  const stringFields = [
+    "company_name", "company_email", "company_phone",
+    "company_country", "company_description", "company_latitude", "company_longitude",
+    "company_logo", "company_favicon", "time_zone", "time_format",
+    "currency_code", "currency_symbol_position", "decimal_digits",
+    "business_model", "default_commission", "commission_on_delivery",
+    "additional_charge_name", "additional_charge_amount",
+    "copyright_text", "cookies_text"
+  ];
+
+  for (const field of stringFields) {
+    if (rest[field] !== undefined) {
+      await updateSetting(field, String(rest[field]), true);
+    }
+  }
+
+  // Handle toggle fields
+  const toggleFields = ["country_picker_status", "additional_charge_status", "payment_cod_active", "payment_digital_active", "payment_offline_active", "payment_partial_active"];
+  for (const field of toggleFields) {
+    if (rest[field] !== undefined) {
+      const isActive = rest[`${field}_active`] === true || rest[`${field}_active`] === 1 || rest[field] === "1";
+      await updateSetting(field, String(rest[field]), isActive);
+    }
+  }
+
+  return getBusinessSettings();
+};
+
+export const updateSocialSettings = async (provider: string, data: Record<string, string>, isActive: boolean) => {
+  for (const [key, value] of Object.entries(data)) {
+    await updateSetting(`${provider}_${key}`, value, isActive);
+  }
+  await updateSetting(`${provider}_is_active`, isActive ? "1" : "0", isActive);
   return getAllSettings();
 };

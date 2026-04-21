@@ -45,7 +45,6 @@ export default function DashboardShell({
       return;
     }
 
-    // Verify correct role
     const expectedRole = role === "admin" ? "SUPER_ADMIN" : role === "owner" ? "OWNER" : "CUSTOMER";
     if (u.role !== expectedRole) {
       router.replace(`/login/${role}`);
@@ -75,28 +74,30 @@ export default function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50/50 flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 ${accentBg} text-white transform transition-transform duration-200 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-          <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center font-bold text-lg">
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 ${accentBg} text-white transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} flex flex-col`}>
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center font-bold text-lg backdrop-blur-sm">
             H
           </div>
-          <div>
-            <h1 className="font-bold text-base">{title}</h1>
-            <p className="text-xs text-white/60">Management Panel</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-sm truncate">{title}</h1>
+            <p className="text-[10px] text-white/50">Management Panel</p>
           </div>
-          <button className="ml-auto lg:hidden text-white/60 hover:text-white" onClick={() => setSidebarOpen(false)}>
+          <button className="lg:hidden text-white/50 hover:text-white p-1" onClick={() => setSidebarOpen(false)}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
-        <nav className="mt-4 px-3 space-y-1">
+        {/* Nav */}
+        <nav className="flex-1 mt-3 px-3 space-y-1 overflow-y-auto">
           {items.map((item, idx) => {
             const isActive = pathname === item.href;
             return (
@@ -104,8 +105,10 @@ export default function DashboardShell({
                 key={`${item.href}-${idx}`}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? "bg-white/20 text-white shadow-lg shadow-black/10 backdrop-blur-sm"
+                    : "text-white/60 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {item.icon}
@@ -115,12 +118,22 @@ export default function DashboardShell({
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-white/10">
+        {/* User Info */}
+        <div className="p-3 border-t border-white/10">
+          <div className="flex items-center gap-3 px-3 py-2 mb-1">
+            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-xs font-bold">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-white truncate">{user?.name}</p>
+              <p className="text-[10px] text-white/40 truncate">{user?.email}</p>
+            </div>
+          </div>
           <button
             onClick={logout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white w-full transition-all"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:bg-white/10 hover:text-white w-full transition-all"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             Logout
@@ -128,27 +141,27 @@ export default function DashboardShell({
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
-          <button className="lg:hidden text-gray-500 hover:text-gray-700" onClick={() => setSidebarOpen(true)}>
+        <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-4 lg:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
+          <button className="lg:hidden text-gray-500 hover:text-gray-700 p-1" onClick={() => setSidebarOpen(true)}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold text-gray-800 capitalize">
+            <h2 className="text-base font-bold text-gray-800 capitalize">
               {pathname === `/${role}/dashboard` ? "Dashboard" : pathname.split("/").pop()?.replace(/-/g, " ")}
             </h2>
           </div>
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 ${accentBg} text-white rounded-full flex items-center justify-center text-xs font-bold`}>
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 ${accentBg} text-white rounded-lg flex items-center justify-center text-xs font-bold`}>
               {initials}
             </div>
             <span className="text-sm font-medium text-gray-700 hidden sm:block">{user?.name || "User"}</span>
           </div>
         </header>
 
-        {/* Page content */}
+        {/* Content */}
         <main className="flex-1 p-4 lg:p-6 overflow-auto">
           {children}
         </main>
