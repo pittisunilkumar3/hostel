@@ -1,0 +1,41 @@
+CREATE TABLE IF NOT EXISTS `email_templates` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `title` VARCHAR(100) DEFAULT NULL,
+  `body` TEXT DEFAULT NULL,
+  `body_2` TEXT DEFAULT NULL,
+  `icon` VARCHAR(255) DEFAULT NULL,
+  `logo` VARCHAR(255) DEFAULT NULL,
+  `banner_image` VARCHAR(255) DEFAULT NULL,
+  `button_name` VARCHAR(100) DEFAULT NULL,
+  `button_url` VARCHAR(500) DEFAULT NULL,
+  `footer_text` VARCHAR(255) DEFAULT NULL,
+  `copyright_text` VARCHAR(100) DEFAULT NULL,
+  `email_type` VARCHAR(100) DEFAULT NULL,
+  `template_type` VARCHAR(50) DEFAULT 'user',
+  `email_template` VARCHAR(10) DEFAULT '5',
+  `privacy` TINYINT(1) DEFAULT 0,
+  `refund` TINYINT(1) DEFAULT 0,
+  `cancelation` TINYINT(1) DEFAULT 0,
+  `contact` TINYINT(1) DEFAULT 0,
+  `facebook` TINYINT(1) DEFAULT 0,
+  `instagram` TINYINT(1) DEFAULT 0,
+  `twitter` TINYINT(1) DEFAULT 0,
+  `linkedin` TINYINT(1) DEFAULT 0,
+  `pinterest` TINYINT(1) DEFAULT 0,
+  `status` TINYINT(1) DEFAULT 1,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `unique_type_email` (`email_type`, `template_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert default email templates
+INSERT INTO `email_templates` (`title`, `body`, `icon`, `button_name`, `footer_text`, `copyright_text`, `email_type`, `template_type`, `email_template`, `status`) VALUES
+('Welcome to Our Hostel', 'Hi {{name}},<br><br>Thank you for registering with us! Your account has been created successfully.<br><br>We are excited to have you on board.', NULL, 'Visit Dashboard', '#', 'Please contact us for any queries, we are always happy to help.', 'Copyright 2025 Hostel. All rights reserved.', 'registration', 'user', '5', 1),
+('Password Reset Request', 'Hi {{name}},<br><br>We received a request to reset your password. Click the button below to change your password.', NULL, 'Reset Password', '#', 'If you did not request a password reset, please ignore this email.', 'Copyright 2025 Hostel. All rights reserved.', 'forgot_password', 'user', '5', 1),
+('Booking Confirmation', 'Hi {{name}},<br><br>Your booking has been confirmed successfully!<br><br>Booking Details:<br>Room: {{room_name}}<br>Check-in: {{check_in}}<br>Check-out: {{check_out}}<br><br>We look forward to hosting you!', NULL, 'View Booking', '#', 'Please contact us for any queries regarding your booking.', 'Copyright 2025 Hostel. All rights reserved.', 'booking_confirmation', 'user', '5', 1),
+('Booking Status Update', 'Hi {{name}},<br><br>Your booking status has been updated to: {{status}}.<br><br>Please check your dashboard for more details.', NULL, 'View Details', '#', 'Please contact us for any queries, we are always happy to help.', 'Copyright 2025 Hostel. All rights reserved.', 'booking_status', 'user', '5', 1),
+('Registration OTP', 'Hi {{name}},<br><br>Your OTP for registration is: <strong>{{otp}}</strong><br><br>This OTP is valid for 5 minutes. Do not share this with anyone.', NULL, NULL, NULL, 'Please contact us for any queries, we are always happy to help.', 'Copyright 2025 Hostel. All rights reserved.', 'registration_otp', 'user', '5', 1),
+('Login OTP', 'Hi {{name}},<br><br>Your OTP for login is: <strong>{{otp}}</strong><br><br>This OTP is valid for 5 minutes. Do not share this with anyone.', NULL, NULL, NULL, 'Please contact us for any queries, we are always happy to help.', 'Copyright 2025 Hostel. All rights reserved.', 'login_otp', 'user', '5', 1),
+('New Registration', 'A new customer has registered on your platform.<br><br>Name: {{name}}<br>Email: {{email}}<br>Phone: {{phone}}', NULL, 'View Customer', '#', 'Please review the new registration.', 'Copyright 2025 Hostel. All rights reserved.', 'registration', 'admin', '5', 1),
+('New Booking', 'A new booking has been placed.<br><br>Customer: {{customer_name}}<br>Room: {{room_name}}<br>Check-in: {{check_in}}<br>Check-out: {{check_out}}<br>Amount: {{amount}}', NULL, 'View Booking', '#', 'Please review the new booking.', 'Copyright 2025 Hostel. All rights reserved.', 'new_booking', 'admin', '5', 1),
+('New Owner Registration', 'A new owner has registered on your platform.<br><br>Name: {{name}}<br>Email: {{email}}<br>Hostel: {{hostel_name}}', NULL, 'View Owner', '#', 'Please review the new registration.', 'Copyright 2025 Hostel. All rights reserved.', 'owner_registration', 'admin', '5', 1);

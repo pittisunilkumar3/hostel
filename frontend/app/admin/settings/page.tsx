@@ -459,6 +459,7 @@ export default function AdminSettings() {
         </div>
       </div>}
 
+
       {/* ===================== LOGIN SETUP ===================== */}
       {tab === "login" && <div className="max-w-3xl space-y-6">
         {/* Setup Login Option */}
@@ -471,11 +472,11 @@ export default function AdminSettings() {
             {/* Login Methods */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Manual Login */}
-              <label className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${manualLogin ? "border-blue-400 bg-blue-50/50" : "border-gray-200 hover:border-gray-300"}`}>
+              <label className={"cursor-pointer rounded-xl border-2 p-4 transition-all " + (manualLogin ? "border-blue-400 bg-blue-50/50" : "border-gray-200 hover:border-gray-300")}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${manualLogin ? "bg-blue-100" : "bg-gray-100"}">
-                      <svg className={`w-4 h-4 ${manualLogin ? "text-blue-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <div className={"w-8 h-8 rounded-lg flex items-center justify-center " + (manualLogin ? "bg-blue-100" : "bg-gray-100")}>
+                      <svg className={"w-4 h-4 " + (manualLogin ? "text-blue-600" : "text-gray-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     </div>
                     <span className="text-sm font-bold text-gray-900">Manual Login</span>
                   </div>
@@ -485,11 +486,11 @@ export default function AdminSettings() {
               </label>
 
               {/* OTP Login */}
-              <label className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${otpLogin ? "border-emerald-400 bg-emerald-50/50" : "border-gray-200 hover:border-gray-300"}`}>
+              <label className={"cursor-pointer rounded-xl border-2 p-4 transition-all " + (otpLogin ? "border-emerald-400 bg-emerald-50/50" : "border-gray-200 hover:border-gray-300")}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${otpLogin ? "bg-emerald-100" : "bg-gray-100"}">
-                      <svg className={`w-4 h-4 ${otpLogin ? "text-emerald-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                    <div className={"w-8 h-8 rounded-lg flex items-center justify-center " + (otpLogin ? "bg-emerald-100" : "bg-gray-100")}>
+                      <svg className={"w-4 h-4 " + (otpLogin ? "text-emerald-600" : "text-gray-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                     </div>
                     <span className="text-sm font-bold text-gray-900">OTP Login</span>
                   </div>
@@ -499,11 +500,11 @@ export default function AdminSettings() {
               </label>
 
               {/* Social Login */}
-              <label className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${socialLogin ? "border-purple-400 bg-purple-50/50" : "border-gray-200 hover:border-gray-300"}`}>
+              <label className={"cursor-pointer rounded-xl border-2 p-4 transition-all " + (socialLogin ? "border-purple-400 bg-purple-50/50" : "border-gray-200 hover:border-gray-300")}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${socialLogin ? "bg-purple-100" : "bg-gray-100"}">
-                      <svg className={`w-4 h-4 ${socialLogin ? "text-purple-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <div className={"w-8 h-8 rounded-lg flex items-center justify-center " + (socialLogin ? "bg-purple-100" : "bg-gray-100")}>
+                      <svg className={"w-4 h-4 " + (socialLogin ? "text-purple-600" : "text-gray-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     </div>
                     <span className="text-sm font-bold text-gray-900">Social Login</span>
                   </div>
@@ -530,7 +531,7 @@ export default function AdminSettings() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {/* Google */}
-                  <label className={`flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all ${googleLogin ? "border-blue-300 bg-blue-50/50" : "border-gray-200"}`}>
+                  <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (googleLogin ? "border-blue-300 bg-blue-50/50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -544,7 +545,7 @@ export default function AdminSettings() {
                   </label>
 
                   {/* Facebook */}
-                  <label className={`flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all ${facebookLogin ? "border-indigo-300 bg-indigo-50/50" : "border-gray-200"}`}>
+                  <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (facebookLogin ? "border-indigo-300 bg-indigo-50/50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                       <span className="text-sm font-semibold text-gray-900">Facebook</span>
@@ -553,7 +554,7 @@ export default function AdminSettings() {
                   </label>
 
                   {/* Apple */}
-                  <label className={`flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all ${appleLogin ? "border-gray-400 bg-gray-50" : "border-gray-200"}`}>
+                  <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (appleLogin ? "border-gray-400 bg-gray-50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5 text-gray-900" fill="currentColor" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
                       <span className="text-sm font-semibold text-gray-900">Apple</span>
@@ -583,10 +584,10 @@ export default function AdminSettings() {
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Email Verification */}
-              <label className={`flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all ${emailVerification ? "border-blue-300 bg-blue-50/50" : "border-gray-200"}`}>
+              <label className={"flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all " + (emailVerification ? "border-blue-300 bg-blue-50/50" : "border-gray-200")}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${emailVerification ? "bg-blue-100" : "bg-gray-100"}`}>
-                    <svg className={`w-4 h-4 ${emailVerification ? "text-blue-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                  <div className={"w-9 h-9 rounded-lg flex items-center justify-center " + (emailVerification ? "bg-blue-100" : "bg-gray-100")}>
+                    <svg className={"w-4 h-4 " + (emailVerification ? "text-blue-600" : "text-gray-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                   </div>
                   <div>
                     <span className="text-sm font-bold text-gray-900">Email Verification</span>
@@ -597,10 +598,10 @@ export default function AdminSettings() {
               </label>
 
               {/* Phone Verification */}
-              <label className={`flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all ${phoneVerification ? "border-emerald-300 bg-emerald-50/50" : "border-gray-200"}`}>
+              <label className={"flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all " + (phoneVerification ? "border-emerald-300 bg-emerald-50/50" : "border-gray-200")}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${phoneVerification ? "bg-emerald-100" : "bg-gray-100"}`}>
-                    <svg className={`w-4 h-4 ${phoneVerification ? "text-emerald-600" : "text-gray-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                  <div className={"w-9 h-9 rounded-lg flex items-center justify-center " + (phoneVerification ? "bg-emerald-100" : "bg-gray-100")}>
+                    <svg className={"w-4 h-4 " + (phoneVerification ? "text-emerald-600" : "text-gray-400")} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                   </div>
                   <div>
                     <span className="text-sm font-bold text-gray-900">Phone Verification</span>
