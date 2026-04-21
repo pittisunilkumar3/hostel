@@ -38,15 +38,17 @@ export default function ZonesPage() {
   const [coordinates, setCoordinates] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
 
   // Map state
   const [mapApiKey, setMapApiKey] = useState("");
   const [mapReady, setMapReady] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const drawingManagerRef = useRef<any>(null);
   const lastPolygonRef = useRef<any>(null);
-  const initCalledRef = useRef(false);
+  const mapInitDone = useRef(false);
+  const overlayPolygonsRef = useRef<any[]>([]);
 
   // Warning modal
   const [showWarning, setShowWarning] = useState(false);
@@ -72,11 +74,35 @@ export default function ZonesPage() {
 
   useEffect(() => { fetchZones(); }, [fetchZones]);
 
-  // Google Maps init
+  // ---- Overlay existing zones on the map ----
+  const loadExistingZoneOverlays = useCallback(async () => {
+    if (!mapInstanceRef.current) return;
+    // Clear old overlays
+    overlayPolygonsRef.current.forEach((p) => p.setMap(null));
+    overlayPolygonsRef.current = [];
+
+    try {
+      const res = await apiFetch("/api/zones/coordinates");
+      if (res.success) {
+        res.data.forEach((z: any) => {
+          if (z.coordinates?.length > 0) {
+            const poly = new window.google.maps.Polygon({
+              paths: z.coordinates.map((c: number[]) => ({ lat: c[0], lng: c[1] })),
+              strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
+              fillColor: "#FF0000", fillOpacity: 0.1,
+              map: mapInstanceRef.current,
+            });
+            overlayPolygonsRef.current.push(poly);
+          }
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // ---- Initialize Google Map ----
   const initMap = useCallback(() => {
-    if (!window.google || !mapRef.current) return;
-    if (initCalledRef.current) return;
-    initCalledRef.current = true;
+    if (!window.google || !mapRef.current || mapInitDone.current) return;
+    mapInitDone.current = true;
 
     const map = new window.google.maps.Map(mapRef.current, {
       center: { lat: 17.385, lng: 78.4867 },
@@ -86,6 +112,7 @@ export default function ZonesPage() {
     });
     mapInstanceRef.current = map;
 
+    // Drawing Manager
     const drawingManager = new window.google.maps.drawing.DrawingManager({
       drawingMode: window.google.maps.drawing.OverlayType.POLYGON,
       drawingControl: true,
@@ -96,6 +123,7 @@ export default function ZonesPage() {
       polygonOptions: { editable: true },
     });
     drawingManager.setMap(map);
+    drawingManagerRef.current = drawingManager;
 
     window.google.maps.event.addListener(drawingManager, "overlaycomplete", (event: any) => {
       if (lastPolygonRef.current) lastPolygonRef.current.setMap(null);
@@ -104,8 +132,8 @@ export default function ZonesPage() {
       lastPolygonRef.current = event.overlay;
     });
 
-    // Search box
-    const input = document.getElementById("zone-search-input") as HTMLInputElement;
+    // Map search box
+    const input = document.getElementById("zone-map-search") as HTMLInputElement;
     if (input) {
       const searchBox = new window.google.maps.places.SearchBox(input);
       map.controls[window.google.maps.ControlPosition.TOP_CENTER].push(input);
@@ -123,49 +151,35 @@ export default function ZonesPage() {
     }
 
     // Show existing zones
-    (async () => {
-      try {
-        const res = await apiFetch("/api/zones/coordinates");
-        if (res.success) {
-          res.data.forEach((z: any) => {
-            if (z.coordinates?.length > 0) {
-              new window.google.maps.Polygon({
-                paths: z.coordinates.map((c: number[]) => ({ lat: c[0], lng: c[1] })),
-                strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
-                fillColor: "#FF0000", fillOpacity: 0.1, map,
-              });
-            }
-          });
-        }
-      } catch { /* ignore */ }
-    })();
+    loadExistingZoneOverlays();
 
+    // Geolocate
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
         map.setCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       });
     }
-  }, []);
+  }, [loadExistingZoneOverlays]);
 
+  // Trigger init when script loads
   useEffect(() => {
     if (mapReady && window.google) {
-      const timer = setTimeout(() => initMap(), 100);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => initMap(), 150);
+      return () => clearTimeout(t);
     }
   }, [mapReady, initMap]);
 
-  // Handle case where google maps was already loaded (client-side nav)
+  // Handle google already loaded (client-side navigation back to this page)
   useEffect(() => {
-    if (window.google && !initCalledRef.current && mapApiKey) {
+    if (window.google && !mapInitDone.current && mapApiKey) {
       setMapReady(true);
     }
   }, [mapApiKey]);
 
-  // Handle create zone
+  // ---- Handle create zone ----
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
-    setSuccessMsg("");
     if (!name.trim()) { setFormError("Zone name is required"); return; }
     if (!coordinates) { setFormError("Please draw a zone area on the map"); return; }
 
@@ -184,11 +198,22 @@ export default function ZonesPage() {
       });
 
       if (res.success) {
-        setName(""); setDisplayName(""); setCoordinates("");
+        // Reset form
+        setName("");
+        setDisplayName("");
+        setCoordinates("");
+        setFormError("");
         if (lastPolygonRef.current) { lastPolygonRef.current.setMap(null); lastPolygonRef.current = null; }
+
+        // Refresh overlays on the map
+        loadExistingZoneOverlays();
+
+        // Refresh table
+        fetchZones();
+
+        // Show warning modal
         setNewZoneId(res.data.id);
         setShowWarning(true);
-        fetchZones();
       } else {
         setFormError(res.message || "Failed to create zone");
       }
@@ -205,7 +230,10 @@ export default function ZonesPage() {
     setDeleting(id);
     try {
       const res = await apiFetch(`/api/zones/${id}`, { method: "DELETE" });
-      if (res.success) fetchZones();
+      if (res.success) {
+        fetchZones();
+        loadExistingZoneOverlays();
+      }
     } catch { /* ignore */ }
     setDeleting(null);
   };
@@ -217,7 +245,7 @@ export default function ZonesPage() {
     } catch { /* ignore */ }
   };
 
-  const setDefault = async (id: number) => {
+  const setDefaultZone = async (id: number) => {
     try {
       const res = await apiFetch(`/api/zones/${id}/default`, { method: "PATCH" });
       if (res.success) fetchZones();
@@ -238,15 +266,15 @@ export default function ZonesPage() {
       </div>
 
       {/* ====== CREATE FORM SECTION ====== */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
+      <div ref={mapContainerRef} className="bg-white border border-gray-200 rounded-lg shadow-sm mb-6">
         <form onSubmit={handleCreate}>
-          <div className="flex flex-col lg:flex-row">
-            {/* Left — Instructions */}
-            <div className="lg:w-5/12 p-5 border-b lg:border-b-0 lg:border-r border-gray-100">
+          <div className="flex flex-col lg:flex-row" style={{ height: "500px" }}>
+            {/* Left — Instructions + Form */}
+            <div className="lg:w-5/12 p-5 border-b lg:border-b-0 lg:border-r border-gray-100 overflow-y-auto">
               <h6 className="text-sm font-semibold text-gray-800 mb-2">Instructions</h6>
-              <p className="text-xs text-gray-500 mb-4">Create &amp; connect dots in a specific area on the map to add a new business zone.</p>
+              <p className="text-xs text-gray-500 mb-3">Create &amp; connect dots in a specific area on the map to add a new business zone.</p>
 
-              <div className="space-y-3 mb-4">
+              <div className="space-y-2 mb-4">
                 <div className="flex items-start gap-2.5">
                   <span className="w-7 h-7 rounded bg-gray-100 flex items-center justify-center shrink-0">
                     <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" /></svg>
@@ -257,7 +285,7 @@ export default function ZonesPage() {
                   <span className="w-7 h-7 rounded bg-gray-100 flex items-center justify-center shrink-0">
                     <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" /></svg>
                   </span>
-                  <p className="text-xs text-gray-600">Use this &lsquo;Shape Tool&rsquo; to point out the areas and connect the dots. A minimum of 3 points/dots is required.</p>
+                  <p className="text-xs text-gray-600">Use this &lsquo;Shape Tool&rsquo; to point out the areas and connect the dots. A minimum of 3 points is required.</p>
                 </div>
               </div>
 
@@ -278,7 +306,6 @@ export default function ZonesPage() {
               </div>
 
               {formError && <p className="mt-2 text-xs text-red-600">{formError}</p>}
-
               {coordinates && (
                 <p className="mt-2 text-xs text-green-700">✅ Zone area drawn ({coordinates.match(/\(/g)?.length || 0} points)</p>
               )}
@@ -297,7 +324,7 @@ export default function ZonesPage() {
             </div>
 
             {/* Right — Map */}
-            <div className="lg:w-7/12 relative" style={{ minHeight: "420px" }}>
+            <div className="lg:w-7/12 relative">
               {!mapApiKey ? (
                 <div className="flex items-center justify-center h-full p-8 text-center">
                   <div>
@@ -308,9 +335,9 @@ export default function ZonesPage() {
                 </div>
               ) : (
                 <>
-                  <input id="zone-search-input" type="text" placeholder="Search here"
-                    className="absolute top-2 left-2 z-10 w-64 px-3 py-1.5 border border-gray-300 rounded text-sm shadow focus:outline-none" />
-                  <div ref={mapRef} className="w-full h-full" style={{ minHeight: "420px" }} />
+                  <input id="zone-map-search" type="text" placeholder="Search here"
+                    className="absolute top-2 left-2 z-10 w-64 px-3 py-1.5 border border-gray-300 rounded text-sm shadow bg-white focus:outline-none" />
+                  <div ref={mapRef} className="w-full h-full" />
                 </>
               )}
             </div>
@@ -380,7 +407,7 @@ export default function ZonesPage() {
                           <svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         </span>
                       ) : (
-                        <button onClick={() => setDefault(zone.id)}
+                        <button onClick={() => setDefaultZone(zone.id)}
                           className="px-3 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-600 hover:bg-gray-50">
                           Make Default
                         </button>
@@ -418,7 +445,7 @@ export default function ZonesPage() {
         </div>
       </div>
 
-      {/* ====== WARNING MODAL (after zone creation) ====== */}
+      {/* ====== WARNING MODAL ====== */}
       {showWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
