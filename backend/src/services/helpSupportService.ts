@@ -123,30 +123,31 @@ export const getContactMessageStats = async () => {
 // ===================== CONVERSATIONS =====================
 
 export const getConversations = async (search?: string, page = 1, limit = 20) => {
-  let query = `
-    SELECT c.*, u.name as user_name, u.email as user_email, u.phone as user_phone, u.avatar as user_avatar
-    FROM conversations c
-    LEFT JOIN users u ON c.user_id = u.id
-    WHERE c.status = 1
-  `;
+  let baseWhere = " WHERE c.status = 1";
   const params: any[] = [];
 
   if (search) {
-    query += " AND (u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
+    baseWhere += " AND (u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
     const term = `%${search}%`;
     params.push(term, term, term);
   }
 
-  // Count total
-  const countQuery = query.replace(/SELECT c\.\*, u\.name.*?FROM/, "SELECT COUNT(*) as total FROM");
-  const cleanCountQuery = countQuery.replace(/LEFT JOIN users u ON c\.user_id = u\.id/, "");
-  const [countRows] = await db.execute<RowDataPacket[]>(cleanCountQuery, params);
+  // Count total with a clean query
+  const countQuery = `SELECT COUNT(*) as total FROM conversations c LEFT JOIN users u ON c.user_id = u.id${baseWhere}`;
+  const [countRows] = await db.execute<RowDataPacket[]>(countQuery, params);
   const total = countRows[0]?.total || 0;
 
-  query += " ORDER BY c.updated_at DESC LIMIT ? OFFSET ?";
-  params.push(limit, (page - 1) * limit);
+  // Main query
+  const mainQuery = `
+    SELECT c.*, u.name as user_name, u.email as user_email, u.phone as user_phone, u.avatar as user_avatar
+    FROM conversations c
+    LEFT JOIN users u ON c.user_id = u.id
+    ${baseWhere}
+    ORDER BY c.updated_at DESC LIMIT ? OFFSET ?
+  `;
+  const mainParams = [...params, limit, (page - 1) * limit];
 
-  const [rows] = await db.execute<RowDataPacket[]>(query, params);
+  const [rows] = await db.execute<RowDataPacket[]>(mainQuery, mainParams);
   return {
     data: rows as Conversation[],
     total,

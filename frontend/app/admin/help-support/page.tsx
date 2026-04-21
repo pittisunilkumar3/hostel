@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
@@ -48,7 +49,8 @@ interface ConvMessage {
   sender_name: string;
 }
 
-export default function HelpSupportPage() {
+function HelpSupportPage() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("contacts");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -64,7 +66,6 @@ export default function HelpSupportPage() {
   const [replySubject, setReplySubject] = useState("");
   const [replyBody, setReplyBody] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
-  const [contactStats, setContactStats] = useState({ total: 0, unread: 0, replied: 0 });
 
   // Conversations state
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -73,11 +74,18 @@ export default function HelpSupportPage() {
   const [convSearch, setConvSearch] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [convStats, setConvStats] = useState({ total: 0, unread: 0 });
+
+  // Read URL tab param on mount
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab === "conversations") {
+      setTab("conversations");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setUser(getCurrentUser());
-    Promise.all([fetchContacts(), fetchContactStats(), fetchConversations(), fetchConvStats()]);
+    Promise.all([fetchContacts(), fetchConversations()]);
   }, []);
 
   useEffect(() => {
@@ -90,19 +98,20 @@ export default function HelpSupportPage() {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       const res = await apiFetch(`/api/contact-messages?${params}`);
-      if (res.success && res.data) {
-        setContacts(res.data.data || []);
-        setContactsTotal(res.data.total || 0);
-        setContactsPage(res.data.page || 1);
+      if (res.success) {
+        // API returns { success, data: { data: [], total, page, ... } }
+        const payload = res.data;
+        if (payload?.data) {
+          setContacts(payload.data);
+          setContactsTotal(payload.total || 0);
+          setContactsPage(payload.page || 1);
+        } else {
+          // data itself might be the array (if controller returns differently)
+          setContacts(Array.isArray(payload) ? payload : []);
+          setContactsTotal(Array.isArray(payload) ? payload.length : 0);
+        }
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
-  };
-
-  const fetchContactStats = async () => {
-    try {
-      const res = await apiFetch("/api/contact-messages?stats=1");
-      // Using contact-messages list endpoint for now
-    } catch (e) { console.error(e); }
   };
 
   const fetchConversations = async (search = "") => {
@@ -110,17 +119,15 @@ export default function HelpSupportPage() {
       const params = new URLSearchParams({ limit: "50" });
       if (search) params.set("search", search);
       const res = await apiFetch(`/api/conversations?${params}`);
-      if (res.success && res.data) {
-        setConversations(res.data.data || []);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchConvStats = async () => {
-    try {
-      const res = await apiFetch("/api/conversations?stats=1");
-      if (res.success && res.data) {
-        setConvStats(res.data);
+      if (res.success) {
+        const payload = res.data;
+        if (payload?.data) {
+          setConversations(payload.data);
+        } else if (Array.isArray(payload)) {
+          setConversations(payload);
+        } else {
+          setConversations([]);
+        }
       }
     } catch (e) { console.error(e); }
   };
@@ -128,8 +135,15 @@ export default function HelpSupportPage() {
   const fetchConvMessages = async (convId: number) => {
     try {
       const res = await apiFetch(`/api/conversations/${convId}`);
-      if (res.success && res.data) {
-        setConvMessages(res.data);
+      if (res.success) {
+        const payload = res.data;
+        if (Array.isArray(payload)) {
+          setConvMessages(payload);
+        } else if (payload?.data && Array.isArray(payload.data)) {
+          setConvMessages(payload.data);
+        } else {
+          setConvMessages([]);
+        }
       }
     } catch (e) { console.error(e); }
   };
@@ -145,11 +159,15 @@ export default function HelpSupportPage() {
     setViewingContact(contact);
     setReplySubject(`Re: ${contact.subject || "Your message"}`);
     setReplyBody("");
-    // Auto mark as seen
     if (!contact.seen) {
       try {
-        await apiFetch(`/api/contact-messages/${contact.id}`, { method: "POST", body: JSON.stringify({ subject: "", body: "__seen__" }) });
-        fetchContacts(contactsPage, contactSearch);
+        // Mark as seen by sending a minimal reply update
+        await apiFetch(`/api/contact-messages/${contact.id}`, {
+          method: "POST",
+          body: JSON.stringify({ subject: "(Opened)", body: "" }),
+        });
+        // Refresh list to update seen status
+        setContacts(prev => prev.map(c => c.id === contact.id ? { ...c, seen: 1 } : c));
       } catch (e) { console.error(e); }
     }
   };
@@ -178,7 +196,15 @@ export default function HelpSupportPage() {
       });
       if (res.success) {
         msg("success", "✅ Reply sent successfully!");
-        setViewingContact(res.data);
+        // Update the viewing contact with the reply data
+        const updated = res.data;
+        if (updated) {
+          setViewingContact(updated);
+        } else {
+          // Refetch the contact
+          const refetch = await apiFetch(`/api/contact-messages/${viewingContact.id}`);
+          if (refetch.success && refetch.data) setViewingContact(refetch.data);
+        }
         setReplyBody("");
         fetchContacts(contactsPage, contactSearch);
       } else {
@@ -196,14 +222,15 @@ export default function HelpSupportPage() {
   };
 
   const sendMessage = async () => {
-    if (!selectedConv || !newMessage.trim()) return;
+    if (!selectedConv || !newMessage.trim() || !user) return;
     setSendingMessage(true);
     try {
+      const adminId = user.id || user.user_id || user.userId;
       const res = await apiFetch("/api/conversations", {
         method: "POST",
         body: JSON.stringify({
           conversationId: selectedConv.id,
-          senderId: user?.id || user?.user_id,
+          senderId: adminId,
           message: newMessage.trim(),
         }),
       });
@@ -274,7 +301,7 @@ export default function HelpSupportPage() {
         <button onClick={() => { setTab("conversations"); clearMsg(); }} className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${tab === "conversations" ? "bg-orange-600 text-white shadow-lg shadow-orange-600/20" : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"}`}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
           Conversations
-          {conversations.reduce((sum, c) => sum + c.unread_count, 0) > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full">{conversations.reduce((sum, c) => sum + c.unread_count, 0)}</span>}
+          {conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0) > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full">{conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0)}</span>}
         </button>
       </div>
 
@@ -323,7 +350,7 @@ export default function HelpSupportPage() {
                     </td></tr>
                   ) : contacts.map((c, i) => (
                     <tr key={c.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${!c.seen ? "bg-orange-50/30" : ""}`}>
-                      <td className="px-5 py-3 text-sm text-gray-500">{contactsPage > 1 ? (contactsPage - 1) * 20 + i + 1 : i + 1}</td>
+                      <td className="px-5 py-3 text-sm text-gray-500">{i + 1}</td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
                           {!c.seen && <span className="w-2 h-2 bg-orange-500 rounded-full shrink-0" />}
@@ -431,6 +458,7 @@ export default function HelpSupportPage() {
           {viewingContact.reply && (() => {
             try {
               const reply = JSON.parse(viewingContact.reply);
+              if (!reply.subject && !reply.body) return null;
               return (
                 <div className="mt-5 bg-white rounded-2xl border border-gray-100 overflow-hidden">
                   <div className="p-5 border-b border-gray-50">
@@ -442,11 +470,8 @@ export default function HelpSupportPage() {
                     </div>
                   </div>
                   <div className="p-5 space-y-3">
-                    <div><span className="text-sm text-gray-500">Subject:</span> <span className="text-sm font-medium text-gray-900">{reply.subject}</span></div>
-                    <div>
-                      <span className="text-sm text-gray-500 block mb-1">Reply:</span>
-                      <div className="p-3 bg-green-50 rounded-xl text-sm text-gray-800">{reply.body}</div>
-                    </div>
+                    {reply.subject && <div><span className="text-sm text-gray-500">Subject:</span> <span className="text-sm font-medium text-gray-900">{reply.subject}</span></div>}
+                    {reply.body && <div><span className="text-sm text-gray-500 block mb-1">Reply:</span><div className="p-3 bg-green-50 rounded-xl text-sm text-gray-800 whitespace-pre-wrap">{reply.body}</div></div>}
                   </div>
                 </div>
               );
@@ -460,7 +485,7 @@ export default function HelpSupportPage() {
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ height: "calc(100vh - 250px)", minHeight: "500px" }}>
           <div className="flex h-full">
             {/* Conversations List */}
-            <div className={`w-full lg:w-80 border-r border-gray-100 flex flex-col ${selectedConv ? "hidden lg:flex" : "flex"}`}>
+            <div className={`w-full lg:w-80 border-r border-gray-100 flex flex-col shrink-0 ${selectedConv ? "hidden lg:flex" : "flex"}`}>
               {/* Search */}
               <div className="p-3 border-b border-gray-50">
                 <div className="relative">
@@ -498,7 +523,7 @@ export default function HelpSupportPage() {
                       </div>
                       <div className="flex items-center justify-between mt-0.5">
                         <p className="text-xs text-gray-500 truncate">{conv.last_message || "No messages yet"}</p>
-                        {conv.unread_count > 0 && (
+                        {(conv.unread_count || 0) > 0 && (
                           <span className="ml-1 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full shrink-0">{conv.unread_count}</span>
                         )}
                       </div>
@@ -509,11 +534,11 @@ export default function HelpSupportPage() {
             </div>
 
             {/* Chat Area */}
-            <div className={`flex-1 flex flex-col ${selectedConv ? "flex" : "hidden lg:flex"}`}>
+            <div className={`flex-1 flex flex-col min-w-0 ${selectedConv ? "flex" : "hidden lg:flex"}`}>
               {selectedConv ? (
                 <>
                   {/* Chat Header */}
-                  <div className="flex items-center gap-3 p-4 border-b border-gray-100 bg-gray-50/50">
+                  <div className="flex items-center gap-3 p-4 border-b border-gray-100 bg-gray-50/50 shrink-0">
                     <button onClick={() => setSelectedConv(null)} className="lg:hidden text-gray-500 hover:text-gray-700">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
@@ -544,7 +569,7 @@ export default function HelpSupportPage() {
                   </div>
 
                   {/* Send Message */}
-                  <div className="p-3 border-t border-gray-100 bg-white">
+                  <div className="p-3 border-t border-gray-100 bg-white shrink-0">
                     <div className="flex items-center gap-2">
                       <input
                         type="text"
@@ -581,5 +606,14 @@ export default function HelpSupportPage() {
         </div>
       )}
     </DashboardShell>
+  );
+}
+
+// Wrap with Suspense for useSearchParams support in Next.js App Router
+export default function HelpSupportPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><svg className="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg></div>}>
+      <HelpSupportPage />
+    </Suspense>
   );
 }

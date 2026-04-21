@@ -67,6 +67,7 @@ export default function AdminSettings() {
   const [appleTeamId, setAppleTeamId] = useState("");
   const [appleKeyId, setAppleKeyId] = useState("");
   const [appleServiceFile, setAppleServiceFile] = useState("");
+  const [appleServiceFileName, setAppleServiceFileName] = useState("");
   const [appleActive, setAppleActive] = useState(false);
 
   // Mail
@@ -130,14 +131,17 @@ export default function AdminSettings() {
       if (res.success) {
         res.data.forEach((s: any) => {
           const k = s.setting_key, v = s.setting_value, a = s.is_active === 1;
-          if (k === "google_client_id") { setGoogleClientId(v || ""); setGoogleActive(a); }
+          if (k === "google_client_id") setGoogleClientId(v || "");
           if (k === "google_client_secret") setGoogleClientSecret(v || "");
-          if (k === "facebook_client_id") { setFacebookClientId(v || ""); setFacebookActive(a); }
+          if (k === "google_is_active") setGoogleActive(v === "1");
+          if (k === "facebook_client_id") setFacebookClientId(v || "");
           if (k === "facebook_client_secret") setFacebookClientSecret(v || "");
-          if (k === "apple_client_id") { setAppleClientId(v || ""); setAppleActive(a); }
+          if (k === "facebook_is_active") setFacebookActive(v === "1");
+          if (k === "apple_client_id") setAppleClientId(v || "");
           if (k === "apple_team_id") setAppleTeamId(v || "");
           if (k === "apple_key_id") setAppleKeyId(v || "");
           if (k === "apple_service_file") setAppleServiceFile(v || "");
+          if (k === "apple_is_active") setAppleActive(v === "1");
           if (k === "mail_mailer_name") setMailMailerName(v || "");
           if (k === "mail_host") { setMailHost(v || ""); setMailActive(a); }
           if (k === "mail_driver") setMailDriver(v || "SMTP");
@@ -215,15 +219,31 @@ export default function AdminSettings() {
     } catch { msg("error", "Network error"); } finally { setSaving(null); }
   };
 
-  const saveSocial = async () => {
-    setSaving(-1); clearMsg();
+  const saveGoogle = async () => {
+    setSaving(-10); clearMsg();
     try {
       const res = await apiFetch("/api/settings/social", { method: "PUT", body: JSON.stringify({ settings: {
         google: { client_id: googleClientId, client_secret: googleClientSecret, is_active: googleActive ? "1" : "0" },
+      }})});
+      res.success ? (msg("success", "✅ Google settings saved!"), fetchSettings()) : msg("error", res.message || "Failed");
+    } catch { msg("error", "Network error"); } finally { setSaving(null); }
+  };
+  const saveFacebook = async () => {
+    setSaving(-11); clearMsg();
+    try {
+      const res = await apiFetch("/api/settings/social", { method: "PUT", body: JSON.stringify({ settings: {
         facebook: { client_id: facebookClientId, client_secret: facebookClientSecret, is_active: facebookActive ? "1" : "0" },
+      }})});
+      res.success ? (msg("success", "✅ Facebook settings saved!"), fetchSettings()) : msg("error", res.message || "Failed");
+    } catch { msg("error", "Network error"); } finally { setSaving(null); }
+  };
+  const saveApple = async () => {
+    setSaving(-12); clearMsg();
+    try {
+      const res = await apiFetch("/api/settings/social", { method: "PUT", body: JSON.stringify({ settings: {
         apple: { client_id: appleClientId, team_id: appleTeamId, key_id: appleKeyId, service_file: appleServiceFile, is_active: appleActive ? "1" : "0" },
       }})});
-      res.success ? (msg("success", "✅ Social login settings saved!"), fetchSettings()) : msg("error", res.message || "Failed");
+      res.success ? (msg("success", "✅ Apple settings saved!"), fetchSettings()) : msg("error", res.message || "Failed");
     } catch { msg("error", "Network error"); } finally { setSaving(null); }
   };
 
@@ -410,11 +430,24 @@ export default function AdminSettings() {
             <Toggle checked={googleActive} onChange={setGoogleActive} />
           </div>
           <div className="p-5 space-y-3">
+            <div className="flex justify-end">
+              <button type="button" onClick={() => { const m = document.getElementById("google-setup-modal"); if (m) (m as any).showModal(); }} className="text-xs text-purple-600 font-semibold hover:underline flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Credential Setup
+              </button>
+            </div>
             <div className="bg-gray-50 rounded-lg p-3 text-xs"><span className="text-gray-500 font-medium">Callback URL</span><p className="font-mono text-gray-700 mt-0.5 select-all break-all">{typeof window !== "undefined" ? window.location.origin : ""}/customer/auth/login/google/callback</p></div>
             <Inp label="Client id" value={googleClientId} onChange={setGoogleClientId} placeholder="xxxx.apps.googleusercontent.com" required mono />
             <Inp label="Client secret" value={googleClientSecret} onChange={setGoogleClientSecret} type="password" placeholder="GOCSPX-xxxx" required />
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button onClick={() => { setGoogleClientId(""); setGoogleClientSecret(""); }} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all">Reset</button>
+              <button onClick={saveGoogle} disabled={saving === -10} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20">
+                {saving === -10 ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}Save
+              </button>
+            </div>
           </div>
         </div>
+
         {/* Facebook Card */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="p-5 flex items-center justify-between border-b border-gray-50">
@@ -425,43 +458,118 @@ export default function AdminSettings() {
             <Toggle checked={facebookActive} onChange={setFacebookActive} />
           </div>
           <div className="p-5 space-y-3">
+            <div className="flex justify-end">
+              <button type="button" onClick={() => { const m = document.getElementById("facebook-setup-modal"); if (m) (m as any).showModal(); }} className="text-xs text-purple-600 font-semibold hover:underline flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Credential Setup
+              </button>
+            </div>
             <div className="bg-gray-50 rounded-lg p-3 text-xs"><span className="text-gray-500 font-medium">Callback URL</span><p className="font-mono text-gray-700 mt-0.5 select-all break-all">{typeof window !== "undefined" ? window.location.origin : ""}/customer/auth/login/facebook/callback</p></div>
             <Inp label="Client id" value={facebookClientId} onChange={setFacebookClientId} placeholder="Facebook App ID" required mono />
             <Inp label="Client secret" value={facebookClientSecret} onChange={setFacebookClientSecret} type="password" placeholder="Facebook App Secret" required />
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button onClick={() => { setFacebookClientId(""); setFacebookClientSecret(""); }} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all">Reset</button>
+              <button onClick={saveFacebook} disabled={saving === -11} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20">
+                {saving === -11 ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}Save
+              </button>
+            </div>
           </div>
         </div>
+
         {/* Apple Card */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="p-5 flex items-center justify-between border-b border-gray-50">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl"></div>
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🍎</div>
               <div><h3 className="font-bold text-gray-900">Apple</h3><p className="text-xs text-gray-400">Sign in with Apple</p></div>
             </div>
             <Toggle checked={appleActive} onChange={setAppleActive} />
           </div>
           <div className="p-5 space-y-3">
+            <div className="flex justify-end">
+              <button type="button" onClick={() => { const m = document.getElementById("apple-setup-modal"); if (m) (m as any).showModal(); }} className="text-xs text-purple-600 font-semibold hover:underline flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Credential Setup
+              </button>
+            </div>
             <Inp label="Client id" value={appleClientId} onChange={setAppleClientId} placeholder="com.example.app" required mono />
             <div className="grid grid-cols-2 gap-3">
               <Inp label="Team id" value={appleTeamId} onChange={setAppleTeamId} placeholder="ABC123DEFG" required mono />
               <Inp label="Key id" value={appleKeyId} onChange={setAppleKeyId} placeholder="A1B2C3D4E5" required mono />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Service file <span className="text-red-500">*</span></label>
-              <input type="file" accept=".p8" onChange={e => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = ev => setAppleServiceFile(ev.target?.result as string || ""); r.readAsText(f); } }} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200" />
-              {appleServiceFile && <p className="text-xs text-green-600 mt-1">✅ File loaded</p>}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Service file <span className="text-red-500">*</span> {appleServiceFile && <span className="text-green-600 font-normal">(Already Exists)</span>}</label>
+              <input type="file" accept=".p8" onChange={e => { const f = e.target.files?.[0]; if (f) { setAppleServiceFileName(f.name); const r = new FileReader(); r.onload = ev => setAppleServiceFile(ev.target?.result as string || ""); r.readAsText(f); } }} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200" />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button onClick={() => { setAppleClientId(""); setAppleTeamId(""); setAppleKeyId(""); setAppleServiceFile(""); setAppleServiceFileName(""); }} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition-all">Reset</button>
+              <button onClick={saveApple} disabled={saving === -12} className="px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20">
+                {saving === -12 ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}Save
+              </button>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3 pt-2">
-          <button onClick={saveSocial} disabled={saving === -1} className="px-6 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20">
-            {saving === -1 ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}Save All Social Settings
-          </button>
-        </div>
+
+        {/* Credential Setup Modals */}
+        <dialog id="google-setup-modal" className="rounded-2xl shadow-2xl backdrop:bg-black/50 p-0 max-w-md w-full">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Google API Setup Instructions</h3>
+              <button onClick={() => { const m = document.getElementById("google-setup-modal"); if (m) (m as any).close(); }} className="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+              <li>Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank" className="text-blue-600 underline">Credentials page</a></li>
+              <li>Click <strong>Create Credentials</strong> &gt; <strong>OAuth Client ID</strong></li>
+              <li>Select <strong>Web Application</strong> type</li>
+              <li>Name your OAuth client</li>
+              <li>Click <strong>Add URI</strong> from Authorized Redirect URis, provide the Callback URL from above and click <strong>Created</strong></li>
+              <li>Copy <strong>Client ID</strong> and <strong>Client Secret</strong>, paste in the fields above and <strong>Save</strong></li>
+            </ol>
+            <button onClick={() => { const m = document.getElementById("google-setup-modal"); if (m) (m as any).close(); }} className="mt-5 w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">Got It</button>
+          </div>
+        </dialog>
+
+        <dialog id="facebook-setup-modal" className="rounded-2xl shadow-2xl backdrop:bg-black/50 p-0 max-w-md w-full">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Facebook API Setup Instructions</h3>
+              <button onClick={() => { const m = document.getElementById("facebook-setup-modal"); if (m) (m as any).close(); }} className="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+              <li>Go to <a href="https://developers.facebook.com/apps/" target="_blank" className="text-blue-600 underline">Facebook Developer page</a></li>
+              <li>Click <strong>Create App</strong> &gt; select app type &gt; <strong>Next</strong></li>
+              <li>Complete the details form and press <strong>Create App</strong></li>
+              <li>From <strong>Facebook Login</strong> press <strong>Set Up</strong>, select <strong>Web</strong></li>
+              <li>Provide your <strong>Site URL</strong> and <strong>Save</strong></li>
+              <li>Make sure <strong>Client OAuth Login</strong> is ON in Settings</li>
+              <li>Provide the <strong>Valid OAuth Redirect URIs</strong> from above and <strong>Save Changes</strong></li>
+              <li>Copy <strong>App ID</strong> and <strong>App Secret</strong>, paste above and <strong>Save</strong></li>
+            </ol>
+            <button onClick={() => { const m = document.getElementById("facebook-setup-modal"); if (m) (m as any).close(); }} className="mt-5 w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">Got It</button>
+          </div>
+        </dialog>
+
+        <dialog id="apple-setup-modal" className="rounded-2xl shadow-2xl backdrop:bg-black/50 p-0 max-w-md w-full">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Apple API Setup Instructions</h3>
+              <button onClick={() => { const m = document.getElementById("apple-setup-modal"); if (m) (m as any).close(); }} className="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+              <li>Go to <a href="https://developer.apple.com/account/resources/identifiers/list" target="_blank" className="text-blue-600 underline">Apple Developer page</a></li>
+              <li>In top left corner you can see the <strong>Team ID</strong></li>
+              <li>Click Plus icon &gt; select <strong>App IDs</strong> &gt; click <strong>Continue</strong></li>
+              <li>Put description and identifier — this is the <strong>Client ID</strong></li>
+              <li>Click Continue and download the <strong>AuthKey_ID.p8</strong> file</li>
+              <li>Again click Plus &gt; select <strong>Service IDs</strong> &gt; Continue</li>
+              <li>Download the file named <strong>AuthKey_KeyID.p8</strong> — the part after AuthKey is the <strong>Key ID</strong></li>
+            </ol>
+            <button onClick={() => { const m = document.getElementById("apple-setup-modal"); if (m) (m as any).close(); }} className="mt-5 w-full py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">Got It</button>
+          </div>
+        </dialog>
       </div>}
 
 
-
-      {/* ===================== LOGIN SETUP ===================== */}
       {tab === "login" && <div className="max-w-3xl space-y-6">
         {/* Setup Login Option */}
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
