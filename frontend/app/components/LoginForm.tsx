@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSiteSettings } from "@/lib/siteSettings";
+import { useLoginSetup } from "@/lib/loginSetup";
 
 interface LoginFormProps {
   role: "SUPER_ADMIN" | "OWNER" | "CUSTOMER";
@@ -66,6 +67,7 @@ export default function LoginForm({
   const [devOtp, setDevOtp] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const showSocial = role !== "SUPER_ADMIN";
+  const loginSetup = useLoginSetup();
   const otpColor = otpAccent || "emerald";
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function LoginForm({
   };
 
   const handleGoogle = async () => {
-    if (!googleActive || !googleClientId) { setError("Google login not available"); return; }
+    if (!loginSetup.socialLogin || !loginSetup.googleLogin || !googleActive || !googleClientId) { setError("Google login not available"); return; }
     try {
       const ga = (window as any).google?.accounts;
       if (!ga) { setError("Google SDK not loaded"); return; }
@@ -170,7 +172,7 @@ export default function LoginForm({
 
   return (
     <div className={`min-h-screen ${gradient} flex items-center justify-center p-4`}>
-      {googleActive && googleClientId && <script src="https://accounts.google.com/gsi/client" async defer />}
+      {showSocial && loginSetup.socialLogin && loginSetup.googleLogin && googleActive && googleClientId && <script src="https://accounts.google.com/gsi/client" async defer />}
       <div className="w-full max-w-md">
         <Link href={backLink} className={`inline-flex items-center ${accentColor} text-sm mb-6 hover:underline`}>
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -219,7 +221,7 @@ export default function LoginForm({
           </form>
 
           {/* Google + OTP (only for non-admin) */}
-          {showSocial && (googleActive || twilioActive) && (
+          {showSocial && ((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
             <>
               <div className="flex items-center gap-3 my-6">
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
@@ -227,7 +229,7 @@ export default function LoginForm({
                 <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
               </div>
               <div className="space-y-3">
-                {googleActive && (
+                {showSocial && loginSetup.socialLogin && loginSetup.googleLogin && googleActive && (
                   <button onClick={handleGoogle} className="w-full py-3 px-4 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-white/20 text-white rounded-xl font-medium flex items-center justify-center gap-3 transition-all text-sm">
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -238,7 +240,7 @@ export default function LoginForm({
                     Continue with Google
                   </button>
                 )}
-                {twilioActive && (
+                {showSocial && loginSetup.otpLogin && twilioActive && (
                   <div>
                     {!otpSent ? (
                       <form onSubmit={handleSendOTP} className="flex gap-2">

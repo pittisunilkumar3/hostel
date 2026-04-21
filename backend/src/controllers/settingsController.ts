@@ -110,7 +110,7 @@ export async function updateSocialSettingsController(request: NextRequest) {
     const { updateSetting } = await import("../services/settingsService");
     const updates = body.settings;
     for (const [provider, data] of Object.entries(updates as Record<string, Record<string, string>>)) {
-      const isActive = data.is_active === "1" || data.is_active === "true" || data.is_active === true;
+      const isActive = data.is_active === "1" || data.is_active === "true" || data.is_active === (true as unknown as string);
       for (const [key, value] of Object.entries(data)) {
         if (key === "is_active") {
           await updateSetting(`${provider}_is_active`, String(isActive ? 1 : 0), isActive);

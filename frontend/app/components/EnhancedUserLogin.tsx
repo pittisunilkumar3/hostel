@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSiteSettings } from "@/lib/siteSettings";
+import { useLoginSetup } from "@/lib/loginSetup";
 
 export default function EnhancedUserLogin() {
   const [email, setEmail] = useState("");
@@ -20,12 +21,14 @@ export default function EnhancedUserLogin() {
   const [googleClientId, setGoogleClientId] = useState("");
   const router = useRouter();
   const site = useSiteSettings();
+  const loginSetup = useLoginSetup();
   const name = site.companyName || "Hostel Management";
   const copyright = site.copyrightText || `© ${new Date().getFullYear()} ${name}. All rights reserved.`;
 
   useEffect(() => {
     const checkStatus = async () => {
       try {
+        // Check Google credentials (from social login settings)
         const gRes = await fetch("http://localhost:3001/api/settings/google-status");
         const gData = await gRes.json();
         if (gData.success && gData.data.active) {
@@ -73,8 +76,8 @@ export default function EnhancedUserLogin() {
 
   // Google login
   const handleGoogleLogin = async () => {
-    if (!googleActive || !googleClientId) {
-      setError("Google login is not configured by admin");
+    if (!loginSetup.socialLogin || !loginSetup.googleLogin || !googleActive || !googleClientId) {
+      setError("Google login is not available");
       return;
     }
     try {
@@ -171,7 +174,7 @@ export default function EnhancedUserLogin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       {/* Load Google SDK if active */}
-      {googleActive && googleClientId && (
+      {loginSetup.loaded && loginSetup.socialLogin && loginSetup.googleLogin && googleActive && googleClientId && (
         <script src="https://accounts.google.com/gsi/client" async defer />
       )}
 
@@ -294,7 +297,7 @@ export default function EnhancedUserLogin() {
           </form>
 
           {/* ====== DIVIDER ====== */}
-          {(googleActive || twilioActive) && (
+          {((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
               <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">or continue with</span>
@@ -303,10 +306,10 @@ export default function EnhancedUserLogin() {
           )}
 
           {/* ====== SOCIAL LOGIN BUTTONS ====== */}
-          {(googleActive || twilioActive) && (
+          {((loginSetup.socialLogin && loginSetup.googleLogin && googleActive) || (loginSetup.otpLogin && twilioActive)) && (
             <div className="space-y-3">
               {/* Google Button */}
-              {googleActive && (
+              {loginSetup.socialLogin && loginSetup.googleLogin && googleActive && (
                 <button
                   onClick={handleGoogleLogin}
                   className="w-full py-3 px-4 bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 hover:border-white/20 text-white rounded-xl font-medium flex items-center justify-center gap-3 transition-all duration-200"
@@ -322,7 +325,7 @@ export default function EnhancedUserLogin() {
               )}
 
               {/* OTP Section */}
-              {twilioActive && (
+              {loginSetup.otpLogin && twilioActive && (
                 <div>
                   {!otpSent ? (
                     <form onSubmit={handleSendOTP} className="flex gap-2">
