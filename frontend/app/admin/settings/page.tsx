@@ -260,7 +260,7 @@ export default function AdminSettings() {
       const res = await apiFetch("/api/settings/social", { method: "PUT", body: JSON.stringify({ settings: {
         google: { client_id: googleClientId, client_secret: googleClientSecret, is_active: googleActive ? "1" : "0" },
       }})});
-      res.success ? (msg("success", "✅ Google settings saved!"), fetchSettings()) : msg("error", res.message || "Failed");
+      res.success ? (msg("success", "✅ Google settings saved!"), fetchSettings(), !googleActive && setGoogleLogin(false), !googleActive && fetchLoginSetup()) : msg("error", res.message || "Failed");
     } catch { msg("error", "Network error"); } finally { setSaving(null); }
   };
   const saveFacebook = async () => {
@@ -269,7 +269,7 @@ export default function AdminSettings() {
       const res = await apiFetch("/api/settings/social", { method: "PUT", body: JSON.stringify({ settings: {
         facebook: { client_id: facebookClientId, client_secret: facebookClientSecret, is_active: facebookActive ? "1" : "0" },
       }})});
-      res.success ? (msg("success", "✅ Facebook settings saved!"), fetchSettings()) : msg("error", res.message || "Failed");
+      res.success ? (msg("success", "✅ Facebook settings saved!"), fetchSettings(), !facebookActive && setFacebookLogin(false), !facebookActive && fetchLoginSetup()) : msg("error", res.message || "Failed");
     } catch { msg("error", "Network error"); } finally { setSaving(null); }
   };
   const saveApple = async () => {
@@ -278,7 +278,7 @@ export default function AdminSettings() {
       const res = await apiFetch("/api/settings/social", { method: "PUT", body: JSON.stringify({ settings: {
         apple: { client_id: appleClientId, team_id: appleTeamId, key_id: appleKeyId, service_file: appleServiceFile, is_active: appleActive ? "1" : "0" },
       }})});
-      res.success ? (msg("success", "✅ Apple settings saved!"), fetchSettings()) : msg("error", res.message || "Failed");
+      res.success ? (msg("success", "✅ Apple settings saved!"), fetchSettings(), !appleActive && setAppleLogin(false), !appleActive && fetchLoginSetup()) : msg("error", res.message || "Failed");
     } catch { msg("error", "Network error"); } finally { setSaving(null); }
   };
 
@@ -743,7 +743,8 @@ export default function AdminSettings() {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* Google */}
+                  {/* Google - only show if credentials are configured */}
+                  {googleActive && (
                   <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (googleLogin ? "border-blue-300 bg-blue-50/50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -754,41 +755,54 @@ export default function AdminSettings() {
                       </svg>
                       <div>
                         <span className="text-sm font-semibold text-gray-900">Google</span>
-                        <p className={"text-[10px] " + (googleActive ? "text-green-600" : "text-amber-500")}>{googleActive ? "✅ Credentials set" : "⚠️ Not configured"}</p>
+                        <p className="text-[10px] text-green-600">✅ Credentials set</p>
                       </div>
                     </div>
-                    <input type="checkbox" checked={googleLogin} onChange={(e) => setGoogleLogin(e.target.checked)} disabled={!googleActive} className="rounded text-blue-600 focus:ring-blue-500 disabled:opacity-40" />
+                    <input type="checkbox" checked={googleLogin} onChange={(e) => setGoogleLogin(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
                   </label>
+                  )}
 
-                  {/* Facebook */}
+                  {/* Facebook - only show if credentials are configured */}
+                  {facebookActive && (
                   <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (facebookLogin ? "border-indigo-300 bg-indigo-50/50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                       <div>
                         <span className="text-sm font-semibold text-gray-900">Facebook</span>
-                        <p className={"text-[10px] " + (facebookActive ? "text-green-600" : "text-amber-500")}>{facebookActive ? "✅ Credentials set" : "⚠️ Not configured"}</p>
+                        <p className="text-[10px] text-green-600">✅ Credentials set</p>
                       </div>
                     </div>
-                    <input type="checkbox" checked={facebookLogin} onChange={(e) => setFacebookLogin(e.target.checked)} disabled={!facebookActive} className="rounded text-indigo-600 focus:ring-indigo-500 disabled:opacity-40" />
+                    <input type="checkbox" checked={facebookLogin} onChange={(e) => setFacebookLogin(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
                   </label>
+                  )}
 
-                  {/* Apple */}
+                  {/* Apple - only show if credentials are configured */}
+                  {appleActive && (
                   <label className={"flex items-center justify-between rounded-xl border-2 p-3.5 cursor-pointer transition-all " + (appleLogin ? "border-gray-400 bg-gray-50" : "border-gray-200")}>
                     <div className="flex items-center gap-2.5">
                       <svg className="w-5 h-5 text-gray-900" fill="currentColor" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
                       <div>
                         <span className="text-sm font-semibold text-gray-900">Apple</span>
-                        <p className={"text-[10px] " + (appleActive ? "text-green-600" : "text-amber-500")}>{appleActive ? "✅ Credentials set" : "⚠️ Not configured"}</p>
+                        <p className="text-[10px] text-green-600">✅ Credentials set</p>
                       </div>
                     </div>
-                    <input type="checkbox" checked={appleLogin} onChange={(e) => setAppleLogin(e.target.checked)} disabled={!appleActive} className="rounded text-gray-600 focus:ring-gray-500 disabled:opacity-40" />
+                    <input type="checkbox" checked={appleLogin} onChange={(e) => setAppleLogin(e.target.checked)} className="rounded text-gray-600 focus:ring-gray-500" />
                   </label>
+                  )}
+
+                  {/* No providers configured message */}
+                  {!googleActive && !facebookActive && !appleActive && (
+                    <div className="col-span-3 text-center py-4">
+                      <p className="text-sm text-gray-500">No social login providers are configured.</p>
+                      <button onClick={() => setTab("social")} className="mt-2 text-xs text-purple-600 font-semibold hover:underline">Go to Social Login tab to configure →</button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Info: link to Social Login tab */}
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-2">
                   <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  <p className="text-[11px] text-blue-700">Providers showing <strong>⚠️ Not configured</strong> are disabled. Go to the <button onClick={() => setTab("social")} className="font-bold underline text-blue-800">Social Login tab</button> to configure credentials first.</p>
+                  <p className="text-[11px] text-blue-700">Only providers with active credentials appear above. Go to the <button onClick={() => setTab("social")} className="font-bold underline text-blue-800">Social Login tab</button> to configure or activate providers.</p>
                 </div>
               </div>
             )}

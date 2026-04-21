@@ -132,6 +132,10 @@ export async function updateSocialSettingsController(request: NextRequest) {
       for (const [key, value] of Object.entries(data)) {
         if (key === "is_active") {
           await updateSetting(`${provider}_is_active`, String(isActive ? 1 : 0), isActive);
+          // Auto-disable in Login Setup when credentials are turned off
+          if (!isActive) {
+            await updateSetting(`${provider}_login_status`, "0", true);
+          }
         } else {
           await updateSetting(`${provider}_${key}`, value, isActive);
         }
