@@ -3,8 +3,38 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getCurrentUser, logout, isAuthenticated } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+import { useState, useRef, useEffect } from "react";
+
+function LanguageSwitcher() {
+  const { locale, setLocale, languages, t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, []);
+  if (languages.length <= 1) return null;
+  const current = languages.find(l => l.code === locale);
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-all">
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
+        <span className="uppercase font-bold">{locale}</span>
+        <svg className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl py-1 min-w-[160px] z-50">
+          {languages.map(l => (
+            <button key={l.code} onClick={() => { setLocale(l.code); setOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 ${l.code === locale ? "bg-sky-50 text-sky-700 font-semibold" : "text-gray-700"}`}>
+              <span className="font-mono text-[10px] uppercase bg-gray-100 px-1.5 py-0.5 rounded">{l.code}</span>
+              <span>{l.name}</span>
+              {l.is_default && <span className="ml-auto text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">DEF</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 import { useSiteSettings } from "@/lib/siteSettings";
-import { useState, useEffect } from "react";
 
 interface SidebarItem {
   label: string;
@@ -69,11 +99,7 @@ export default function DashboardShell({
 
   const isDropdownActive = (item: SidebarItem) => {
     if (!item.children) return false;
-    return item.children.some(child => {
-      // Match ignoring query params: /admin/help-support?tab=x → /admin/help-support
-      const childPath = child.href.split('?')[0];
-      return pathname === childPath;
-    });
+    return item.children.some(child => pathname === child.href);
   };
 
   if (!checked) {
@@ -141,27 +167,7 @@ export default function DashboardShell({
                   {isOpen && (
                     <div className="ml-4 mt-1 space-y-0.5 border-l border-white/10 pl-3">
                       {item.children.map((child, cidx) => {
-                        // Match ignoring query params for dropdown detection
-                        const childPath = child.href.split('?')[0];
-                        const childHasQuery = child.href.includes('?');
-                        // Basic path match
-                        const pathMatch = pathname === childPath;
-                        // For highlighting: if this child has a query param, only highlight if current URL also has that param
-                        // If this child has NO query param, highlight only if no other sibling with query matches
-                        let isChildActive = false;
-                        if (pathMatch) {
-                          if (childHasQuery) {
-                            // Check if URL has this specific query
-                            try {
-                              const urlObj = new URL(window.location.href);
-                              const childUrl = new URL(child.href, window.location.origin);
-                              isChildActive = urlObj.search === childUrl.search;
-                            } catch { isChildActive = false; }
-                          } else {
-                            // No query on child — only active if URL also has no query
-                            isChildActive = !window.location.search;
-                          }
-                        }
+                        const isChildActive = pathname === child.href;
                         return (
                           <Link
                             key={`${child.href}-${cidx}`}
@@ -239,6 +245,7 @@ export default function DashboardShell({
               {pathname === `/${role}/dashboard` ? "Dashboard" : pathname.split("/").pop()?.replace(/-/g, " ")}
             </h2>
           </div>
+          <LanguageSwitcher />
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 ${accentBg} text-white rounded-lg flex items-center justify-center text-xs font-bold`}>
               {initials}

@@ -728,8 +728,8 @@ export default function EmailTemplatesPage() {
       {/* ── Preview Modal ── */}
       {showPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden" style={{ maxHeight: "90vh" }}>
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden flex flex-col" style={{ maxHeight: "92vh" }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
                   <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -751,15 +751,32 @@ export default function EmailTemplatesPage() {
                 </svg>
               </button>
             </div>
-            <div className="p-5 overflow-y-auto bg-gray-100" style={{ maxHeight: "calc(90vh - 80px)" }}>
-              <iframe
-                ref={previewRef}
-                srcDoc={previewHtml}
-                className="w-full bg-white rounded-lg border-0"
-                style={{ minHeight: "600px" }}
-                title="Email Preview"
-                sandbox="allow-same-origin"
-              />
+            <div className="flex-1 overflow-y-auto bg-gray-200 p-6">
+              <div className="max-w-[500px] mx-auto">
+                <iframe
+                  ref={(el) => {
+                    if (el && el.contentDocument) {
+                      const resize = () => {
+                        const h = el.contentDocument?.body?.scrollHeight;
+                        if (h) el.style.height = h + 40 + 'px';
+                      };
+                      setTimeout(resize, 100);
+                      setTimeout(resize, 500);
+                    }
+                  }}
+                  srcDoc={previewHtml}
+                  className="w-full bg-white rounded-lg border-0 shadow-lg"
+                  style={{ minHeight: '600px', height: '800px' }}
+                  title="Email Preview"
+                  onLoad={(e) => {
+                    const iframe = e.target as HTMLIFrameElement;
+                    try {
+                      const h = iframe.contentDocument?.body?.scrollHeight;
+                      if (h) iframe.style.height = (h + 40) + 'px';
+                    } catch {}
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>

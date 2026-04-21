@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SiteSettingsProvider } from "@/lib/siteSettings";
+import { I18nProvider } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   title: "Hostel Management",
@@ -19,7 +20,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full font-sans">
         <SiteSettingsProvider>
-          {children}
+          <I18nProvider>
+            {children}
+          </I18nProvider>
         </SiteSettingsProvider>
       </body>
     </html>

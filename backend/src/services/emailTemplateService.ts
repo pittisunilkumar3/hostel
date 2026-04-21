@@ -127,9 +127,39 @@ export const toggleEmailTemplateStatus = async (id: number, isActive: boolean): 
   return getEmailTemplateById(id);
 };
 
-// ─── HTML Template Generation ────────────────────────────────────────
+// ─── Database helpers for URLs ───────────────────────────────────────
 
-const generateTemplateHTML = (template: EmailTemplateRow, companyName: string, companyLogo: string, replacements: Record<string, string> = {}): string => {
+interface SocialLinkRow extends RowDataPacket { id: number; name: string; link: string; is_active: number; }
+interface CmsPageRow extends RowDataPacket { id: number; title: string; slug: string; }
+
+const getSocialLinksFromDB = async (): Promise<{ name: string; link: string }[]> => {
+  try {
+    const [rows] = await db.execute<SocialLinkRow[]>("SELECT name, link FROM social_media_links WHERE is_active = 1 ORDER BY sort_order ASC, id ASC");
+    return rows.map(r => ({ name: r.name.toLowerCase().trim(), link: r.link }));
+  } catch { return []; }
+};
+
+const getCmsPageSlugs = async (): Promise<Record<string, string>> => {
+  try {
+    const [rows] = await db.execute<CmsPageRow[]>("SELECT title, slug FROM cms_pages");
+    const map: Record<string, string> = {};
+    for (const r of rows) {
+      map[r.title.toLowerCase().trim()] = r.slug;
+    }
+    return map;
+  } catch { return {}; }
+};
+
+const getCompanyEmail = async (): Promise<string> => {
+  try {
+    const v = await getSettingValue("company_email");
+    return v || "support@example.com";
+  } catch { return "support@example.com"; }
+};
+
+// ─── HTML Template Generation (async — fetches real URLs from DB) ────
+
+const generateTemplateHTML = async (template: EmailTemplateRow, companyName: string, companyLogo: string, replacements: Record<string, string> = {}): Promise<string> => {
   // Process body with variable replacements
   let body = template.body || "";
   let body2 = template.body_2 || "";
@@ -151,20 +181,77 @@ const generateTemplateHTML = (template: EmailTemplateRow, companyName: string, c
   copyrightText = replaceVars(copyrightText);
   title = replaceVars(title);
 
+  // ─── Fetch real URLs from database ───────────────────────
+  const [dbSocials, cmsSlugs, companyEmail] = await Promise.all([
+    getSocialLinksFromDB(),
+    getCmsPageSlugs(),
+    getCompanyEmail(),
+  ]);
+
+  // Build a lookup: lowercase platform name → link
+  const socialMap: Record<string, string> = {};
+  for (const s of dbSocials) {
+    socialMap[s.name] = s.link;
+  }
+
+  // Build CMS page URLs using slug
+  const baseUrl = process.env.SITE_URL || "";
+  const cmsUrl = (slug: string) => baseUrl ? `${baseUrl}/page/${slug}` : `#/page/${slug}`;
+  const contactUrl = baseUrl ? `${baseUrl}/contact` : "#/contact";
+
+  // Privacy / Footer links — from CMS pages table
+  const privacyLinks: string[] = [];
+  if (template.privacy) {
+    const slug = cmsSlugs["privacy policy"] || "privacy-policy";
+    privacyLinks.push(`<a href="${cmsUrl(slug)}" style="color:#334257;text-decoration:none">Privacy Policy</a>`);
+  }
+  if (template.refund) {
+    const slug = cmsSlugs["refund policy"] || "refund-policy";
+    privacyLinks.push(`<a href="${cmsUrl(slug)}" style="color:#334257;text-decoration:none"><span style="width:6px;height:6px;border-radius:50%;background:#334257;display:inline-block;margin:0 7px"></span>Refund Policy</a>`);
+  }
+  if (template.cancelation) {
+    const slug = cmsSlugs["cancellation policy"] || "cancellation-policy";
+    privacyLinks.push(`<a href="${cmsUrl(slug)}" style="color:#334257;text-decoration:none"><span style="width:6px;height:6px;border-radius:50%;background:#334257;display:inline-block;margin:0 7px"></span>Cancellation Policy</a>`);
+  }
+  if (template.contact) {
+    privacyLinks.push(`<a href="${contactUrl}" style="color:#334257;text-decoration:none"><span style="width:6px;height:6px;border-radius:50%;background:#334257;display:inline-block;margin:0 7px"></span>Contact Us</a>`);
+  }
+  const privacyHtml = privacyLinks.length
+    ? `<span class="privacy">${privacyLinks.join("")}</span>`
+    : "";
+
+  // Social media icons — from social_media_links table
+  const socialIconMap: Record<string, string> = {
+    facebook: "https://img.icons8.com/color/24/facebook.png",
+    instagram: "https://img.icons8.com/color/24/instagram.png",
+    twitter: "https://img.icons8.com/color/24/twitter.png",
+    linkedin: "https://img.icons8.com/color/24/linkedin.png",
+    pinterest: "https://img.icons8.com/color/24/pinterest.png",
+  };
+  const socialLinks: string[] = [];
+  const platforms = ["facebook", "instagram", "twitter", "linkedin", "pinterest"];
+  for (const platform of platforms) {
+    if ((template as any)[platform]) {
+      const dbLink = socialMap[platform] || socialMap[platform.replace("facebook", "facebook")] || "#";
+      const icon = socialIconMap[platform];
+      socialLinks.push(`<a href="${dbLink}" target="_blank" style="margin:0 4px;text-decoration:none"><img src="${icon}" alt="${platform}" /></a>`);
+    }
+  }
+  const socialHtml = socialLinks.length
+    ? `<span class="social">${socialLinks.join("")}</span>`
+    : "";
+
   const btnHtml = template.button_name ? `
-    <span style="display:block;margin-top:16px;text-align:center">
+    <span class="d-block" style="text-align:center;margin-top:16px">
       <a href="${template.button_url || "#"}" style="background:#4f46e5;color:#fff;padding:10px 28px;display:inline-block;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">${template.button_name}</a>
     </span>` : "";
 
   const iconHtml = template.icon ? `
-    <div style="text-align:center;margin-bottom:16px">
-      <img src="${template.icon}" alt="" style="width:80px;height:80px;object-fit:contain;border-radius:12px" />
-    </div>` : "";
-
-  const logoHtml = template.logo || companyLogo ? `
-    <div style="text-align:center;margin-bottom:20px">
-      <img src="${template.logo || companyLogo}" alt="${companyName}" style="max-width:140px;max-height:50px;object-fit:contain" />
-    </div>` : "";
+    <div style="text-align:center;margin-bottom:8px">
+      <img src="${template.icon}" alt="" style="width:130px;height:45px;object-fit:contain" />
+    </div>` : `<div style="text-align:center;margin-bottom:8px">
+      <img src="" alt="" style="width:130px;height:45px;object-fit:contain" onerror="this.style.display='none'" />
+    </div>`;
 
   const bannerHtml = template.banner_image ? `
     <div style="margin:16px 0;border-radius:8px;overflow:hidden">
@@ -172,68 +259,100 @@ const generateTemplateHTML = (template: EmailTemplateRow, companyName: string, c
     </div>` : "";
 
   const body2Html = body2 ? `
-    <div style="margin-top:12px;color:#737883;font-size:13px;line-height:21px">${body2}</div>` : "";
+    <div style="margin-bottom:14px;color:#737883;font-size:13px;line-height:21px">${body2}</div>` : "";
 
-  // Privacy / Footer links
-  const privacyLinks: string[] = [];
-  if (template.privacy) privacyLinks.push(`<a href="#" style="color:#334257;text-decoration:none">Privacy Policy</a>`);
-  if (template.refund) privacyLinks.push(`<a href="#" style="color:#334257;text-decoration:none">Refund Policy</a>`);
-  if (template.cancelation) privacyLinks.push(`<a href="#" style="color:#334257;text-decoration:none">Cancellation Policy</a>`);
-  if (template.contact) privacyLinks.push(`<a href="#" style="color:#334257;text-decoration:none">Contact Us</a>`);
-  const privacyHtml = privacyLinks.length
-    ? `<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:12px">${privacyLinks.join('<span style="color:#ccc">•</span>')}</div>`
-    : "";
-
-  // Social media icons
-  const socialLinks: string[] = [];
-  if (template.facebook) socialLinks.push(`<a href="#" style="margin:0 4px;text-decoration:none"><img src="https://img.icons8.com/color/24/facebook.png" alt="Facebook" /></a>`);
-  if (template.instagram) socialLinks.push(`<a href="#" style="margin:0 4px;text-decoration:none"><img src="https://img.icons8.com/color/24/instagram.png" alt="Instagram" /></a>`);
-  if (template.twitter) socialLinks.push(`<a href="#" style="margin:0 4px;text-decoration:none"><img src="https://img.icons8.com/color/24/twitter.png" alt="Twitter" /></a>`);
-  if (template.linkedin) socialLinks.push(`<a href="#" style="margin:0 4px;text-decoration:none"><img src="https://img.icons8.com/color/24/linkedin.png" alt="LinkedIn" /></a>`);
-  if (template.pinterest) socialLinks.push(`<a href="#" style="margin:0 4px;text-decoration:none"><img src="https://img.icons8.com/color/24/pinterest.png" alt="Pinterest" /></a>`);
-  const socialHtml = socialLinks.length
-    ? `<div style="margin:12px 0;text-align:center">${socialLinks.join("")}</div>`
-    : "";
+  // Company logo at bottom of email (fallback to template logo or business logo)
+  const bottomLogoHtml = `
+    <div style="text-align:center;margin:10px 0">
+      <img src="${template.logo || companyLogo || ''}" alt="${companyName}" style="width:120px;display:block;margin:0 auto;object-fit:contain" onerror="this.style.display='none'" />
+    </div>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
-  <style>
+  <style type="text/css">
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-    body { margin:0;font-family:'Roboto',Arial,sans-serif;background:#e9ecef;padding:20px; }
-    .main-table { width:100%;max-width:500px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden; }
-    .content-td { padding:40px 30px 20px; }
-    .footer-td { padding:10px 30px 30px;text-align:center; }
-    h2 { color:#334257;margin:0 0 8px;font-size:20px;font-weight:700; }
-    .body-text { color:#737883;font-size:13px;line-height:21px;margin:0 0 12px; }
-    hr { border:none;border-top:1px solid rgba(0,170,109,0.2);margin:20px 0; }
-    .footer-text { color:#737883;font-size:12px;line-height:18px;margin-bottom:6px; }
-    .thanks { color:#334257;font-size:12px;font-weight:500; }
-    .copyright { color:#aaa;font-size:11px;text-align:center;display:block;margin-top:10px; }
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      width: 100% !important;
+      height: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: #e9ecef;
+      color: #737883;
+      font-size: 13px;
+      line-height: 21px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    table { border-collapse: collapse !important; }
+    a { text-decoration: none; }
+    .border-top {
+      border-top: 1px solid rgba(0, 170, 109, 0.3);
+      padding: 15px 0 10px;
+      display: block;
+    }
+    .d-block { display: block; }
+    .privacy {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+    }
+    .privacy a {
+      text-decoration: none;
+      color: #334257;
+      position: relative;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 12px;
+    }
+    .privacy a span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #334257;
+      display: inline-block;
+      margin: 0 7px;
+    }
+    .social {
+      margin: 15px 0 8px;
+      display: block;
+      text-align: center;
+    }
+    .social img { width: 24px; }
+    .copyright {
+      text-align: center;
+      display: block;
+      color: #aaa;
+      font-size: 11px;
+    }
   </style>
 </head>
-<body>
-  <table class="main-table">
+<body style="background-color:#e9ecef;padding:15px">
+  <table style="width:100%;max-width:500px;margin:0 auto;text-align:center;background:#fff">
     <tr>
-      <td class="content-td">
-        ${logoHtml}
+      <td style="padding:30px 30px 0">
         ${iconHtml}
-        <h2>${title}</h2>
-        <div class="body-text">${body}</div>
-        ${body2Html}
-        ${bannerHtml}
-        ${btnHtml}
-        <hr />
-        <div class="footer-text">${footerText}</div>
-        <div class="thanks">Thanks &amp; Regards,</div>
-        <div class="thanks" style="margin-bottom:16px">${companyName}</div>
+        <h3 style="font-size:17px;font-weight:500;color:#334257;margin:8px 0 0" id="mail-title">${title}</h3>
       </td>
     </tr>
     <tr>
-      <td class="footer-td">
+      <td style="padding:0 30px 30px;text-align:left">
+        <span style="font-weight:500;display:block;margin:20px 0 11px;color:#737883;font-size:13px;line-height:21px">${body}</span>
+        ${body2Html}
+        ${bannerHtml}
+        ${btnHtml}
+        <span class="border-top"></span>
+        <span class="d-block" style="margin-bottom:14px;color:#737883;font-size:13px;line-height:18px">${footerText}</span>
+        <span class="d-block" style="color:#334257;font-size:13px;font-weight:500">Thanks &amp; Regards,</span>
+        <span class="d-block" style="color:#334257;font-size:13px;font-weight:500;margin-bottom:20px">${companyName}</span>
+        ${bottomLogoHtml}
         ${privacyHtml}
         ${socialHtml}
         <span class="copyright">${copyrightText}</span>
@@ -276,7 +395,7 @@ export const sendTemplatedEmail = async (
   const companyLogo = await getSettingValue("company_logo") || "";
 
   // Generate HTML
-  const html = generateTemplateHTML(template, companyName, companyLogo, replacements);
+  const html = await generateTemplateHTML(template, companyName, companyLogo, replacements);
 
   // Create transporter
   const portNum = Number(port) || 465;
@@ -322,5 +441,5 @@ export const previewEmailTemplate = async (
   const companyName = await getSettingValue("company_name") || "Hostel System";
   const companyLogo = await getSettingValue("company_logo") || "";
 
-  return generateTemplateHTML(template, companyName, companyLogo, replacements);
+  return await generateTemplateHTML(template, companyName, companyLogo, replacements);
 };

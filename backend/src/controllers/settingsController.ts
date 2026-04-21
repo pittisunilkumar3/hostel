@@ -43,6 +43,24 @@ export async function getTwilioStatusController() {
   } catch (error: any) { return errorResponse(error.message, 500); }
 }
 
+export async function getFacebookStatusController() {
+  try {
+    const { isSettingActive, getSettingValue } = await import("../services/settingsService");
+    const active = await isSettingActive("facebook_is_active");
+    const clientId = active ? await getSettingValue("facebook_client_id") : null;
+    return successResponse({ active, clientId }, "Facebook status");
+  } catch (error: any) { return errorResponse(error.message, 500); }
+}
+
+export async function getAppleStatusController() {
+  try {
+    const { isSettingActive, getSettingValue } = await import("../services/settingsService");
+    const active = await isSettingActive("apple_is_active");
+    const clientId = active ? await getSettingValue("apple_client_id") : null;
+    return successResponse({ active, clientId }, "Apple status");
+  } catch (error: any) { return errorResponse(error.message, 500); }
+}
+
 export async function updateMapSettingsController(request: NextRequest) {
   try {
     const { clientKey, serverKey } = await request.json();
