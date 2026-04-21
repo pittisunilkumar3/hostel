@@ -126,7 +126,12 @@ export default function ZonesPage() {
     drawingManagerRef.current = drawingManager;
 
     window.google.maps.event.addListener(drawingManager, "overlaycomplete", (event: any) => {
-      if (lastPolygonRef.current) lastPolygonRef.current.setMap(null);
+      // Remove previous polygon completely
+      if (lastPolygonRef.current) {
+        lastPolygonRef.current.setEditable(false);
+        lastPolygonRef.current.setMap(null);
+        lastPolygonRef.current = null;
+      }
       const path = event.overlay.getPath().getArray();
       setCoordinates(path.map((p: any) => `(${p.lat()}, ${p.lng()})`).join(", "));
       lastPolygonRef.current = event.overlay;
@@ -204,8 +209,9 @@ export default function ZonesPage() {
         setCoordinates("");
         setFormError("");
 
-        // Remove drawn polygon from map
+        // Remove drawn polygon completely from map
         if (lastPolygonRef.current) {
+          lastPolygonRef.current.setEditable(false);
           lastPolygonRef.current.setMap(null);
           lastPolygonRef.current = null;
         }
@@ -233,6 +239,7 @@ export default function ZonesPage() {
   const handleReset = () => {
     setName(""); setDisplayName(""); setCoordinates(""); setFormError("");
     if (lastPolygonRef.current) {
+      lastPolygonRef.current.setEditable(false);
       lastPolygonRef.current.setMap(null);
       lastPolygonRef.current = null;
     }

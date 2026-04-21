@@ -133,7 +133,11 @@ export default function EditZonePage() {
     drawingManager.setMap(map);
 
     window.google.maps.event.addListener(drawingManager, "overlaycomplete", (event: any) => {
-      if (lastPolygonRef.current) lastPolygonRef.current.setMap(null);
+      if (lastPolygonRef.current) {
+        lastPolygonRef.current.setEditable(false);
+        lastPolygonRef.current.setMap(null);
+        lastPolygonRef.current = null;
+      }
       const path = event.overlay.getPath().getArray();
       const coordsStr = path.map((p: any) => `(${p.lat()}, ${p.lng()})`).join(", ");
       setCoordinates(coordsStr);
