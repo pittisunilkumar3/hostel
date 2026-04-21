@@ -53,12 +53,111 @@ async function main() {
     console.log(`✅ Room ${roomNumber} (${type}) created`);
   }
 
+  // ============================================================
+  // DEFAULT BUSINESS SETTINGS (affect whole website)
+  // ============================================================
+  const defaultSettings: [string, string, number][] = [
+    // Business Info
+    ["company_name", "Hostel Management System", 1],
+    ["company_email", "info@hostelmanagment.com", 1],
+    ["company_phone", "+91 9999999999", 1],
+    ["company_country", "India", 1],
+    ["company_description", "A modern hostel management system for seamless room booking and management.", 1],
+    ["company_latitude", "12.971599", 1],
+    ["company_longitude", "77.594566", 1],
+    ["company_logo", "", 1],
+    ["company_favicon", "", 1],
+
+    // General
+    ["time_zone", "Asia/Kolkata", 1],
+    ["time_format", "12", 1],
+    ["country_picker_status", "1", 1],
+    ["currency_code", "INR", 1],
+    ["currency_symbol_position", "left", 1],
+    ["decimal_digits", "0", 1],
+
+    // Business Model
+    ["business_model", "commission", 1],
+    ["default_commission", "12", 1],
+    ["commission_on_delivery", "0", 1],
+
+    // Additional Charges
+    ["additional_charge_status", "0", 0],
+    ["additional_charge_name", "Service Charge", 1],
+    ["additional_charge_amount", "50", 1],
+
+    // Content
+    ["copyright_text", "© 2026 Hostel Management System. Developed and Maintained by Hostel Admin.", 1],
+    ["cookies_text", "We use cookies to improve your experience.", 1],
+
+    // Maintenance Mode
+    ["maintenance_mode", "0", 0],
+
+    // Payment Options
+    ["payment_cod_active", "1", 1],
+    ["payment_digital_active", "0", 0],
+    ["payment_offline_active", "0", 0],
+    ["payment_partial_active", "0", 0],
+
+    // Login Setup
+    ["manual_login_status", "1", 1],
+    ["otp_login_status", "0", 1],
+    ["social_login_status", "1", 1],
+    ["google_login_status", "1", 1],
+    ["facebook_login_status", "0", 1],
+    ["apple_login_status", "0", 1],
+    ["email_verification_status", "0", 1],
+    ["phone_verification_status", "0", 1],
+
+    // App Version Control — User App
+    ["app_minimum_version_android", "1.0.0", 1],
+    ["app_url_android", "https://play.google.com/store/apps/details?id=com.hostel.app", 1],
+    ["app_minimum_version_ios", "1.0.0", 1],
+    ["app_url_ios", "https://apps.apple.com/app/hostel/id123456", 1],
+
+    // App Version Control — Owner App
+    ["app_minimum_version_android_owner", "1.0.0", 1],
+    ["app_url_android_owner", "https://play.google.com/store/apps/details?id=com.hostel.owner", 1],
+    ["app_minimum_version_ios_owner", "1.0.0", 1],
+    ["app_url_ios_owner", "https://apps.apple.com/app/hostel-owner/id123456", 1],
+
+    // Feature Toggles
+    ["popular_rooms", "1", 1],
+    ["popular_hostels", "1", 1],
+    ["new_listings", "1", 1],
+    ["top_rated", "1", 1],
+
+    // Theme
+    ["theme", "1", 1],
+
+    // Landing Page
+    ["landing_page_type", "default", 1],
+    ["landing_page_url", "", 0],
+    ["landing_page_status", "1", 1],
+
+    // Website Settings
+    ["dark_mode", "0", 0],
+    ["cookies_banner_status", "1", 1],
+    ["guest_checkout_status", "1", 1],
+    ["website_loader_status", "1", 1],
+    ["smooth_scroll_status", "1", 1],
+  ];
+
+  for (const [key, value, isActive] of defaultSettings) {
+    await conn.execute(
+      `INSERT INTO system_settings (setting_key, setting_value, is_active) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE setting_value = COALESCE(NULLIF(setting_value, ''), VALUES(setting_value))`,
+      [key, value, isActive]
+    );
+  }
+  console.log("✅ Default business settings seeded (" + defaultSettings.length + " settings)");
+
   await conn.end();
 
   console.log("\n🎉 Seeding complete!");
 }
 
-main().catch((e) => {
+main().catch((e: any) => {
   console.error("❌ Seed error:", e.message);
   process.exit(1);
 });

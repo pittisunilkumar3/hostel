@@ -1,0 +1,39 @@
+const mysql = require('mysql2/promise');
+
+async function run() {
+  const conn = await mysql.createConnection('mysql://root:@localhost:3306/hostel_db');
+  
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      sub_title VARCHAR(255) DEFAULT NULL,
+      \`key\` VARCHAR(100) NOT NULL,
+      type ENUM('ADMIN','OWNER','CUSTOMER') NOT NULL DEFAULT 'ADMIN',
+      mail_status ENUM('ACTIVE','INACTIVE','DISABLE') NOT NULL DEFAULT 'DISABLE',
+      sms_status ENUM('ACTIVE','INACTIVE','DISABLE') NOT NULL DEFAULT 'DISABLE',
+      push_notification_status ENUM('ACTIVE','INACTIVE','DISABLE') NOT NULL DEFAULT 'DISABLE',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_key_type (\`key\`, type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS notification_messages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      \`key\` VARCHAR(100) NOT NULL,
+      message TEXT DEFAULT NULL,
+      status TINYINT(1) NOT NULL DEFAULT 1,
+      user_type VARCHAR(20) NOT NULL DEFAULT 'CUSTOMER',
+      created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+      UNIQUE KEY unique_key_user_type (\`key\`, user_type)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  console.log('✅ Notification tables created successfully');
+  await conn.end();
+}
+
+run().catch(e => console.error(e));

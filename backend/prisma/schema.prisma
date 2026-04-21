@@ -133,3 +133,55 @@ model CmsPage {
 
   @@map("cms_pages")
 }
+
+// ============================================
+// NOTIFICATION SETTINGS - Channel config per topic
+// ============================================
+model NotificationSetting {
+  id                      Int                           @id @default(autoincrement())
+  title                   String                        @db.VarChar(255)
+  subTitle                String?                       @map("sub_title") @db.VarChar(255)
+  key                     String                        @db.VarChar(100)
+  type                    NotificationChannelType       @default(ADMIN)
+  mailStatus              NotificationChannelStatus     @default(DISABLE) @map("mail_status")
+  smsStatus               NotificationChannelStatus     @default(DISABLE) @map("sms_status")
+  pushNotificationStatus  NotificationChannelStatus     @default(DISABLE) @map("push_notification_status")
+  createdAt               DateTime                      @default(now()) @map("created_at")
+  updatedAt               DateTime                      @updatedAt @map("updated_at")
+
+  @@unique([key, type])
+  @@map("notification_settings")
+}
+
+enum NotificationChannelType {
+  ADMIN
+  OWNER
+  CUSTOMER
+}
+
+enum NotificationChannelStatus {
+  ACTIVE
+  INACTIVE
+  DISABLE
+}
+
+// ============================================
+// NOTIFICATION MESSAGES - Push notification templates
+// ============================================
+model NotificationMessage {
+  id        Int                        @id @default(autoincrement())
+  key       String                     @db.VarChar(100)
+  message   String?                    @db.Text
+  status    Boolean                    @default(true)
+  userType  NotificationMessageUserType @default(CUSTOMER) @map("user_type")
+  createdAt DateTime                   @default(now()) @map("created_at")
+  updatedAt DateTime                   @updatedAt @map("updated_at")
+
+  @@unique([key, userType])
+  @@map("notification_messages")
+}
+
+enum NotificationMessageUserType {
+  CUSTOMER
+  OWNER
+}

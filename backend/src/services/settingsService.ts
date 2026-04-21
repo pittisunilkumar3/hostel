@@ -36,10 +36,16 @@ export const isSettingActive = async (key: string): Promise<boolean> => {
   return setting ? setting.is_active === 1 : false;
 };
 
+/**
+ * Update or Insert a setting (mirrors the reference project's updateOrInsert pattern).
+ * If the key exists, it updates; if not, it inserts — so saving always works.
+ */
 export const updateSetting = async (key: string, value: string, isActive: boolean) => {
   await db.execute(
-    "UPDATE system_settings SET setting_value = ?, is_active = ? WHERE setting_key = ?",
-    [value, isActive ? 1 : 0, key]
+    `INSERT INTO system_settings (setting_key, setting_value, is_active)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), is_active = VALUES(is_active)`,
+    [key, value, isActive ? 1 : 0]
   );
   return getSetting(key);
 };
@@ -51,6 +57,7 @@ export const updateGoogleSettings = async (data: {
 }) => {
   await updateSetting("google_client_id", data.clientId, data.isActive);
   await updateSetting("google_client_secret", data.clientSecret, data.isActive);
+  await updateSetting("google_is_active", data.isActive ? "1" : "0", data.isActive);
   return getAllSettings();
 };
 
@@ -63,6 +70,7 @@ export const updateTwilioSettings = async (data: {
   await updateSetting("twilio_account_sid", data.accountSid, data.isActive);
   await updateSetting("twilio_auth_token", data.authToken, data.isActive);
   await updateSetting("twilio_phone_number", data.phoneNumber, data.isActive);
+  await updateSetting("twilio_is_active", data.isActive ? "1" : "0", data.isActive);
   return getAllSettings();
 };
 
@@ -115,7 +123,11 @@ export const getBusinessSettings = async () => {
     result[key] = setting ? setting.setting_value : "";
   }
   // Also get active status for toggle fields
-  const toggleKeys = ["maintenance_mode", "country_picker_status", "additional_charge_status", "payment_cod_active", "payment_digital_active", "payment_offline_active", "payment_partial_active"];
+  const toggleKeys = [
+    "maintenance_mode", "country_picker_status", "additional_charge_status",
+    "payment_cod_active", "payment_digital_active", "payment_offline_active",
+    "payment_partial_active"
+  ];
   for (const key of toggleKeys) {
     const setting = await getSetting(key);
     (result as any)[`${key}_active`] = setting ? setting.is_active : 0;
@@ -128,7 +140,8 @@ export const updateBusinessSettings = async (data: Record<string, any>) => {
 
   // Handle maintenance mode toggle specially
   if (maintenance_mode !== undefined) {
-    await updateSetting("maintenance_mode", maintenance_mode, maintenance_mode_active === true || maintenance_mode_active === 1);
+    const mmActive = maintenance_mode_active === true || maintenance_mode_active === 1;
+    await updateSetting("maintenance_mode", maintenance_mode, mmActive);
   }
 
   // Handle all other string fields
@@ -149,7 +162,11 @@ export const updateBusinessSettings = async (data: Record<string, any>) => {
   }
 
   // Handle toggle fields
-  const toggleFields = ["country_picker_status", "additional_charge_status", "payment_cod_active", "payment_digital_active", "payment_offline_active", "payment_partial_active"];
+  const toggleFields = [
+    "country_picker_status", "additional_charge_status",
+    "payment_cod_active", "payment_digital_active",
+    "payment_offline_active", "payment_partial_active"
+  ];
   for (const field of toggleFields) {
     if (rest[field] !== undefined) {
       const isActive = rest[`${field}_active`] === true || rest[`${field}_active`] === 1 || rest[field] === "1";

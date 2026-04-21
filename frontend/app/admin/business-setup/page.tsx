@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { API_URL } from "@/lib/auth";
 
 const sidebarItems = getSidebarItems();
 
@@ -39,16 +40,20 @@ export default function BusinessSetup() {
   const [defaultCommission, setDefaultCommission] = useState("12");
   const [commissionOnDelivery, setCommissionOnDelivery] = useState("0");
   const [additionalChargeStatus, setAdditionalChargeStatus] = useState(false);
-  const [additionalChargeName, setAdditionalChargeName] = useState("Packing Charges");
-  const [additionalChargeAmount, setAdditionalChargeAmount] = useState("10");
+  const [additionalChargeName, setAdditionalChargeName] = useState("Service Charge");
+  const [additionalChargeAmount, setAdditionalChargeAmount] = useState("50");
   const [copyrightText, setCopyrightText] = useState("");
-  const [cookiesText, setCookiesText] = useState("Cookies");
+  const [cookiesText, setCookiesText] = useState("We use cookies to improve your experience.");
 
   // Payment state
   const [codActive, setCodActive] = useState(true);
   const [digitalActive, setDigitalActive] = useState(false);
   const [offlineActive, setOfflineActive] = useState(false);
   const [partialActive, setPartialActive] = useState(false);
+
+  // Upload state
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingFavicon, setUploadingFavicon] = useState(false);
 
   useEffect(() => { setUser(getCurrentUser()); fetchSettings(); }, []);
 
@@ -77,10 +82,10 @@ export default function BusinessSetup() {
         setDefaultCommission(d.default_commission || "12");
         setCommissionOnDelivery(d.commission_on_delivery || "0");
         setAdditionalChargeStatus(d.additional_charge_status_active === 1 || d.additional_charge_status === "1");
-        setAdditionalChargeName(d.additional_charge_name || "Packing Charges");
-        setAdditionalChargeAmount(d.additional_charge_amount || "10");
+        setAdditionalChargeName(d.additional_charge_name || "Service Charge");
+        setAdditionalChargeAmount(d.additional_charge_amount || "50");
         setCopyrightText(d.copyright_text || "");
-        setCookiesText(d.cookies_text || "Cookies");
+        setCookiesText(d.cookies_text || "We use cookies to improve your experience.");
         setCodActive(d.payment_cod_active === 1 || d.payment_cod_active === "1");
         setDigitalActive(d.payment_digital_active === 1 || d.payment_digital_active === "1");
         setOfflineActive(d.payment_offline_active === 1 || d.payment_offline_active === "1");
@@ -90,9 +95,43 @@ export default function BusinessSetup() {
     finally { setLoading(false); }
   };
 
+  const uploadFile = async (file: File, type: "logo" | "favicon"): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", type);
+
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_URL}/api/settings/upload`, {
+      method: "POST",
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData,
+    });
+    const data = await res.json();
+    if (data.success && data.data?.url) return data.data.url;
+    return null;
+  };
+
   const handleSave = async () => {
     setSaving(true); setMessage(null);
     try {
+      // Upload logo if changed
+      let logoUrl = companyLogo;
+      if (logoFile) {
+        setUploadingLogo(true);
+        const uploaded = await uploadFile(logoFile, "logo");
+        if (uploaded) logoUrl = uploaded;
+        setUploadingLogo(false);
+      }
+
+      // Upload favicon if changed
+      let faviconUrl = companyFavicon;
+      if (faviconFile) {
+        setUploadingFavicon(true);
+        const uploaded = await uploadFile(faviconFile, "favicon");
+        if (uploaded) faviconUrl = uploaded;
+        setUploadingFavicon(false);
+      }
+
       const res = await apiFetch("/api/settings/business", {
         method: "PUT",
         body: JSON.stringify({
@@ -100,7 +139,7 @@ export default function BusinessSetup() {
           company_name: companyName, company_email: companyEmail, company_phone: companyPhone,
           company_country: companyCountry, company_description: companyDescription,
           company_latitude: companyLatitude, company_longitude: companyLongitude,
-          company_logo: companyLogo, company_favicon: companyFavicon,
+          company_logo: logoUrl, company_favicon: faviconUrl,
           time_zone: timeZone, time_format: timeFormat,
           country_picker_status: countryPickerStatus ? "1" : "0", country_picker_status_active: countryPickerStatus,
           currency_code: currencyCode, currency_symbol_position: currencySymbolPosition,
@@ -113,9 +152,9 @@ export default function BusinessSetup() {
           payment_offline_active: offlineActive ? "1" : "0", payment_partial_active: partialActive ? "1" : "0",
         }),
       });
-      setMessage(res.success ? { type: "success", text: "✅ Settings saved successfully!" } : { type: "error", text: res.message || "Failed" });
+      setMessage(res.success ? { type: "success", text: "✅ Settings saved successfully! Changes will reflect across the whole website." } : { type: "error", text: res.message || "Failed" });
       if (res.success) {
-        // Clear cached settings so all pages refresh
+        // Clear cached settings so ALL pages refresh immediately
         localStorage.removeItem("siteSettings");
         window.dispatchEvent(new Event("site-settings-changed"));
       }
@@ -145,7 +184,18 @@ export default function BusinessSetup() {
     <DashboardShell role="admin" title="Super Admin" items={sidebarItems} accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Business Setup</h1>
-        <p className="text-gray-500 mt-1">Configure your business information, branding, and operational settings</p>
+        <p className="text-gray-500 mt-1">Configure your business information, branding, and operational settings. Changes affect the entire website.</p>
+      </div>
+
+      {/* Impact Banner */}
+      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3">
+        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-blue-900">Global Settings</h4>
+          <p className="text-xs text-blue-700 mt-0.5">All changes made here are saved to the database and automatically reflect across: homepage, login pages, sidebar, registration, dashboard, footer, copyright text, favicon, and page titles.</p>
+        </div>
       </div>
 
       {/* Horizontal Tabs */}
@@ -174,7 +224,7 @@ export default function BusinessSetup() {
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900">Payment Options</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Setup your payment methods from here.</p>
+              <p className="text-xs text-gray-500 mt-0.5">Setup your payment methods from here. These affect booking checkout flow.</p>
             </div>
             <div className="p-6 space-y-4">
 
@@ -190,7 +240,7 @@ export default function BusinessSetup() {
                         <h4 className="text-sm font-bold text-gray-900">Cash On Delivery</h4>
                         {codActive && <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full uppercase">Active</span>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">Allow customers to pay in cash when the order is delivered. This is a convenient option for users who prefer not to pay online.</p>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">Allow customers to pay in cash when the order is delivered.</p>
                     </div>
                   </div>
                   <Toggle checked={codActive} onChange={setCodActive} />
@@ -209,7 +259,7 @@ export default function BusinessSetup() {
                         <h4 className="text-sm font-bold text-gray-900">Digital Payment</h4>
                         {digitalActive && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full uppercase">Active</span>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">Enable customers to make secure online payments using supported payment gateways. Ideal for fast and seamless transactions.</p>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">Enable secure online payments using supported payment gateways.</p>
                     </div>
                   </div>
                   <Toggle checked={digitalActive} onChange={setDigitalActive} />
@@ -228,7 +278,7 @@ export default function BusinessSetup() {
                         <h4 className="text-sm font-bold text-gray-900">Offline Payment</h4>
                         {offlineActive && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full uppercase">Active</span>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">Let customers pay through offline methods such as bank transfers or manual payments. Use this option when online payment is not available.</p>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">Pay through offline methods such as bank transfers or manual payments.</p>
                     </div>
                   </div>
                   <Toggle checked={offlineActive} onChange={setOfflineActive} />
@@ -248,14 +298,9 @@ export default function BusinessSetup() {
                 <ul className="mt-2 space-y-1.5">
                   <li className="flex items-center gap-2 text-xs text-amber-700">
                     <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" /></svg>
-                    Customer wallet from the Customer Wallet Page.
-                  </li>
-                  <li className="flex items-center gap-2 text-xs text-amber-700">
-                    <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" /></svg>
-                    At least one payment method from the previous Payment Option Section.
+                    At least one payment method from the Payment Option Section.
                   </li>
                 </ul>
-                <p className="text-[11px] text-amber-600 mt-3 leading-relaxed">To use any payment method for Partial payment you need to active them from Previous Section, otherwise the payment method will remain disable.</p>
               </div>
             </div>
           </div>
@@ -264,7 +309,7 @@ export default function BusinessSetup() {
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900">Partial Payment</h3>
-              <p className="text-xs text-gray-500 mt-0.5">By switching this feature ON, Customer can pay with wallet balance &amp; partially pay from other payment gateways.</p>
+              <p className="text-xs text-gray-500 mt-0.5">By switching this feature ON, Customer can pay partially from other payment gateways.</p>
             </div>
             <div className="p-6">
               <div className="bg-gray-50 rounded-xl p-5 flex items-center justify-between border border-gray-100">
@@ -298,7 +343,7 @@ export default function BusinessSetup() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">Maintenance Mode</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">Turn on the Maintenance Mode will temporarily deactivate your selected systems.</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Turn ON to temporarily deactivate the website for all users except admins.</p>
                 </div>
                 <Toggle checked={maintenanceMode} onChange={setMaintenanceMode} />
               </div>
@@ -307,7 +352,7 @@ export default function BusinessSetup() {
               <div className="px-6 py-4 bg-amber-50/50">
                 <div className="flex items-start gap-2.5">
                   <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
-                  <p className="text-xs text-amber-700">Maintenance mode is <strong>ON</strong>. Your site is temporarily unavailable.</p>
+                  <p className="text-xs text-amber-700">Maintenance mode is <strong>ON</strong>. Your site is temporarily unavailable to customers.</p>
                 </div>
               </div>
             )}
@@ -317,12 +362,13 @@ export default function BusinessSetup() {
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900">Basic Information</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Here you setup your all business information.</p>
+              <p className="text-xs text-gray-500 mt-0.5">This information appears across the website: homepage title, sidebar, login pages, footer, etc.</p>
             </div>
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Company name <span className="text-red-500">*</span></label>
                 <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Enter company name" className={ic} />
+                <p className="text-[10px] text-gray-400 mt-1">This becomes the page title, sidebar header &amp; homepage heading</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -345,23 +391,23 @@ export default function BusinessSetup() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <textarea value={companyDescription} onChange={(e) => setCompanyDescription(e.target.value)} placeholder="Enter business description" rows={3} className={ic + " resize-none"} />
-                  <span className="absolute bottom-2 right-3 text-[10px] text-gray-400">{companyDescription.length}/100</span>
+                  <span className="absolute bottom-2 right-3 text-[10px] text-gray-400">{companyDescription.length}/200</span>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Latitude <span className="text-red-500">*</span></label>
-                  <input type="text" value={companyLatitude} onChange={(e) => setCompanyLatitude(e.target.value)} placeholder="13.965479929363937" className={ic} />
+                  <input type="text" value={companyLatitude} onChange={(e) => setCompanyLatitude(e.target.value)} placeholder="12.971599" className={ic} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Longitude <span className="text-red-500">*</span></label>
-                  <input type="text" value={companyLongitude} onChange={(e) => setCompanyLongitude(e.target.value)} placeholder="79.59826079044107" className={ic} />
+                  <input type="text" value={companyLongitude} onChange={(e) => setCompanyLongitude(e.target.value)} placeholder="77.594566" className={ic} />
                 </div>
               </div>
               <div className="border border-dashed border-gray-300 rounded-xl h-48 bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                   <svg className="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  <p className="text-xs text-gray-400">Search here</p>
+                  <p className="text-xs text-gray-400">Map placeholder</p>
                   {companyLatitude && companyLongitude && <p className="text-[10px] text-gray-400 mt-1">📍 {companyLatitude}, {companyLongitude}</p>}
                 </div>
               </div>
@@ -375,24 +421,39 @@ export default function BusinessSetup() {
                 <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center"><svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>
                 <h3 className="text-base font-bold text-gray-900">Logo &amp; Favicon</h3>
               </div>
+              <p className="text-xs text-gray-500 mt-1">Logo appears in sidebar &amp; login pages. Favicon appears in the browser tab.</p>
             </div>
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Logo <span className="text-red-500">*</span></label>
-                <p className="text-xs text-gray-400 mb-2">Upload your Business Logo</p>
+                <p className="text-xs text-gray-400 mb-2">Upload your Business Logo (shown in sidebar &amp; all pages)</p>
                 <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-indigo-300 transition-colors">
                   {companyLogo ? <img src={companyLogo} alt="Logo" className="w-24 h-24 object-contain mx-auto mb-2 rounded-lg" /> : <div className="w-16 h-16 bg-gray-100 rounded-xl mx-auto mb-3 flex items-center justify-center"><svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
-                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setLogoFile(f); setCompanyLogo(URL.createObjectURL(f)); } }} className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                  <p className="text-[10px] text-gray-400 mt-2">Jpeg, jpg, png, gif, webp Image size : Max 2 MB (3:1)</p>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setLogoFile(f);
+                      setCompanyLogo(URL.createObjectURL(f));
+                    }
+                  }} className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                  <p className="text-[10px] text-gray-400 mt-2">Jpeg, jpg, png, gif, webp — Max 2 MB (3:1)</p>
+                  {uploadingLogo && <p className="text-[10px] text-indigo-600 mt-1 animate-pulse">Uploading...</p>}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Favicon <span className="text-red-500">*</span></label>
-                <p className="text-xs text-gray-400 mb-2">Upload your website favicon</p>
+                <p className="text-xs text-gray-400 mb-2">Upload your website favicon (shown in browser tab)</p>
                 <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-indigo-300 transition-colors">
                   {companyFavicon ? <img src={companyFavicon} alt="Favicon" className="w-12 h-12 object-contain mx-auto mb-2 rounded-lg" /> : <div className="w-12 h-12 bg-gray-100 rounded-xl mx-auto mb-3 flex items-center justify-center"><svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
-                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFaviconFile(f); setCompanyFavicon(URL.createObjectURL(f)); } }} className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                  <p className="text-[10px] text-gray-400 mt-2">Jpeg, jpg, png, gif, webp Image size : Max 2 MB (1:1)</p>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      setFaviconFile(f);
+                      setCompanyFavicon(URL.createObjectURL(f));
+                    }
+                  }} className="text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                  <p className="text-[10px] text-gray-400 mt-2">Jpeg, jpg, png, gif, webp — Max 2 MB (1:1)</p>
+                  {uploadingFavicon && <p className="text-[10px] text-indigo-600 mt-1 animate-pulse">Uploading...</p>}
                 </div>
               </div>
             </div>
@@ -402,7 +463,7 @@ export default function BusinessSetup() {
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900">General Settings</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Here you setup your all business general settings.</p>
+              <p className="text-xs text-gray-500 mt-0.5">Time zone affects booking times. Currency affects room prices displayed across the site.</p>
             </div>
             <div className="p-6 space-y-6">
               {/* Time Setup */}
@@ -410,7 +471,6 @@ export default function BusinessSetup() {
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-6 h-6 bg-blue-50 rounded-md flex items-center justify-center"><svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
                   <h4 className="text-sm font-bold text-gray-900">Time Setup</h4>
-                  <span className="text-[10px] text-gray-400">Setup your business time zone and format from here.</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -431,25 +491,22 @@ export default function BusinessSetup() {
               {/* Country Picker */}
               <div className="border-t border-gray-100 pt-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-green-50 rounded-md flex items-center justify-center"><svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
                   <h4 className="text-sm font-bold text-gray-900">Country Picker</h4>
-                  <span className="text-[10px] text-gray-400">If you disable this option, no country picker will show on customer apps.</span>
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4 flex items-center justify-between border border-gray-100">
-                  <div><p className="text-sm font-semibold text-gray-900">Status</p><p className="text-xs text-gray-400 mt-0.5">If you want to business multiple country you need to turn on country picker feature.</p></div>
+                  <div><p className="text-sm font-semibold text-gray-900">Status</p><p className="text-xs text-gray-400 mt-0.5">Show country picker on customer-facing pages</p></div>
                   <Toggle checked={countryPickerStatus} onChange={setCountryPickerStatus} />
                 </div>
               </div>
               {/* Currency Setup */}
               <div className="border-t border-gray-100 pt-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-amber-50 rounded-md flex items-center justify-center"><svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
                   <h4 className="text-sm font-bold text-gray-900">Currency Setup</h4>
-                  <span className="text-[10px] text-gray-400">Setup your business currency from here.</span>
+                  <span className="text-[10px] text-gray-400">Affects room prices, booking amounts &amp; invoices</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency (₹) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Currency <span className="text-red-500">*</span></label>
                     <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)} className={ic + " bg-white"}>
                       <option value="INR">INR ( ₹ )</option><option value="USD">USD ( $ )</option><option value="EUR">EUR ( € )</option><option value="GBP">GBP ( £ )</option><option value="AED">AED ( د.إ )</option><option value="SGD">SGD ( S$ )</option><option value="AUD">AUD ( A$ )</option>
                     </select>
@@ -483,20 +540,16 @@ export default function BusinessSetup() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <label className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${businessModel === "subscription" ? "border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-200" : "border-gray-200 hover:border-gray-300"}`}>
                     <div className="flex items-center gap-2 mb-2"><input type="radio" name="bmodel" value="subscription" checked={businessModel === "subscription"} onChange={(e) => setBusinessModel(e.target.value)} className="text-indigo-600" /><span className="text-sm font-bold text-gray-900">Subscription</span></div>
-                    <p className="text-xs text-gray-500 leading-relaxed">By selecting subscription based business model restaurants can run business with you based on subscription package.</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">Subscription based model with recurring payments.</p>
                   </label>
                   <label className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${businessModel === "commission" ? "border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-200" : "border-gray-200 hover:border-gray-300"}`}>
                     <div className="flex items-center gap-2 mb-2"><input type="radio" name="bmodel" value="commission" checked={businessModel === "commission"} onChange={(e) => setBusinessModel(e.target.value)} className="text-indigo-600" /><span className="text-sm font-bold text-gray-900">Commission</span></div>
-                    <p className="text-xs text-gray-500 leading-relaxed">By selecting commission based business model restaurants can run business with you based on commission based payment per order.</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">Commission based payment per booking.</p>
                   </label>
                 </div>
               </div>
               {businessModel === "commission" && (
                 <>
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 flex items-start gap-2.5">
-                    <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <p className="text-[11px] text-blue-600 leading-relaxed">To set different commission for commission based restaurant. Go to: Restaurant List &gt; Restaurant Details &gt; Business Plan</p>
-                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Default commission (%) <span className="text-red-500">*</span></label><input type="number" value={defaultCommission} onChange={(e) => setDefaultCommission(e.target.value)} placeholder="12" className={ic} /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Commission on Delivery Charge (%) <span className="text-red-500">*</span></label><input type="number" value={commissionOnDelivery} onChange={(e) => setCommissionOnDelivery(e.target.value)} placeholder="0" className={ic} /></div>
@@ -520,12 +573,8 @@ export default function BusinessSetup() {
               {additionalChargeStatus && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Additional charge name <span className="text-red-500">*</span></label><input type="text" value={additionalChargeName} onChange={(e) => setAdditionalChargeName(e.target.value)} placeholder="Packing Charges" className={ic} /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Charge amount (₹) <span className="text-red-500">*</span></label><input type="number" value={additionalChargeAmount} onChange={(e) => setAdditionalChargeAmount(e.target.value)} placeholder="10" className={ic} /></div>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-3.5 flex items-start gap-2.5">
-                    <svg className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">Only admin will get the additional amount &amp; customer must pay the amount.</p>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Additional charge name <span className="text-red-500">*</span></label><input type="text" value={additionalChargeName} onChange={(e) => setAdditionalChargeName(e.target.value)} placeholder="Service Charge" className={ic} /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Charge amount (₹) <span className="text-red-500">*</span></label><input type="number" value={additionalChargeAmount} onChange={(e) => setAdditionalChargeAmount(e.target.value)} placeholder="50" className={ic} /></div>
                   </div>
                 </>
               )}
@@ -536,20 +585,21 @@ export default function BusinessSetup() {
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900">Content Setup</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Setup your business content from here.</p>
+              <p className="text-xs text-gray-500 mt-0.5">Copyright text appears in the footer of every page. Cookies text shows in cookie banner.</p>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Copy right text <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Copyright text <span className="text-red-500">*</span></label>
                 <div className="relative">
-                  <textarea value={copyrightText} onChange={(e) => setCopyrightText(e.target.value)} placeholder="Developed and Maintained by..." rows={2} className={ic + " resize-none"} />
-                  <span className="absolute bottom-2 right-3 text-[10px] text-gray-400">{copyrightText.length}/100</span>
+                  <textarea value={copyrightText} onChange={(e) => setCopyrightText(e.target.value)} placeholder="© 2026 Hostel Management System. All rights reserved." rows={2} className={ic + " resize-none"} />
+                  <span className="absolute bottom-2 right-3 text-[10px] text-gray-400">{copyrightText.length}/200</span>
                 </div>
+                <p className="text-[10px] text-gray-400 mt-1">Shown at the bottom of homepage, login pages &amp; registration pages</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cookies Text <span className="text-red-500">*</span></label>
                 <div className="relative">
-                  <input type="text" value={cookiesText} onChange={(e) => setCookiesText(e.target.value)} placeholder="Cookies" className={ic} />
+                  <input type="text" value={cookiesText} onChange={(e) => setCookiesText(e.target.value)} placeholder="We use cookies to improve your experience." className={ic} />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">{cookiesText.length}/100</span>
                 </div>
               </div>
@@ -558,8 +608,8 @@ export default function BusinessSetup() {
 
           {/* Save */}
           <div className="flex justify-end">
-            <button onClick={handleSave} disabled={saving} className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/30">
-              {saving ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Saving...</> : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Save Changes</>}
+            <button onClick={handleSave} disabled={saving || uploadingLogo || uploadingFavicon} className="px-8 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+              {saving || uploadingLogo || uploadingFavicon ? <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>{uploadingLogo || uploadingFavicon ? "Uploading files..." : "Saving..."}</> : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Save Changes</>}
             </button>
           </div>
         </div>

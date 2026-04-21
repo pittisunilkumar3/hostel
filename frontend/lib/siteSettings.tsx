@@ -9,24 +9,40 @@ interface SiteSettings {
   companyFavicon: string;
   companyEmail: string;
   companyPhone: string;
+  companyCountry: string;
   companyDescription: string;
+  companyLatitude: string;
+  companyLongitude: string;
   copyrightText: string;
+  cookiesText: string;
   currencyCode: string;
   currencySymbol: string;
+  currencySymbolPosition: string;
+  decimalDigits: string;
+  timeZone: string;
+  timeFormat: string;
   maintenanceMode: boolean;
   loaded: boolean;
 }
 
 const defaults: SiteSettings = {
-  companyName: "Hostel Management",
+  companyName: "Hostel Management System",
   companyLogo: "",
   companyFavicon: "",
-  companyEmail: "",
-  companyPhone: "",
-  companyDescription: "",
-  copyrightText: "",
+  companyEmail: "info@hostelmanagment.com",
+  companyPhone: "+91 9999999999",
+  companyCountry: "India",
+  companyDescription: "A modern hostel management system for seamless room booking and management.",
+  companyLatitude: "",
+  companyLongitude: "",
+  copyrightText: "© 2026 Hostel Management System. All rights reserved.",
+  cookiesText: "We use cookies to improve your experience.",
   currencyCode: "INR",
   currencySymbol: "₹",
+  currencySymbolPosition: "left",
+  decimalDigits: "0",
+  timeZone: "Asia/Kolkata",
+  timeFormat: "12",
   maintenanceMode: false,
   loaded: false,
 };
@@ -61,17 +77,26 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
         const res = await fetch(`${API_URL}/api/settings/business-public`);
         const data = await res.json();
         if (data.success && data.data && mounted) {
+          const d = data.data;
           const s: SiteSettings = {
-            companyName: data.data.company_name || defaults.companyName,
-            companyLogo: data.data.company_logo || "",
-            companyFavicon: data.data.company_favicon || "",
-            companyEmail: data.data.company_email || "",
-            companyPhone: data.data.company_phone || "",
-            companyDescription: data.data.company_description || "",
-            copyrightText: data.data.copyright_text || "",
-            currencyCode: data.data.currency_code || "INR",
-            currencySymbol: currencySymbols[data.data.currency_code] || "₹",
-            maintenanceMode: data.data.maintenance_mode_active === 1,
+            companyName: d.company_name || defaults.companyName,
+            companyLogo: d.company_logo || "",
+            companyFavicon: d.company_favicon || "",
+            companyEmail: d.company_email || defaults.companyEmail,
+            companyPhone: d.company_phone || defaults.companyPhone,
+            companyCountry: d.company_country || defaults.companyCountry,
+            companyDescription: d.company_description || defaults.companyDescription,
+            companyLatitude: d.company_latitude || "",
+            companyLongitude: d.company_longitude || "",
+            copyrightText: d.copyright_text || defaults.copyrightText,
+            cookiesText: d.cookies_text || defaults.cookiesText,
+            currencyCode: d.currency_code || "INR",
+            currencySymbol: currencySymbols[d.currency_code] || "₹",
+            currencySymbolPosition: d.currency_symbol_position || "left",
+            decimalDigits: d.decimal_digits || "0",
+            timeZone: d.time_zone || "Asia/Kolkata",
+            timeFormat: d.time_format || "12",
+            maintenanceMode: d.maintenance_mode_active === 1 || d.maintenance_mode === "1",
             loaded: true,
           };
           setSettings(s);
@@ -90,7 +115,11 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(load, 60000);
 
     // Listen for manual refresh events (e.g. after saving business settings)
-    const handleRefresh = () => load();
+    const handleRefresh = () => {
+      // Clear cache first so we get fresh data
+      localStorage.removeItem("siteSettings");
+      load();
+    };
     window.addEventListener("site-settings-changed", handleRefresh);
 
     return () => {
@@ -123,6 +152,19 @@ function applyToDOM(s: SiteSettings) {
     }
     link.href = s.companyFavicon;
   }
+}
+
+/**
+ * Helper: Format currency value using site settings.
+ * Usage: formatCurrency(5000) → "₹5000" or "5000₹" depending on position
+ */
+export function formatCurrency(value: number, settings: SiteSettings): string {
+  const digits = parseInt(settings.decimalDigits || "0", 10);
+  const formatted = value.toFixed(digits);
+  const symbol = settings.currencySymbol || "₹";
+  return settings.currencySymbolPosition === "right"
+    ? `${formatted}${symbol}`
+    : `${symbol}${formatted}`;
 }
 
 export function useSiteSettings() {
