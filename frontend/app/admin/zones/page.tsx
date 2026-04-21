@@ -203,7 +203,17 @@ export default function ZonesPage() {
         setDisplayName("");
         setCoordinates("");
         setFormError("");
-        if (lastPolygonRef.current) { lastPolygonRef.current.setMap(null); lastPolygonRef.current = null; }
+
+        // Remove drawn polygon from map
+        if (lastPolygonRef.current) {
+          lastPolygonRef.current.setMap(null);
+          lastPolygonRef.current = null;
+        }
+
+        // Reset drawing manager back to polygon mode so user can draw again
+        if (drawingManagerRef.current && window.google) {
+          drawingManagerRef.current.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
+        }
 
         // Refresh overlays on the map
         loadExistingZoneOverlays();
@@ -222,7 +232,13 @@ export default function ZonesPage() {
 
   const handleReset = () => {
     setName(""); setDisplayName(""); setCoordinates(""); setFormError("");
-    if (lastPolygonRef.current) { lastPolygonRef.current.setMap(null); lastPolygonRef.current = null; }
+    if (lastPolygonRef.current) {
+      lastPolygonRef.current.setMap(null);
+      lastPolygonRef.current = null;
+    }
+    if (drawingManagerRef.current && window.google) {
+      drawingManagerRef.current.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
+    }
   };
 
   const handleDelete = async (id: number) => {
