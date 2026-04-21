@@ -5,16 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function OwnerRegister() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    phone: "",
-    hostelName: "",
-    hostelAddress: "",
-    idProof: "",
-  });
+  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
   const [showPw1, setShowPw1] = useState(false);
   const [showPw2, setShowPw2] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,7 +13,7 @@ export default function OwnerRegister() {
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
   const [devOtp, setDevOtp] = useState("");
-  const [otpPhone, setOtpPhone] = useState("");
+  const [phone, setPhone] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [googleActive, setGoogleActive] = useState(false);
   const [twilioActive, setTwilioActive] = useState(false);
@@ -43,26 +34,13 @@ export default function OwnerRegister() {
   const update = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
     if (form.password !== form.confirmPassword) { setError("Passwords do not match"); return; }
     if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          password: form.password,
-          role: "OWNER",
-          phone: form.phone,
-          hostel_name: form.hostelName,
-          hostel_address: form.hostelAddress,
-          id_proof: form.idProof,
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.email.split("@")[0], email: form.email, password: form.password, role: "OWNER" }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.message || "Registration failed"); return; }
@@ -83,8 +61,7 @@ export default function OwnerRegister() {
           try {
             const p = JSON.parse(atob(response.credential.split(".")[1]));
             const res = await fetch("http://localhost:3001/api/auth/google", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+              method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ email: p.email, name: p.name, googleId: p.sub }),
             });
             const data = await res.json();
@@ -100,13 +77,11 @@ export default function OwnerRegister() {
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
-    if (!otpPhone || otpPhone.length < 10) { setError("Enter a valid phone number"); return; }
+    if (!phone || phone.length < 10) { setError("Enter a valid phone number"); return; }
     setOtpLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: otpPhone }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message); return; }
@@ -116,14 +91,11 @@ export default function OwnerRegister() {
   };
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+    e.preventDefault(); setError("");
     setOtpLoading(true);
     try {
       const res = await fetch("http://localhost:3001/api/auth/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: otpPhone, otp }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, otp }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message); return; }
@@ -138,7 +110,7 @@ export default function OwnerRegister() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center p-4">
       {googleActive && googleClientId && <script src="https://accounts.google.com/gsi/client" async defer />}
-      <div className="w-full max-w-[460px]">
+      <div className="w-full max-w-[420px]">
         <Link href="/login/owner" className="inline-flex items-center text-emerald-300 text-sm mb-5 hover:underline">
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Back to Login
@@ -147,10 +119,10 @@ export default function OwnerRegister() {
         <div className="bg-white/[0.07] backdrop-blur-xl rounded-3xl p-7 shadow-2xl shadow-emerald-900/20 border border-white/10">
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mb-3 shadow-lg shadow-emerald-600/30">
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
             </div>
-            <h1 className="text-xl font-bold text-white">Register as Hostel Owner</h1>
-            <p className="text-emerald-300/60 text-xs mt-1">List your hostel and start managing bookings</p>
+            <h1 className="text-xl font-bold text-white">Create Account</h1>
+            <p className="text-emerald-300/60 text-xs mt-1">Register as hostel owner and manage your property</p>
           </div>
 
           {error && (
@@ -161,30 +133,15 @@ export default function OwnerRegister() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
-            {/* Personal Info */}
-            <div className="bg-white/[0.03] rounded-xl p-3.5 space-y-3 border border-white/5">
-              <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-widest">👤 Personal Information</p>
-              <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                </div>
-                <input type="text" value={form.name} onChange={(e) => update("name", e.target.value)} required placeholder="Full Name *" className={ic + " pl-10"} />
-              </div>
+            <div className="bg-white/[0.03] rounded-xl p-4 border border-white/5">
               <div className="relative">
                 <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 </div>
                 <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required placeholder="Email Address *" className={ic + " pl-10"} />
               </div>
-              <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                </div>
-                <input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="Phone Number" className={ic + " pl-10"} />
-              </div>
             </div>
 
-            {/* Password */}
             <div className="bg-white/[0.03] rounded-xl p-3.5 space-y-3 border border-white/5">
               <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-widest">🔒 Set Password</p>
               <div className="relative">
@@ -215,26 +172,8 @@ export default function OwnerRegister() {
               </div>
             </div>
 
-            {/* Hostel Info */}
-            <div className="bg-white/[0.03] rounded-xl p-3.5 space-y-3 border border-white/5">
-              <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-widest">🏠 Hostel Details</p>
-              <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                </div>
-                <input type="text" value={form.hostelName} onChange={(e) => update("hostelName", e.target.value)} required placeholder="Hostel Name *" className={ic + " pl-10"} />
-              </div>
-              <textarea value={form.hostelAddress} onChange={(e) => update("hostelAddress", e.target.value)} required placeholder="Hostel Full Address *" rows={2} className={ic + " resize-none"} />
-              <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" /></svg>
-                </div>
-                <input type="text" value={form.idProof} onChange={(e) => update("idProof", e.target.value)} placeholder="ID Proof Number (Aadhar/PAN)" className={ic + " pl-10"} />
-              </div>
-            </div>
-
             <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-lg shadow-emerald-600/25 disabled:opacity-50 transition-all text-sm">
-              {loading ? "Creating Account..." : "Create Owner Account"}
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
 
@@ -268,7 +207,7 @@ export default function OwnerRegister() {
                         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                         </div>
-                        <input type="tel" value={otpPhone} onChange={(e) => setOtpPhone(e.target.value)} required placeholder="+91 9876543210" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm transition-all" />
+                        <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required placeholder="+91 9876543210" className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm transition-all" />
                       </div>
                       <button type="submit" disabled={otpLoading} className="px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-emerald-600/20 disabled:opacity-50 transition-all shrink-0">
                         {otpLoading ? "..." : "Send OTP"}
@@ -278,7 +217,7 @@ export default function OwnerRegister() {
                     <form onSubmit={handleVerifyOTP} className="space-y-2.5">
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5 text-center">
                         <p className="text-emerald-300 text-xs">
-                          OTP sent to <span className="font-bold">{otpPhone}</span>
+                          OTP sent to <span className="font-bold">{phone}</span>
                           {devOtp && <span className="block mt-0.5 text-[11px] text-white/50">Dev OTP: <span className="font-bold text-yellow-300">{devOtp}</span></span>}
                         </p>
                       </div>
