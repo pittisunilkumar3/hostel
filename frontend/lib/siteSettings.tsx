@@ -142,25 +142,20 @@ function applyToDOM(s: SiteSettings) {
     document.title = s.companyName;
   }
 
-  // Set favicon — remove all old favicon links and create fresh ones
+  // Set favicon — update existing or create new (never remove React-managed nodes)
   if (s.companyFavicon) {
-    // Remove all existing favicon link elements
-    const existing = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');
-    existing.forEach(el => el.remove());
-
-    // Create new favicon link with cache-busting timestamp
-    const link = document.createElement('link');
-    link.rel = 'icon';
-    link.type = 'image/png';
-    link.href = s.companyFavicon + '?t=' + Date.now();
-    document.head.appendChild(link);
-
-    // Also set shortcut icon for older browsers
-    const shortcut = document.createElement('link');
-    shortcut.rel = 'shortcut icon';
-    shortcut.type = 'image/png';
-    shortcut.href = s.companyFavicon + '?t=' + Date.now();
-    document.head.appendChild(shortcut);
+    const cacheBust = '?t=' + Date.now();
+    let iconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+    if (iconLink) {
+      iconLink.href = s.companyFavicon + cacheBust;
+      iconLink.type = 'image/png';
+    } else {
+      const newLink = document.createElement('link');
+      newLink.rel = 'icon';
+      newLink.type = 'image/png';
+      newLink.href = s.companyFavicon + cacheBust;
+      document.head.appendChild(newLink);
+    }
   }
 }
 
