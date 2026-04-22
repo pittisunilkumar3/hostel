@@ -16,7 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <head>
+        {/* Favicon is dynamically set by SiteSettingsProvider from database.
+            This default will be replaced on client-side once settings load. */}
         <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="/favicon.ico" />
       </head>
       <body className="min-h-full font-sans">
         <SiteSettingsProvider>

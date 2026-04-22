@@ -142,15 +142,25 @@ function applyToDOM(s: SiteSettings) {
     document.title = s.companyName;
   }
 
-  // Set favicon
+  // Set favicon — remove all old favicon links and create fresh ones
   if (s.companyFavicon) {
-    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "icon";
-      document.head.appendChild(link);
-    }
-    link.href = s.companyFavicon;
+    // Remove all existing favicon link elements
+    const existing = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');
+    existing.forEach(el => el.remove());
+
+    // Create new favicon link with cache-busting timestamp
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/png';
+    link.href = s.companyFavicon + '?t=' + Date.now();
+    document.head.appendChild(link);
+
+    // Also set shortcut icon for older browsers
+    const shortcut = document.createElement('link');
+    shortcut.rel = 'shortcut icon';
+    shortcut.type = 'image/png';
+    shortcut.href = s.companyFavicon + '?t=' + Date.now();
+    document.head.appendChild(shortcut);
   }
 }
 
