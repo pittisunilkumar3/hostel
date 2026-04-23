@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SiteSettingsProvider } from "@/lib/siteSettings";
 import { I18nProvider } from "@/lib/i18n";
+import { PushNotificationProvider } from "@/lib/pushNotifications";
 
 export const metadata: Metadata = {
   title: "Hostel Management",
@@ -21,7 +22,9 @@ export default function RootLayout({
       <body className="min-h-full font-sans">
         <SiteSettingsProvider>
           <I18nProvider>
-            {children}
+            <PushNotificationProvider>
+              {children}
+            </PushNotificationProvider>
           </I18nProvider>
         </SiteSettingsProvider>
       </body>

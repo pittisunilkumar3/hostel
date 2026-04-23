@@ -1,6 +1,12 @@
 import { NextRequest } from "next/server";
 import { bookingService } from "../services";
 import { successResponse, errorResponse, getPaginationParams } from "../utils";
+import {
+  sendPushNotification,
+  sendPushNotificationByRole,
+  isPushNotificationEnabled,
+} from "../services/pushNotificationService";
+import db, { RowDataPacket } from "../config/database";
 
 // POST /api/bookings
 export async function createBookingController(request: NextRequest) {
@@ -13,6 +19,47 @@ export async function createBookingController(request: NextRequest) {
     }
 
     const booking = await bookingService.createBooking({ studentId, roomId, checkIn, checkOut, totalAmount });
+
+    // Send push notification to admins about new booking
+    try {
+      if (await isPushNotificationEnabled("new_booking", "ADMIN")) {
+        const [roomRows] = await db.execute<RowDataPacket[]>(
+          "SELECT room_number FROM rooms WHERE id = ?", [roomId]
+        );
+        const [userRows] = await db.execute<RowDataPacket[]>(
+          "SELECT name FROM users WHERE id = ?", [studentId]
+        );
+        const roomNumber = roomRows[0]?.room_number || roomId;
+        const userName = userRows[0]?.name || "Customer";
+
+        await sendPushNotificationByRole("SUPER_ADMIN", {
+          title: "New Booking",
+          body: `${userName} booked Room ${roomNumber}`,
+          data: { type: "new_booking", bookingId: String(booking.id) },
+        }, "new_booking");
+      }
+
+      // Notify owner about new booking
+      if (await isPushNotificationEnabled("owner_new_booking", "OWNER")) {
+        const [roomRows] = await db.execute<RowDataPacket[]>(
+          "SELECT room_number FROM rooms WHERE id = ?", [roomId]
+        );
+        const [userRows] = await db.execute<RowDataPacket[]>(
+          "SELECT name FROM users WHERE id = ?", [studentId]
+        );
+        const roomNumber = roomRows[0]?.room_number || roomId;
+        const userName = userRows[0]?.name || "Customer";
+
+        await sendPushNotificationByRole("OWNER", {
+          title: "New Booking",
+          body: `${userName} booked Room ${roomNumber}`,
+          data: { type: "new_booking", bookingId: String(booking.id) },
+        }, "new_booking");
+      }
+    } catch (notifError: any) {
+      console.error("[Push] Booking notification error:", notifError.message);
+    }
+
     return successResponse(booking, "Booking created successfully", 201);
   } catch (error: any) {
     return errorResponse(error.message, 400);
@@ -47,6 +94,54 @@ export async function updateBookingStatusController(id: number, request: NextReq
     if (!status) return errorResponse("Status is required", 400);
 
     const booking = await bookingService.updateBookingStatus(id, status);
+
+    // Send push notifications based on status change
+    try {
+      const bookingData = await bookingService.getBookingById(id);
+      const studentId = (bookingData as any).student_id;
+      const roomNumber = (bookingData as any).room_number || id;
+
+      if (status === "CONFIRMED") {
+        // Notify customer
+        if (await isPushNotificationEnabled("customer_booking_confirmed", "CUSTOMER")) {
+          await sendPushNotification(studentId, {
+            title: "Booking Confirmed",
+            body: `Your booking for Room ${roomNumber} has been confirmed!`,
+            data: { type: "booking_confirmed", bookingId: String(id) },
+          }, "booking_confirmed");
+        }
+      } else if (status === "CANCELLED") {
+        // Notify admins
+        if (await isPushNotificationEnabled("booking_cancelled", "ADMIN")) {
+          await sendPushNotificationByRole("SUPER_ADMIN", {
+            title: "Booking Cancelled",
+            body: `Booking #${id} for Room ${roomNumber} has been cancelled`,
+            data: { type: "booking_cancelled", bookingId: String(id) },
+          }, "booking_cancelled");
+        }
+
+        // Notify owner
+        if (await isPushNotificationEnabled("owner_booking_cancelled", "OWNER")) {
+          await sendPushNotificationByRole("OWNER", {
+            title: "Booking Cancelled",
+            body: `Booking #${id} for Room ${roomNumber} has been cancelled`,
+            data: { type: "booking_cancelled", bookingId: String(id) },
+          }, "booking_cancelled");
+        }
+
+        // Notify customer
+        if (await isPushNotificationEnabled("customer_booking_cancelled", "CUSTOMER")) {
+          await sendPushNotification(studentId, {
+            title: "Booking Cancelled",
+            body: `Your booking for Room ${roomNumber} has been cancelled`,
+            data: { type: "booking_cancelled", bookingId: String(id) },
+          }, "booking_cancelled");
+        }
+      }
+    } catch (notifError: any) {
+      console.error("[Push] Status notification error:", notifError.message);
+    }
+
     return successResponse(booking, "Booking status updated successfully");
   } catch (error: any) {
     return errorResponse(error.message, 400);
@@ -60,6 +155,46 @@ export async function updatePaymentStatusController(id: number, request: NextReq
     if (!paymentStatus) return errorResponse("Payment status is required", 400);
 
     const booking = await bookingService.updatePaymentStatus(id, paymentStatus);
+
+    // Send push notifications on payment events
+    try {
+      const bookingData = await bookingService.getBookingById(id);
+      const studentId = (bookingData as any).student_id;
+      const roomNumber = (bookingData as any).room_number || id;
+      const totalAmount = (bookingData as any).total_amount;
+
+      if (paymentStatus === "PAID") {
+        // Notify admins
+        if (await isPushNotificationEnabled("payment_received", "ADMIN")) {
+          await sendPushNotificationByRole("SUPER_ADMIN", {
+            title: "Payment Received",
+            body: `Payment of ₹${totalAmount} received for Room ${roomNumber}`,
+            data: { type: "payment_received", bookingId: String(id) },
+          }, "payment_received");
+        }
+
+        // Notify owner
+        if (await isPushNotificationEnabled("owner_payment_received", "OWNER")) {
+          await sendPushNotificationByRole("OWNER", {
+            title: "Payment Received",
+            body: `Payment of ₹${totalAmount} received for Room ${roomNumber}`,
+            data: { type: "payment_received", bookingId: String(id) },
+          }, "payment_received");
+        }
+
+        // Notify customer
+        if (await isPushNotificationEnabled("customer_payment_success", "CUSTOMER")) {
+          await sendPushNotification(studentId, {
+            title: "Payment Successful",
+            body: `Your payment of ₹${totalAmount} for Room ${roomNumber} was successful!`,
+            data: { type: "payment_success", bookingId: String(id) },
+          }, "payment_success");
+        }
+      }
+    } catch (notifError: any) {
+      console.error("[Push] Payment notification error:", notifError.message);
+    }
+
     return successResponse(booking, "Payment status updated successfully");
   } catch (error: any) {
     return errorResponse(error.message, 400);

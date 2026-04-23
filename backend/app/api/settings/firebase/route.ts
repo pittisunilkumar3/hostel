@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
 
     const serviceFileContent = await getSettingValue("push_notification_service_file_content") || "";
     const projectId = await getSettingValue("fcm_project_id") || "";
+    const vapidKey = await getSettingValue("fcm_vapid_key") || "";
 
     // FCM credentials stored as JSON
     const fcmCredsJson = await getSettingValue("fcm_credentials") || "{}";
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
     return successResponse({
       serviceFileContent,
       projectId,
+      vapidKey,
       fcmCredentials: {
         apiKey: fcmCredentials.apiKey || "",
         authDomain: fcmCredentials.authDomain || "",
@@ -46,6 +48,7 @@ export async function PUT(request: NextRequest) {
     const {
       push_notification_service_file_content,
       projectId,
+      vapidKey,
       apiKey,
       authDomain,
       storageBucket,
@@ -64,6 +67,11 @@ export async function PUT(request: NextRequest) {
     // Save project ID separately
     if (projectId) {
       await updateSetting("fcm_project_id", projectId, true);
+    }
+
+    // Save VAPID key
+    if (vapidKey !== undefined) {
+      await updateSetting("fcm_vapid_key", vapidKey, true);
     }
 
     // Save all credentials as JSON

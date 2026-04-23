@@ -28,6 +28,7 @@ export default function FirebaseConfigPage() {
 
   const [serviceFileContent, setServiceFileContent] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [vapidKey, setVapidKey] = useState("");
   const [credentials, setCredentials] = useState<FCMCredentials>({
     apiKey: "",
     authDomain: "",
@@ -49,6 +50,7 @@ export default function FirebaseConfigPage() {
       if (res.success && res.data) {
         setServiceFileContent(res.data.serviceFileContent || "");
         setProjectId(res.data.projectId || "");
+        setVapidKey(res.data.vapidKey || "");
         setCredentials(res.data.fcmCredentials || {});
       }
     } catch (e) {
@@ -71,6 +73,7 @@ export default function FirebaseConfigPage() {
         body: JSON.stringify({
           push_notification_service_file_content: serviceFileContent,
           projectId,
+          vapidKey,
           apiKey: credentials.apiKey,
           authDomain: credentials.authDomain,
           storageBucket: credentials.storageBucket,
@@ -239,6 +242,28 @@ export default function FirebaseConfigPage() {
                   placeholder="Ex: G-12345678"
                   mono
                 />
+              </div>
+
+              {/* VAPID Key */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-amber-800 mb-1.5">Web Push VAPID Key</label>
+                    <input
+                      type="text"
+                      value={vapidKey}
+                      onChange={e => setVapidKey(e.target.value)}
+                      placeholder="Ex: BPxx... (from Firebase Console → Project Settings → Cloud Messaging → Web Push certificates)"
+                      className="w-full px-4 py-2.5 border border-amber-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 transition-all bg-white"
+                    />
+                    <p className="text-[10px] text-amber-600 mt-1.5">
+                      Required for web push notifications. Get it from Firebase Console → Project Settings → Cloud Messaging → Web Push certificates tab.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Message */}

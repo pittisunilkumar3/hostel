@@ -154,7 +154,7 @@ export default function NotificationChannelsPage() {
         <div>
           <p className="text-sm font-medium text-amber-800">How it works</p>
           <p className="text-xs text-amber-600 mt-0.5">
-            Enable or disable notification channels (Mail / SMS) for each event. For example, if &quot;Mail&quot; is turned OFF for &quot;New Booking&quot;, admins won&apos;t receive email notifications when a new booking is created.
+            Enable or disable notification channels (Mail / SMS / Push) for each event. For example, if &quot;Push&quot; is turned ON for &quot;New Booking&quot;, admins will receive a push notification when a new booking is created. Configure Firebase in <strong>3rd Party → Firebase Notification</strong> to enable push.
           </p>
         </div>
       </div>
@@ -217,12 +217,18 @@ export default function NotificationChannelsPage() {
                       SMS
                     </div>
                   </th>
+                  <th className="text-center px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                      Push
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-12 text-gray-400 text-sm">No notification settings found</td>
+                    <td colSpan={5} className="text-center py-12 text-gray-400 text-sm">No notification settings found</td>
                   </tr>
                 ) : (
                   data.map((item, idx) => (
@@ -237,6 +243,9 @@ export default function NotificationChannelsPage() {
                       </td>
                       <td className="px-5 py-4 text-center">
                         <ChannelToggle status={item.sms_status} itemKey={item.key} type={item.type} channel="sms" label="SMS" />
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <ChannelToggle status={item.push_notification_status} itemKey={item.key} type={item.type} channel="push_notification" label="Push" />
                       </td>
                     </tr>
                   ))
