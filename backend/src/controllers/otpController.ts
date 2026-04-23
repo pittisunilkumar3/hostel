@@ -11,17 +11,14 @@ function generateOTP(): string {
 // POST /api/auth/otp/send
 export async function sendOTPController(request: NextRequest) {
   try {
-    const activeProvider = await getActiveOTPProvider();
-    if (!activeProvider || !activeProvider.is_active) {
-      return errorResponse("OTP login is disabled by admin. No active OTP provider.", 403);
-    }
-
     const body = await request.json();
     const { phone } = body;
     if (!phone) return errorResponse("Phone number is required", 400);
 
-    const otp = generateOTP();
-    const expires = new Date(Date.now() + 5 * 60 * 1000);
+    // Check if Firebase OTP is enabled — if so, client uses Firebase Auth directly
+    const { getSettingValue } = await import("../services/settingsService");
+    const firebaseOtpVal = await getSettingValue("firebase_otp_verification");
+    const firebaseOtpEnabled = firebaseOtpVal === "1" || firebaseOtpVal === "true";
 
     // Check/create user
     const [existing] = await db.execute<RowDataPacket[]>(
@@ -34,6 +31,25 @@ export async function sendOTPController(request: NextRequest) {
         [`User_${phone.slice(-4)}`, `${phone}@otp.login`, randomPw, phone]
       );
     }
+
+    if (firebaseOtpEnabled) {
+      // Firebase OTP mode — return Firebase config so client can use Firebase Auth
+      const firebaseWebApiKey = await getSettingValue("firebase_web_api_key") || "";
+
+      return successResponse(
+        { phone, firebase_otp: true, firebase_web_api_key: firebaseWebApiKey, message: "Use Firebase Auth for OTP verification" },
+        "Firebase OTP mode — client should use Firebase Auth"
+      );
+    }
+
+    // SMS OTP mode — use configured SMS provider
+    const activeProvider = await getActiveOTPProvider();
+    if (!activeProvider || !activeProvider.is_active) {
+      return errorResponse("OTP login is disabled by admin. No active OTP provider.", 403);
+    }
+
+    const otp = generateOTP();
+    const expires = new Date(Date.now() + 5 * 60 * 1000);
 
     // Save OTP
     await db.execute(
@@ -49,7 +65,7 @@ export async function sendOTPController(request: NextRequest) {
 
     const isDev = process.env.NODE_ENV !== "production";
     return successResponse(
-      { phone, provider: activeProvider.provider_type, otp: isDev ? otp : undefined, message: "OTP sent" },
+      { phone, provider: activeProvider.provider_type, firebase_otp: false, otp: isDev ? otp : undefined, message: "OTP sent" },
       `OTP sent via ${activeProvider.name}`
     );
   } catch (error: any) {

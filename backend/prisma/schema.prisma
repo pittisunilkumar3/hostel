@@ -187,6 +187,40 @@ enum NotificationMessageUserType {
 }
 
 // ============================================
+// ANALYTIC SCRIPTS - Google Analytics, Meta Pixel, etc.
+// ============================================
+model AnalyticScript {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  type      String?  @db.VarChar(100)
+  scriptId  String?  @map("script_id") @db.Text
+  script    String?  @db.LongText
+  isActive  Boolean  @default(false) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("analytic_scripts")
+}
+
+// ============================================
+// PAGE SEO DATA - Meta tags per page
+// ============================================
+model PageSeoData {
+  id          Int      @id @default(autoincrement())
+  pageName    String   @unique @map("page_name") @db.VarChar(255)
+  slug        String?  @db.VarChar(255)
+  title       String   @default("") @db.VarChar(255)
+  description String?  @db.Text
+  image       String?  @db.VarChar(500)
+  metaData    String?  @map("meta_data") @db.Text
+  status      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("page_seo_data")
+}
+
+// ============================================
 // ZONE MODEL - Geographic business zones
 // ============================================
 model Zone {

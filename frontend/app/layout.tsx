@@ -6,6 +6,9 @@ import { I18nProvider } from "@/lib/i18n";
 export const metadata: Metadata = {
   title: "Hostel Management",
   description: "Manage your hostel bookings, rooms and more",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

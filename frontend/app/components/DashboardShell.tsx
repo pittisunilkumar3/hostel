@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getCurrentUser, logout, isAuthenticated } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, startTransition } from "react";
 
 function LanguageSwitcher() {
   const { locale, setLocale, languages, t } = useI18n();
@@ -38,8 +38,9 @@ import { useSiteSettings } from "@/lib/siteSettings";
 
 interface SidebarItem {
   label: string;
+  heading?: boolean; // section divider
   href?: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   children?: { label: string; href: string; icon?: React.ReactNode }[];
 }
 
@@ -120,7 +121,7 @@ export default function DashboardShell({
     <div className="min-h-screen bg-gray-50/50 flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden" onClick={() => startTransition(() => setSidebarOpen(false))} />
       )}
 
       {/* Sidebar */}
@@ -138,7 +139,7 @@ export default function DashboardShell({
             <h1 className="font-bold text-sm truncate">{site.companyName || title}</h1>
             <p className="text-[10px] text-white/50">Management Panel</p>
           </div>
-          <button className="lg:hidden text-white/50 hover:text-white p-1" onClick={() => setSidebarOpen(false)}>
+          <button className="lg:hidden text-white/50 hover:text-white p-1" onClick={() => startTransition(() => setSidebarOpen(false))}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -146,6 +147,16 @@ export default function DashboardShell({
         {/* Nav */}
         <nav className="flex-1 mt-3 px-3 space-y-1 overflow-y-auto">
           {items.map((item, idx) => {
+            // Section heading divider
+            if (item.heading) {
+              return (
+                <div key={`heading-${idx}`} className="pt-4 pb-1 px-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">{item.label}</p>
+                  <div className="mt-1.5 border-t border-white/10" />
+                </div>
+              );
+            }
+
             // Dropdown item with children
             if (item.children && item.children.length > 0) {
               const isOpen = openDropdowns[item.label] || isDropdownActive(item);
@@ -172,7 +183,7 @@ export default function DashboardShell({
                           <Link
                             key={`${child.href}-${cidx}`}
                             href={child.href}
-                            onClick={() => setSidebarOpen(false)}
+                            onClick={() => startTransition(() => setSidebarOpen(false))}
                             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
                               isChildActive
                                 ? "bg-white/15 text-white"
@@ -196,7 +207,7 @@ export default function DashboardShell({
               <Link
                 key={`${item.href}-${idx}`}
                 href={item.href || "#"}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => startTransition(() => setSidebarOpen(false))}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? "bg-white/20 text-white shadow-lg shadow-black/10 backdrop-blur-sm"

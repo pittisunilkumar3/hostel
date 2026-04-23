@@ -31,6 +31,10 @@ export async function getLoginSetupController() {
   const twilioSid = await getSetting("twilio_account_sid");
   result._sms_configured = twilioSid ? (twilioSid.is_active && twilioSid.setting_value ? 1 : 0) : 0;
 
+  // Check if Firebase OTP is enabled
+  const firebaseOtpSetting = await getSetting("firebase_otp_verification");
+  result._firebase_otp_enabled = firebaseOtpSetting ? (firebaseOtpSetting.setting_value === "1" || firebaseOtpSetting.setting_value === "true" ? 1 : 0) : 0;
+
   // Check if mail is configured
   const mailHost = await getSetting("mail_host");
   result._mail_configured = mailHost ? (mailHost.is_active && mailHost.setting_value ? 1 : 0) : 0;
@@ -48,11 +52,16 @@ export async function updateLoginSetupController(data: Record<string, any>) {
     throw new Error("At least one login method must remain active (Manual, OTP, or Social Login).");
   }
 
-  // Validation 2: if OTP is ON, SMS must be configured
+  // Validation 2: if OTP is ON, SMS or Firebase OTP must be configured
   if (otp) {
-    const twilioSid = await getSetting("twilio_account_sid");
-    if (!twilioSid || !twilioSid.is_active || !twilioSid.setting_value) {
-      throw new Error("SMS module is not configured yet. Please set up SMS configuration first in the SMS Module tab.");
+    const firebaseOtpSetting = await getSetting("firebase_otp_verification");
+    const firebaseOtpEnabled = firebaseOtpSetting && (firebaseOtpSetting.setting_value === "1" || firebaseOtpSetting.setting_value === "true");
+
+    if (!firebaseOtpEnabled) {
+      const twilioSid = await getSetting("twilio_account_sid");
+      if (!twilioSid || !twilioSid.is_active || !twilioSid.setting_value) {
+        throw new Error("SMS module is not configured yet and Firebase OTP is not enabled. Please set up SMS configuration or enable Firebase OTP first.");
+      }
     }
   }
 
@@ -95,11 +104,16 @@ export async function updateLoginSetupController(data: Record<string, any>) {
     }
   }
 
-  // Validation 6: phone verification needs SMS config
+  // Validation 6: phone verification needs SMS or Firebase OTP config
   if (data.phone_verification_status) {
-    const twilioSid = await getSetting("twilio_account_sid");
-    if (!twilioSid || !twilioSid.is_active || !twilioSid.setting_value) {
-      throw new Error("SMS configuration is not set up. Please configure SMS module first.");
+    const firebaseOtpSetting = await getSetting("firebase_otp_verification");
+    const firebaseOtpEnabled = firebaseOtpSetting && (firebaseOtpSetting.setting_value === "1" || firebaseOtpSetting.setting_value === "true");
+
+    if (!firebaseOtpEnabled) {
+      const twilioSid = await getSetting("twilio_account_sid");
+      if (!twilioSid || !twilioSid.is_active || !twilioSid.setting_value) {
+        throw new Error("SMS configuration is not set up and Firebase OTP is not enabled. Please configure SMS module or enable Firebase OTP first.");
+      }
     }
   }
 

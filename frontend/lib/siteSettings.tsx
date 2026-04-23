@@ -142,19 +142,31 @@ function applyToDOM(s: SiteSettings) {
     document.title = s.companyName;
   }
 
-  // Set favicon — update existing or create new (never remove React-managed nodes)
+  // Set favicon — ONLY update href on existing elements, never remove them.
+  // Next.js 16 internally manages <head> elements; calling el.remove() on
+  // them causes "Cannot read properties of null (reading 'removeChild')"
+  // when React tries to reconcile during navigation.
   if (s.companyFavicon) {
-    const cacheBust = '?t=' + Date.now();
-    let iconLink = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
-    if (iconLink) {
-      iconLink.href = s.companyFavicon + cacheBust;
-      iconLink.type = 'image/png';
-    } else {
-      const newLink = document.createElement('link');
-      newLink.rel = 'icon';
-      newLink.type = 'image/png';
-      newLink.href = s.companyFavicon + cacheBust;
-      document.head.appendChild(newLink);
+    try {
+      const cacheBust = '?t=' + Date.now();
+      const faviconUrl = s.companyFavicon + cacheBust;
+
+      // Find existing favicons and update their href in-place
+      const existingIcons = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');
+      if (existingIcons.length > 0) {
+        // Update existing elements — never remove them
+        existingIcons.forEach((el) => {
+          (el as HTMLLinkElement).href = faviconUrl;
+        });
+      } else {
+        // No existing favicon — safe to create new ones only if none exist
+        const newLink = document.createElement('link');
+        newLink.rel = 'icon';
+        newLink.href = faviconUrl;
+        document.head.appendChild(newLink);
+      }
+    } catch {
+      // Silently ignore DOM errors during navigation
     }
   }
 }

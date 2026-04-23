@@ -59,3 +59,18 @@ export const ownerMiddleware = (request: NextRequest) => {
 
   return decoded;
 };
+
+/**
+ * Get authenticated user from JWT token in request header.
+ * Returns decoded token or null if not authenticated.
+ */
+export const getAuthenticatedUser = (request: NextRequest): { userId: number; role: string } | null => {
+  try {
+    const token = request.headers.get("authorization")?.split(" ")[1];
+    if (!token) return null;
+    const decoded = jwt.verify(token, config.jwtSecret) as { userId: number; role: string };
+    return decoded;
+  } catch {
+    return null;
+  }
+};
