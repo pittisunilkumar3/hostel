@@ -36,7 +36,8 @@ function buildItems() {
       children: [
         { label: "Hostel List", href: "/admin/hostels" },
         { label: "Add New Hostel", href: "/admin/hostels/create" },
-        { label: "Pending Hostels", href: "/admin/hostels/pending" },
+        { label: "Join Requests", href: "/admin/hostels/pending" },
+        { label: "Bulk Import", href: "/admin/hostels/bulk-import" },
       ],
     },
     { label: "Zones", href: "/admin/zones", icon: <ZonesIcon /> },
