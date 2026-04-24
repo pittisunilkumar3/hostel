@@ -57,6 +57,7 @@ export default function JoinUsSetupPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewStep, setPreviewStep] = useState(1);
   const [dirty, setDirty] = useState(false);
 
   const fetchFields = useCallback(async () => {
@@ -392,96 +393,306 @@ export default function JoinUsSetupPage() {
             </div>
           </div>
 
-          {/* ============ FORM PREVIEW ============ */}
-          {showPreview && (
+          {/* ============ FORM PREVIEW — matches /owner/register-hostel exactly ============ */}
+          {showPreview && tab === "owner" && (
+            <div className="rounded-3xl overflow-hidden border-2 border-indigo-200 shadow-2xl">
+              {/* Preview Banner */}
+              <div className="bg-indigo-600 px-4 py-2 flex items-center justify-between">
+                <span className="text-white text-sm font-bold flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  Live Preview — Owner Registration Form
+                </span>
+                <span className="px-2 py-0.5 bg-white/20 text-white text-[10px] font-bold rounded-full">PREVIEW</span>
+              </div>
+
+              {/* Dark background matching the actual form */}
+              <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900">
+                {/* Header */}
+                <div className="bg-white/5 border-b border-white/10">
+                  <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                      </div>
+                      <div>
+                        <h1 className="text-lg font-bold text-white">Hostel Management</h1>
+                        <p className="text-xs text-emerald-300/60">Hostel Registration</p>
+                      </div>
+                    </div>
+                    <span className="text-sm text-gray-400">Sign Out</span>
+                  </div>
+                </div>
+
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                  {/* Step Header */}
+                  <div className="mb-8">
+                    <h2 className="text-xl font-bold text-white mb-4">Hostel Registration Application</h2>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { num: 1, label: "Hostel Info" },
+                        { num: 2, label: "Details" },
+                        { num: 3, label: "Owner Info" },
+                      ].map((s) => (
+                        <div key={s.num} className="flex items-center gap-2">
+                          <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${s.num === previewStep ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30" : s.num < previewStep ? "bg-emerald-600/30 text-emerald-300" : "bg-white/5 text-gray-500"}`}>
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${s.num < previewStep ? "bg-emerald-500 text-white" : s.num === previewStep ? "bg-white text-emerald-700" : "bg-white/10 text-gray-500"}`}>
+                              {s.num < previewStep ? "✓" : s.num}
+                            </span>
+                            <span className="hidden sm:inline">{s.label}</span>
+                          </div>
+                          {s.num < 3 && <div className={`w-8 h-0.5 ${s.num < previewStep ? "bg-emerald-500" : "bg-white/10"}`} />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ═══ Step 1: Hostel Info ═══ */}
+                  {previewStep === 1 && (
+                    <div className="space-y-5">
+                      <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                        <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                          <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                          Basic Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-1.5">Hostel Name <span className="text-red-400">*</span></label>
+                            <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">Ex: ABC Hostel</div>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-300 mb-1.5">Hostel Address <span className="text-red-400">*</span></label>
+                            <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">Ex: House#94, Road#8, Abc City</div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1.5">Zone <span className="text-red-400">*</span></label>
+                            <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">Select Zone</div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1.5">Phone <span className="text-red-400">*</span></label>
+                            <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">+(880)00-000-00000</div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
+                            <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">hostel@example.com</div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-1.5">Description</label>
+                            <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">Short description about hostel</div>
+                          </div>
+                        </div>
+
+                        {/* Map placeholder */}
+                        <div className="mt-6">
+                          <label className="block text-sm font-medium text-gray-300 mb-1.5">Location on Map</label>
+                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mb-3 flex items-start gap-2">
+                            <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p className="text-xs text-blue-300">Set precise location on map for your exact pickup location</p>
+                          </div>
+                          <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm mb-3">Search location here...</div>
+                          <div className="w-full h-[200px] rounded-xl border border-white/10 bg-white/5 flex items-center justify-center">
+                            <svg className="w-10 h-10 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          </div>
+                          <div className="flex items-center gap-4 mt-3">
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-gray-400">Lat:</label>
+                              <div className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-500 w-28">0.000000</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-gray-400">Lng:</label>
+                              <div className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-500 w-28">0.000000</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Logo & Cover */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                          <h3 className="text-sm font-bold text-white mb-4">Hostel Logo <span className="text-red-400">*</span> <span className="text-xs font-normal text-gray-400">(1:1 ratio)</span></h3>
+                          <div className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center">
+                            <svg className="w-8 h-8 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <p className="text-sm text-gray-400">Click to upload logo</p>
+                            <p className="text-xs text-gray-500 mt-1">Max 2MB</p>
+                          </div>
+                        </div>
+                        <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                          <h3 className="text-sm font-bold text-white mb-4">Cover Photo <span className="text-red-400">*</span> <span className="text-xs font-normal text-gray-400">(3:1 ratio)</span></h3>
+                          <div className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center">
+                            <svg className="w-8 h-8 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <p className="text-sm text-gray-400">Click to upload cover</p>
+                            <p className="text-xs text-gray-500 mt-1">Max 5MB</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button onClick={() => setPreviewStep(2)} className="px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-emerald-600/25 flex items-center gap-2">
+                          Next: Details <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ═══ Step 2: Details + Amenities + Custom Fields ═══ */}
+                  {previewStep === 2 && (
+                    <div className="space-y-5">
+                      <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                        <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                          <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          General Settings
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {["Total Rooms *", "Total Beds *", "Minimum Stay (days)", "Check-in Time", "Check-out Time"].map((f) => (
+                            <div key={f}>
+                              <label className="block text-sm font-medium text-gray-300 mb-1.5">{f.replace(" *", "")}{f.includes("*") && <span className="text-red-400"> *</span>}</label>
+                              <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">{f.includes("Time") ? "--:--" : "0"}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Amenities */}
+                        <div className="mt-6">
+                          <label className="block text-sm font-medium text-gray-300 mb-1.5">Amenities</label>
+                          <div className="flex flex-wrap gap-2">
+                            {["WiFi", "Parking", "Laundry", "AC", "Kitchen", "Gym", "Pool", "Security", "Elevator", "CCTV"].map((a) => (
+                              <span key={a} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-white/5 text-gray-400 border border-white/10">{a}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Custom Fields from Join Us Page Setup */}
+                      {fields.length > 0 && (
+                        <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                          <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                            <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            Additional Information
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {fields.map((field, idx) => (
+                              <div key={idx} className={field.field_type === "textarea" || field.field_type === "file" ? "md:col-span-2" : ""}>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                  {prettyName(field.input_data)} {field.is_required && <span className="text-red-400">*</span>}
+                                </label>
+                                {field.field_type === "textarea" ? (
+                                  <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">{field.placeholder_data || `Enter ${prettyName(field.input_data).toLowerCase()}`}</div>
+                                ) : field.field_type === "file" ? (
+                                  <div className="w-full px-4 py-6 bg-white/5 border-2 border-dashed border-white/20 rounded-xl text-center">
+                                    <svg className="w-8 h-8 text-gray-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                    <p className="text-xs text-gray-400">Click or drag file to upload</p>
+                                    <p className="text-[10px] text-gray-500 mt-1">
+                                      {[field.media_data?.image ? "JPG/PNG" : "", field.media_data?.pdf ? "PDF" : "", field.media_data?.docs ? "DOC" : ""].filter(Boolean).join(", ")}
+                                    </p>
+                                  </div>
+                                ) : field.field_type === "check_box" ? (
+                                  <div className="space-y-2 mt-1">
+                                    {(field.check_data || []).map((opt, oi) => (
+                                      <label key={oi} className="flex items-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-gray-500 rounded flex items-center justify-center">
+                                          <svg className="w-2.5 h-2.5 text-emerald-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                        </div>
+                                        <span className="text-sm text-gray-300">{opt || "Option"}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">{field.placeholder_data || `Enter ${prettyName(field.input_data).toLowerCase()}`}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between">
+                        <button onClick={() => setPreviewStep(1)} className="px-6 py-3 bg-white/10 hover:bg-white/15 text-white rounded-xl font-semibold text-sm transition-all flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg> Back
+                        </button>
+                        <button onClick={() => setPreviewStep(3)} className="px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-emerald-600/25 flex items-center gap-2">
+                          Next: Owner Info <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ═══ Step 3: Owner Info ═══ */}
+                  {previewStep === 3 && (
+                    <div className="space-y-5">
+                      <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-6 border border-white/10">
+                        <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                          <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                          Owner Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {["First Name *", "Last Name *", "Phone *", "Email *"].map((f) => (
+                            <div key={f}>
+                              <label className="block text-sm font-medium text-gray-300 mb-1.5">{f.replace(" *", "")}{f.includes("*") && <span className="text-red-400"> *</span>}</label>
+                              <div className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 text-sm">
+                                {f.includes("First") ? "John" : f.includes("Last") ? "Doe" : f.includes("Phone") ? "+(880)00-000-00000" : "owner@example.com"}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                          <div className="flex items-start gap-3">
+                            <svg className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <div>
+                              <p className="text-yellow-300 text-sm font-medium">What happens next?</p>
+                              <p className="text-yellow-300/70 text-xs mt-1 leading-relaxed">After submitting your application, our admin team will review your hostel details. Once approved, you&apos;ll be able to access the owner dashboard.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <button onClick={() => setPreviewStep(2)} className="px-6 py-3 bg-white/10 hover:bg-white/15 text-white rounded-xl font-semibold text-sm transition-all flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg> Back
+                        </button>
+                        <div className="px-8 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-emerald-600/25 flex items-center gap-2 opacity-75">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Submit Application
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Customer Preview (simple) */}
+          {showPreview && tab === "customer" && (
             <div className="bg-white rounded-2xl border-2 border-indigo-200 shadow-lg overflow-hidden">
               <div className="px-6 py-4 border-b border-indigo-100 bg-indigo-50 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-indigo-900 flex items-center gap-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                    Form Preview
+                    Customer Registration Preview
                   </h3>
-                  <p className="text-xs text-indigo-600 mt-0.5">This is how the Join Us form will appear to {tab}s</p>
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">PREVIEW</span>
                 </div>
-                <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">PREVIEW</span>
               </div>
-              <div className="p-8 max-w-2xl mx-auto">
-                {/* Preview Title */}
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {tab === "owner" ? "Register Your Hostel" : "Create Customer Account"}
-                  </h2>
-                  <p className="text-gray-500 text-sm mt-1">Fill in the details below to {tab === "owner" ? "list your hostel" : "create your account"}</p>
+              <div className="p-8 max-w-lg mx-auto">
+                <div className="text-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Create Customer Account</h2>
+                  <p className="text-gray-500 text-sm mt-1">Fill in the details below to create your account</p>
                 </div>
-
-                {/* Default Fields (shown as disabled/read-only) */}
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Standard Fields</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {defaultFields.map((f, i) => {
-                      const ph = f.includes("Email") ? "owner@example.com" : f.includes("Phone") ? "+91 9876543210" : f.includes("Password") ? "••••••" : f.includes("Price") ? "₹ 5,000" : f.includes("Total Rooms") ? "e.g. 20" : f.includes("Zip") ? "e.g. 500001" : `Enter ${f.toLowerCase()}`;
-                      return (
-                        <div key={i}>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">{f} <span className="text-red-500">*</span></label>
-                          <div className="px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-400 italic">
-                            {ph}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Custom Fields Preview */}
-                {fields.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Additional Fields</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {fields.map((field, idx) => (
-                        <div key={idx} className={field.field_type === "textarea" || field.field_type === "file" ? "sm:col-span-2" : ""}>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {prettyName(field.input_data)} {field.is_required && <span className="text-red-500">*</span>}
-                          </label>
-                          {field.field_type === "textarea" ? (
-                            <textarea placeholder={field.placeholder_data} rows={3} disabled
-                              className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-400 resize-none" />
-                          ) : field.field_type === "file" ? (
-                            <div className="w-full px-4 py-6 bg-white border-2 border-dashed border-gray-200 rounded-xl text-center">
-                              <svg className="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                              <p className="text-xs text-gray-400">Click or drag file to upload</p>
-                              <p className="text-[10px] text-gray-300 mt-1">
-                                {[field.media_data?.image ? "JPG/PNG" : "", field.media_data?.pdf ? "PDF" : "", field.media_data?.docs ? "DOC" : ""].filter(Boolean).join(", ")}
-                                {field.media_data?.upload_multiple_files ? " • Multiple files" : field.media_data?.file_upload_quantity ? ` • Max ${field.media_data.file_upload_quantity}` : ""}
-                              </p>
-                            </div>
-                          ) : field.field_type === "check_box" ? (
-                            <div className="space-y-2 mt-1">
-                              {(field.check_data || []).map((opt, oi) => (
-                                <label key={oi} className="flex items-center gap-2 cursor-pointer">
-                                  <div className="w-4 h-4 border-2 border-gray-300 rounded flex items-center justify-center">
-                                    <svg className="w-2.5 h-2.5 text-indigo-600 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                  </div>
-                                  <span className="text-sm text-gray-700">{opt || "Option"}</span>
-                                </label>
-                              ))}
-                            </div>
-                          ) : (
-                            <input type={field.field_type === "phone" ? "tel" : field.field_type}
-                              placeholder={field.placeholder_data} disabled
-                              className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-400" />
-                          )}
-                        </div>
-                      ))}
+                <div className="space-y-4">
+                  {defaultFields.map((f, i) => (
+                    <div key={i}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{f} <span className="text-red-500">*</span></label>
+                      <div className="px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-400 italic">{f.includes("Email") ? "user@example.com" : f.includes("Phone") ? "+91 9876543210" : "••••••"}</div>
                     </div>
-                  </div>
-                )}
-
-                {/* Preview Submit */}
-                <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-                  <div className="inline-flex px-8 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/20 opacity-75 cursor-not-allowed">
-                    Submit Application
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-2">This is a preview — form is not functional here</p>
+                  ))}
+                  {fields.length > 0 && fields.map((field, idx) => (
+                    <div key={idx}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{prettyName(field.input_data)} {field.is_required && <span className="text-red-500">*</span>}</label>
+                      <div className="px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-400 italic">{field.placeholder_data || `Enter ${prettyName(field.input_data).toLowerCase()}`}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 text-center">
+                  <div className="inline-flex px-8 py-3 bg-indigo-600 text-white rounded-xl font-semibold text-sm opacity-75 cursor-not-allowed">Create Account</div>
                 </div>
               </div>
             </div>
