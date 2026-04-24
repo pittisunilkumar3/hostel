@@ -43,6 +43,10 @@ function buildItems() {
     { label: "Zones", href: "/admin/zones", icon: <ZonesIcon /> },
     { label: "Rooms", href: "/admin/rooms", icon: <RoomsIcon /> },
 
+    // ─── CUSTOMER MANAGEMENT ───
+    { label: "Customer Management", heading: true as const },
+    { label: "Customers", href: "/admin/customers", icon: <UsersIcon /> },
+
     // ─── BOOKINGS ───
     { label: "Bookings", heading: true as const },
     { label: "Bookings", href: "/admin/bookings", icon: <BookingsIcon /> },
