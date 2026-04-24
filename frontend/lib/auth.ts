@@ -33,9 +33,45 @@ export function logout() {
 
 // Fetch wrapper
 export async function apiFetch(path: string, options?: RequestInit) {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: getAuthHeaders(),
-  });
-  return res.json();
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: getAuthHeaders(),
+    });
+
+    // Check if response is JSON
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      // Response is not JSON (likely HTML error page)
+      console.error(`API returned non-JSON response for ${path}:`, {
+        status: res.status,
+        statusText: res.statusText,
+        contentType,
+      });
+      return {
+        success: false,
+        message: `Server error (${res.status}): ${res.statusText}`,
+      };
+    }
+
+    const data = await res.json();
+
+    // Handle 401 unauthorized
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
+        window.location.href = "/login/admin";
+      }
+      return { success: false, message: "Session expired. Please login again." };
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`API fetch error for ${path}:`, error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Network error. Please check if the server is running.",
+    };
+  }
 }
