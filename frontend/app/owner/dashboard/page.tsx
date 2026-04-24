@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import StatCard from "@/app/components/StatCard";
 import { getCurrentUser, apiFetch } from "@/lib/auth";
+import { useRouter } from "next/navigation";
 
 const sidebarItems = [
   { label: "Dashboard", href: "/owner/dashboard", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
@@ -24,23 +25,319 @@ interface Room {
   amenities: string;
 }
 
+type HostelStatus = "loading" | "no_hostel" | "pending" | "rejected" | "approved";
+
 export default function OwnerDashboard() {
+  const router = useRouter();
+  const [hostelStatus, setHostelStatus] = useState<HostelStatus>("loading");
+  const [hostelData, setHostelData] = useState<any>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  useEffect(() => { setUser(getCurrentUser()); }, []);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const res = await apiFetch("/api/rooms?page=1&limit=10");
-        if (res.success) setRooms(res.data.rooms || []);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    };
-    fetchRooms();
-  }, []);
+    const u = getCurrentUser();
+    if (!u) {
+      router.push("/login/owner");
+      return;
+    }
+    setUser(u);
+    checkHostelStatus();
+  }, [router]);
 
+  const checkHostelStatus = async () => {
+    try {
+      const res = await apiFetch("/api/owner/hostel/status");
+
+      if (res.success && res.data) {
+        const data = res.data;
+        setHostelData(data);
+
+        if (!data.hostel) {
+          // No hostel registered
+          setHostelStatus("no_hostel");
+        } else if (data.status === "pending" || data.status === 0) {
+          setHostelStatus("pending");
+        } else if (data.status === "rejected" || data.status === 2) {
+          setHostelStatus("rejected");
+        } else if (data.status === "approved" || data.status === 1) {
+          setHostelStatus("approved");
+          fetchRooms();
+        } else {
+          setHostelStatus("pending");
+        }
+      } else {
+        // API error or no data - assume no hostel
+        setHostelStatus("no_hostel");
+      }
+    } catch (e) {
+      console.error(e);
+      setHostelStatus("no_hostel");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRooms = async () => {
+    try {
+      const res = await apiFetch("/api/rooms?page=1&limit=10");
+      if (res.success) setRooms(res.data?.rooms || []);
+    } catch (e) { console.error(e); }
+  };
+
+  // Loading state
+  if (loading || hostelStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="animate-spin h-10 w-10 text-emerald-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-emerald-300/60 text-sm">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No hostel - redirect to registration
+  if (hostelStatus === "no_hostel") {
+    router.push("/owner/register-hostel");
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="animate-spin h-10 w-10 text-emerald-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-emerald-300/60 text-sm">Redirecting to registration...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Pending status - show under review message
+  if (hostelStatus === "pending") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900">
+        {/* Header */}
+        <div className="bg-white/5 border-b border-white/10">
+          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white">Hostel Management</h1>
+                <p className="text-xs text-emerald-300/60">Owner Portal</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                router.push("/login/owner");
+              }}
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 py-20">
+          <div className="bg-white/[0.07] backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-emerald-900/20 border border-white/10 text-center">
+            {/* Pending Animation */}
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-ping opacity-20" />
+              <div className="relative w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                <svg className="w-12 h-12 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-3">Under Review</h2>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-left">
+                  <p className="text-yellow-300 text-sm font-medium mb-1">We&apos;re reviewing your hostel details</p>
+                  <p className="text-yellow-300/70 text-xs leading-relaxed">
+                    Thank you for submitting your hostel registration! Our admin team is currently reviewing your application. We will get back to you as soon as possible.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Hostel Info */}
+            {hostelData?.hostel && (
+              <div className="bg-white/5 rounded-xl p-4 mb-6 text-left">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold">
+                    {hostelData.hostel.name?.[0]?.toUpperCase() || "?"}
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">{hostelData.hostel.name}</p>
+                    <p className="text-xs text-gray-400">{hostelData.hostel.address}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3 text-sm text-gray-400">
+              <div className="flex items-center gap-3 bg-white/5 rounded-xl p-3">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="text-left">Your application has been received</span>
+              </div>
+              <div className="flex items-center gap-3 bg-white/5 rounded-xl p-3">
+                <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <span className="text-left">Review typically takes 1-2 business days</span>
+              </div>
+              <div className="flex items-center gap-3 bg-white/5 rounded-xl p-3">
+                <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span className="text-left">We&apos;ll notify you via email once approved</span>
+              </div>
+            </div>
+
+            <button
+              onClick={checkHostelStatus}
+              className="mt-8 w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh Status
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Rejected status
+  if (hostelStatus === "rejected") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900">
+        {/* Header */}
+        <div className="bg-white/5 border-b border-white/10">
+          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white">Hostel Management</h1>
+                <p className="text-xs text-emerald-300/60">Owner Portal</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                router.push("/login/owner");
+              }}
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 py-20">
+          <div className="bg-white/[0.07] backdrop-blur-xl rounded-3xl p-8 shadow-2xl shadow-emerald-900/20 border border-white/10 text-center">
+            {/* Rejected Icon */}
+            <div className="relative w-24 h-24 mx-auto mb-6">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-rose-500 rounded-full animate-ping opacity-10" />
+              <div className="relative w-24 h-24 bg-gradient-to-br from-red-400 to-rose-500 rounded-full flex items-center justify-center">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-3">Application Rejected</h2>
+
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-left">
+                  <p className="text-red-300 text-sm font-medium mb-1">Your hostel application was not approved</p>
+                  <p className="text-red-300/70 text-xs leading-relaxed">
+                    Unfortunately, your hostel registration application has been rejected. This could be due to incomplete information or not meeting our requirements.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Rejection Reason — shows admin's message */}
+            {hostelData?.rejection_reason && (
+              <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 mb-6 text-left">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  <p className="text-xs text-red-300 font-semibold uppercase tracking-wider">Admin Feedback</p>
+                </div>
+                <p className="text-sm text-red-200 leading-relaxed">{hostelData.rejection_reason}</p>
+              </div>
+            )}
+            {!hostelData?.rejection_reason && (
+              <div className="bg-white/5 rounded-xl p-4 mb-6 text-left">
+                <p className="text-xs text-gray-400">No specific reason provided. Please contact support for more details.</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push("/owner/register-hostel")}
+                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Submit New Application
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("user");
+                  router.push("/login/owner");
+                }}
+                className="w-full py-3 bg-white/10 hover:bg-white/15 text-white rounded-xl font-semibold text-sm transition-all"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Approved - Show Dashboard
   const available = rooms.filter(r => r.status === "AVAILABLE").length;
   const occupied = rooms.filter(r => r.status === "OCCUPIED").length;
   const totalCapacity = rooms.reduce((sum, r) => sum + r.capacity, 0);
@@ -83,6 +380,17 @@ export default function OwnerDashboard() {
         <div className="relative">
           <h1 className="text-2xl font-bold">Welcome, {user?.name || "Owner"}! 🏠</h1>
           <p className="text-emerald-200 mt-1 text-sm">Manage your hostel rooms and bookings here.</p>
+          {hostelData?.hostel && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">{hostelData.hostel.name}</span>
+              <span className="px-3 py-1 bg-emerald-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Approved
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -127,7 +435,7 @@ export default function OwnerDashboard() {
                 <div key={room.id} className="rounded-2xl border border-gray-100 p-4 hover:shadow-lg hover:shadow-gray-100/50 hover:border-gray-200 transition-all duration-300 group relative overflow-hidden">
                   {/* Floor badge */}
                   <div className={`absolute top-0 right-0 w-12 h-12 bg-gradient-to-br ${getFloorColor(room.floor)} opacity-10 rounded-bl-3xl`} />
-                  
+
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm">
