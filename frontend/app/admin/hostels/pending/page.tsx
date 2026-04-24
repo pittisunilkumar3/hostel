@@ -61,9 +61,12 @@ export default function PendingHostelsPage() {
       if (res.success) {
         const data = res.data?.data || res.data || [];
         setRequests(Array.isArray(data) ? data : []);
+      } else {
+        // API not available yet — show empty state gracefully
+        setRequests([]);
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
+      setRequests([]);
     } finally {
       setLoading(false);
     }
@@ -79,7 +82,7 @@ export default function PendingHostelsPage() {
           approved: res.data?.approved || 0,
         });
       }
-    } catch { /* ignore */ }
+    } catch { /* API not available — stats stay at 0 */ }
   };
 
   const fetchZones = async () => {

@@ -42,8 +42,8 @@ export async function apiFetch(path: string, options?: RequestInit) {
     // Check if response is JSON
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-      // Response is not JSON (likely HTML error page)
-      console.error(`API returned non-JSON response for ${path}:`, {
+      // Response is not JSON (likely HTML error page or missing endpoint)
+      console.warn(`API returned non-JSON response for ${path}:`, {
         status: res.status,
         statusText: res.statusText,
         contentType,
