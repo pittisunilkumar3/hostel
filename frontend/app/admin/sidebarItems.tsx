@@ -28,11 +28,22 @@ function buildItems() {
     // ─── Dashboard ───
     { label: "Dashboard", href: "/admin/dashboard", icon: <DashboardIcon /> },
 
-    // ─── MANAGEMENT ───
-    { label: "Management", heading: true as const },
-    { label: "Users", href: "/admin/users", icon: <UsersIcon /> },
+    // ─── HOSTEL MANAGEMENT ─── (mirrors reference restaurant management)
+    { label: "Hostel Management", heading: true as const },
+    {
+      label: "Hostels",
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
+      children: [
+        { label: "Hostel List", href: "/admin/hostels" },
+        { label: "Add New Hostel", href: "/admin/hostels/create" },
+        { label: "Pending Hostels", href: "/admin/hostels/pending" },
+      ],
+    },
     { label: "Zones", href: "/admin/zones", icon: <ZonesIcon /> },
     { label: "Rooms", href: "/admin/rooms", icon: <RoomsIcon /> },
+
+    // ─── BOOKINGS ───
+    { label: "Bookings", heading: true as const },
     { label: "Bookings", href: "/admin/bookings", icon: <BookingsIcon /> },
 
     // ─── PROMOTIONS MANAGEMENT ───
