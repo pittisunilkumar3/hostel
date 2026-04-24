@@ -69,6 +69,17 @@ export default function CreateHostelPage() {
     "Meals", "Housekeeping", "Power Backup", "Water Purifier"
   ];
 
+  // ── Custom Fields from Join Us Page Setup ──
+  interface CustomField {
+    name: string;
+    label: string;
+    type: "text" | "number" | "select" | "textarea" | "checkbox";
+    required: boolean;
+    options?: string[];
+  }
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+
   useEffect(() => {
     (async () => {
       try {
@@ -78,6 +89,11 @@ export default function CreateHostelPage() {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/settings/map`).then((r) => r.json());
         if (res.success && res.data?.mapApiKeyClient) setMapApiKey(res.data.mapApiKeyClient);
+      } catch { /* ignore */ }
+      // Fetch custom fields from Join Us Page Setup
+      try {
+        const res = await apiFetch("/api/settings/join-us-fields");
+        if (res.success && res.data) setCustomFields(res.data);
       } catch { /* ignore */ }
     })();
   }, []);
@@ -208,6 +224,7 @@ export default function CreateHostelPage() {
           check_out_time: checkOutTime,
         },
         amenities,
+        custom_fields: customFieldValues,
       };
 
       const res = await apiFetch("/api/hostels", {
@@ -542,6 +559,66 @@ export default function CreateHostelPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Custom Fields from Join Us Page Setup ── */}
+      {customFields.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+          <div className="px-6 py-4 border-b border-gray-50">
+            <h3 className="text-base font-bold text-gray-900">Additional Information</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Custom fields configured in Join Us Page Setup</p>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customFields.map((field) => (
+                <div key={field.name} className={field.type === "textarea" ? "sm:col-span-2 lg:col-span-3" : ""}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                  </label>
+                  {field.type === "textarea" ? (
+                    <textarea
+                      value={customFieldValues[field.name] || ""}
+                      onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.value })}
+                      rows={3}
+                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all resize-none"
+                    />
+                  ) : field.type === "select" ? (
+                    <select
+                      value={customFieldValues[field.name] || ""}
+                      onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                    >
+                      <option value="">Select {field.label}</option>
+                      {(field.options || []).map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : field.type === "checkbox" ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`custom-${field.name}`}
+                        checked={customFieldValues[field.name] === "true"}
+                        onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.checked ? "true" : "" })}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                      <label htmlFor={`custom-${field.name}`} className="text-sm text-gray-600">{field.label}</label>
+                    </div>
+                  ) : (
+                    <input
+                      type={field.type}
+                      value={customFieldValues[field.name] || ""}
+                      onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.value })}
+                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Owner Information — mirrors reference Owner_Info card ── */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
