@@ -25,6 +25,7 @@ model User {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   bookings Booking[]
+  hostels Hostel[]
 
   @@map("users")
 }
@@ -239,5 +240,52 @@ model Zone {
   createdAt                     DateTime @default(now()) @map("created_at")
   updatedAt                     DateTime @updatedAt @map("updated_at")
 
+  hostels Hostel[]
+
   @@map("zones")
+}
+
+// ============================================
+// HOSTEL MODEL - Hostel/Vendor registration
+// ============================================
+model Hostel {
+  id              Int            @id @default(autoincrement())
+  ownerId         Int            @map("owner_id")
+  name            String         @db.VarChar(255)
+  address         String         @db.VarChar(500)
+  phone           String?        @db.VarChar(20)
+  email           String?        @db.VarChar(255)
+  description     String?        @db.Text
+  zoneId          Int?           @map("zone_id")
+  latitude        Float?
+  longitude       Float?
+  logo            String?        @db.VarChar(500)
+  coverPhoto      String?        @map("cover_photo") @db.VarChar(500)
+  totalRooms      Int            @default(0) @map("total_rooms")
+  totalBeds       Int            @default(0) @map("total_beds")
+  minStayDays     Int            @default(1) @map("min_stay_days")
+  checkInTime     String?        @map("check_in_time") @db.VarChar(10)
+  checkOutTime    String?        @map("check_out_time") @db.VarChar(10)
+  amenities       String?        @db.Text
+  customFields    String?        @map("custom_fields") @db.Text
+  status          HostelStatus   @default(PENDING)
+  rejectionReason String?        @map("rejection_reason") @db.Text
+  submittedAt     DateTime       @default(now()) @map("submitted_at")
+  reviewedAt      DateTime?      @map("reviewed_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  owner  User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  zone   Zone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId])
+  @@index([zoneId])
+  @@index([status])
+  @@map("hostels")
+}
+
+enum HostelStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
