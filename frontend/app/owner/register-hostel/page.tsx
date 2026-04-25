@@ -149,7 +149,8 @@ export default function RegisterHostelPage() {
     const setMarkerPosition = (pos: any, showWarning = true) => {
       const currentZoneId = form.zone_id;
       if (currentZoneId && zonePolygonRef.current) {
-        const zone = zones.find((z) => z.id.toString() === currentZoneId);\n        if (zone && zone.coordinates) {
+        const zone = zones.find((z) => z.id.toString() === currentZoneId);
+        if (zone && zone.coordinates) {
           let coords = zone.coordinates;
           if (typeof coords === 'string') coords = JSON.parse(coords);
           const polygon = coords.map((c: any) => ({ lat: c[0], lng: c[1] }));
