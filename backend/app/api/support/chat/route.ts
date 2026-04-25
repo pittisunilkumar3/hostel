@@ -3,7 +3,7 @@ import { getAuthenticatedUser } from "@/src/middleware/auth";
 import db, { RowDataPacket, ResultSetHeader } from "@/src/config/database";
 import { successResponse, errorResponse } from "@/src/utils";
 
-// GET - Fetch or create conversation
+// GET - Fetch or create conversation, or get unread count
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const auth = getAuthenticatedUser(req);
   if (!auth) return errorResponse("Unauthorized", 401);
@@ -11,13 +11,47 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-    const chatWith = searchParams.get("chatWith") || "admin"; // "admin" or "owner"
-    const userRole = searchParams.get("userRole") || "customer"; // "owner" or "customer"
+    const chatWith = searchParams.get("chatWith") || "admin";
+    const userRole = searchParams.get("userRole") || "customer";
     const hostelId = searchParams.get("hostelId");
     const ownerId = searchParams.get("ownerId");
+    const action = searchParams.get("action");
 
     if (!userId) return errorResponse("userId is required", 400);
 
+    // Handle unread count request
+    if (action === "unread") {
+      let query = "";
+      let params: any[] = [];
+
+      if (auth.role === "OWNER") {
+        // Owner: count unread messages in their conversations
+        query = `
+          SELECT COALESCE(SUM(c.unread_count), 0) as unreadCount
+          FROM conversations c
+          WHERE (c.user_id = ? AND c.owner_id IS NULL AND c.hostel_id IS NULL)
+             OR (c.owner_id = ?)
+        `;
+        params = [auth.userId, auth.userId];
+      } else if (auth.role === "CUSTOMER") {
+        // Customer: count unread messages in their conversations
+        query = `
+          SELECT COALESCE(SUM(c.unread_count), 0) as unreadCount
+          FROM conversations c
+          WHERE c.user_id = ?
+        `;
+        params = [auth.userId];
+      } else {
+        // Admin: count all unread
+        query = `SELECT COALESCE(SUM(unread_count), 0) as unreadCount FROM conversations`;
+        params = [];
+      }
+
+      const [rows] = await db.execute<RowDataPacket[]>(query, params);
+      return successResponse({ unreadCount: rows[0].unreadCount || 0 });
+    }
+
+    // Handle conversation fetch/create
     let conversation: any = null;
 
     if (chatWith === "admin") {
@@ -113,13 +147,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Increment unread count for the other party
     if (senderType === "user") {
+      // Customer sent message, increment for owner/admin
+      await db.execute(
+        "UPDATE conversations SET unread_count = unread_count + 1 WHERE id = ?",
+        [conversationId]
+      );
+    } else if (senderType === "owner") {
+      // Owner sent message, increment for customer
       await db.execute(
         "UPDATE conversations SET unread_count = unread_count + 1 WHERE id = ?",
         [conversationId]
       );
     } else {
+      // Admin sent message, increment for user
       await db.execute(
-        "UPDATE conversations SET unread_count = 0 WHERE id = ?",
+        "UPDATE conversations SET unread_count = unread_count + 1 WHERE id = ?",
         [conversationId]
       );
     }
@@ -159,8 +201,8 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     );
 
     await db.execute(
-      "UPDATE conversation_messages SET is_read = 1 WHERE conversation_id = ? AND sender_type != ?",
-      [conversationId, auth.role === "SUPER_ADMIN" ? "admin" : "user"]
+      "UPDATE conversation_messages SET is_read = 1 WHERE conversation_id = ? AND is_read = 0",
+      [conversationId]
     );
 
     return successResponse(null, "Conversation marked as read");

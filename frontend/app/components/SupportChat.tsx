@@ -29,22 +29,15 @@ interface Conversation {
 }
 
 interface SupportChatProps {
-  /** Who the user wants to chat with */
   chatWith: "admin" | "owner";
-  /** The role of the current user */
   userRole: "owner" | "customer";
-  /** Accent color for the chat UI */
-  accentColor?: string;
-  /** Optional hostel ID for owner-customer chats */
   hostelId?: number;
-  /** Optional owner ID for customer-owner chats */
   ownerId?: number;
 }
 
 export default function SupportChat({
   chatWith,
   userRole,
-  accentColor = "emerald",
   hostelId,
   ownerId,
 }: SupportChatProps) {
@@ -57,48 +50,46 @@ export default function SupportChat({
   const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const user = getCurrentUser();
+  const conversationFetched = useRef(false);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch or create conversation when chat opens
   useEffect(() => {
-    if (isOpen && user) {
+    if (isOpen && user && !conversationFetched.current) {
+      conversationFetched.current = true;
       fetchOrCreateConversation();
+    }
+    if (!isOpen) {
+      conversationFetched.current = false;
     }
   }, [isOpen, user]);
 
-  // Poll for new messages every 10 seconds when chat is open
   useEffect(() => {
     if (!isOpen || !conversation) return;
     const interval = setInterval(() => {
       fetchMessages(conversation.id);
-    }, 10000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [isOpen, conversation]);
 
-  // Poll for unread count when chat is closed
   useEffect(() => {
     if (isOpen || !user) return;
-    const interval = setInterval(fetchUnreadCount, 30000);
     fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
   }, [isOpen, user]);
 
   const fetchUnreadCount = async () => {
     try {
-      const params = new URLSearchParams({ userId: String(user?.id) });
-      if (chatWith === "owner" && ownerId) {
-        params.set("ownerId", String(ownerId));
-      }
-      if (hostelId) {
-        params.set("hostelId", String(hostelId));
-      }
+      const params = new URLSearchParams({ 
+        userId: String(user?.id),
+        action: "unread"
+      });
       const res = await apiFetch(`/api/support/chat?${params.toString()}`);
-      if (res.success && res.data?.conversation) {
-        setUnreadCount(res.data.conversation.unread_count || 0);
+      if (res.success && res.data?.unreadCount !== undefined) {
+        setUnreadCount(res.data.unreadCount);
       }
     } catch (e) {
       // ignore
@@ -122,7 +113,6 @@ export default function SupportChat({
         if (res.data.messages) {
           setMessages(res.data.messages);
         }
-        // Mark as read
         if (res.data.conversation) {
           await apiFetch("/api/support/chat", {
             method: "PUT",
@@ -194,11 +184,11 @@ export default function SupportChat({
   const chatSubLabel = chatWith === "admin" ? "We typically reply within minutes" : "Contact your hostel owner";
 
   return (
-    <>
+    <div>
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-${accentColor}-600 text-white shadow-lg shadow-${accentColor}-600/30 hover:bg-${accentColor}-700 transition-all flex items-center justify-center`}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center justify-center"
       >
         {isOpen ? (
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,7 +210,7 @@ export default function SupportChat({
       {isOpen && (
         <div className="fixed bottom-24 right-6 z-50 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className={`bg-${accentColor}-600 text-white px-5 py-4`}>
+          <div className="bg-emerald-600 text-white px-5 py-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,11 +255,11 @@ export default function SupportChat({
                     <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
                         isMe
-                          ? `bg-${accentColor}-600 text-white rounded-br-md`
+                          ? "bg-emerald-600 text-white rounded-br-md"
                           : "bg-white text-gray-900 border border-gray-200 rounded-bl-md"
                       }`}>
                         {!isMe && msg.sender_name && (
-                          <p className={`text-xs font-semibold mb-1 text-${accentColor}-600`}>{msg.sender_name}</p>
+                          <p className="text-xs font-semibold mb-1 text-emerald-600">{msg.sender_name}</p>
                         )}
                         <p className="text-sm leading-relaxed">{msg.message}</p>
                         <p className={`text-[10px] mt-1 ${isMe ? "text-white/70" : "text-gray-400"}`}>
@@ -299,7 +289,7 @@ export default function SupportChat({
               <button
                 onClick={sendMessage}
                 disabled={!newMessage.trim() || sending}
-                className={`p-2.5 bg-${accentColor}-600 text-white rounded-xl hover:bg-${accentColor}-700 disabled:opacity-50 transition-all`}
+                className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all"
               >
                 {sending ? (
                   <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
@@ -313,6 +303,6 @@ export default function SupportChat({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
