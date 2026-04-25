@@ -33,6 +33,7 @@ interface Conversation {
   user_email?: string;
   user_phone?: string;
   user_avatar?: string;
+  _type?: 'admin' | 'customer';
 }
 
 type TabType = "admin" | "customers";
@@ -41,7 +42,7 @@ export default function OwnerMessages() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("admin");
+  const [activeTab, setActiveTab] = useState<TabType>("customers");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -55,7 +56,7 @@ export default function OwnerMessages() {
     if (!u) { router.push("/login/owner"); return; }
     setUser(u);
     fetchConversations();
-  }, [router, activeTab]);
+  }, [router]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,10 +74,30 @@ export default function OwnerMessages() {
   const fetchConversations = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/owner/messages?tab=${activeTab}`);
-      if (res.success && res.data) {
-        setConversations(res.data);
+      // Fetch both admin and customer conversations
+      const [adminRes, custRes] = await Promise.all([
+        apiFetch(`/api/owner/messages?tab=admin`),
+        apiFetch(`/api/owner/messages?tab=customers`)
+      ]);
+      
+      const allConvs: Conversation[] = [];
+      if (adminRes.success && adminRes.data) {
+        // Tag admin conversations
+        adminRes.data.forEach((c: Conversation) => {
+          allConvs.push({ ...c, _type: 'admin' });
+        });
       }
+      if (custRes.success && custRes.data) {
+        // Tag customer conversations
+        custRes.data.forEach((c: Conversation) => {
+          allConvs.push({ ...c, _type: 'customer' });
+        });
+      }
+      
+      // Sort by updated_at
+      allConvs.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      
+      setConversations(allConvs);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -181,14 +202,30 @@ export default function OwnerMessages() {
   };
 
   const filteredConversations = conversations.filter(conv => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      conv.user_name?.toLowerCase().includes(query) ||
-      conv.user_email?.toLowerCase().includes(query) ||
-      conv.last_message?.toLowerCase().includes(query)
-    );
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = (
+        conv.user_name?.toLowerCase().includes(query) ||
+        conv.user_email?.toLowerCase().includes(query) ||
+        conv.last_message?.toLowerCase().includes(query)
+      );
+      if (!matchesSearch) return false;
+    }
+    
+    // Filter by active tab
+    if (activeTab === "admin") {
+      return !conv.owner_id && !conv.hostel_id; // Admin conversations
+    } else {
+      return conv.owner_id != null; // Customer conversations
+    }
   });
+  
+  // Get admin conversation for the support section
+  const adminConversation = conversations.find(c => !c.owner_id && !c.hostel_id);
+  
+  // Get unread count for admin conversation
+  const adminUnread = adminConversation?.unread_count || 0;
 
   return (
     <DashboardShell role="owner" title="Hostel Owner" items={sidebarItems} accentColor="text-emerald-300" accentBg="bg-gradient-to-b from-emerald-900 to-emerald-950" hoverBg="bg-white/10">
@@ -225,9 +262,8 @@ export default function OwnerMessages() {
               <div
                 onClick={() => {
                   setActiveTab("admin");
-                  const adminConv = conversations.find(c => !c.owner_id && !c.hostel_id);
-                  if (adminConv) {
-                    selectConversation(adminConv);
+                  if (adminConversation) {
+                    selectConversation(adminConversation);
                   } else {
                     startAdminConversation();
                   }
@@ -238,14 +274,26 @@ export default function OwnerMessages() {
                     : "hover:bg-gray-50"
                 }`}
               >
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
+                <div className="relative">
+                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                  {adminUnread > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                      {adminUnread > 9 ? "9+" : adminUnread}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">Support Team</p>
-                  <p className="text-xs text-gray-500 truncate">Get help from admin</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-900">Support Team</p>
+                    {adminConversation && (
+                      <span className="text-xs text-gray-400">{formatRelativeTime(adminConversation.updated_at)}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">{adminConversation?.last_message || "Get help from admin"}</p>
                 </div>
               </div>
             </div>
@@ -253,6 +301,16 @@ export default function OwnerMessages() {
             {/* Tabs */}
             <div className="px-4 pt-2">
               <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+                <button
+                  onClick={() => setActiveTab("admin")}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                    activeTab === "admin"
+                      ? "bg-white text-emerald-600 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Support
+                </button>
                 <button
                   onClick={() => setActiveTab("customers")}
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
