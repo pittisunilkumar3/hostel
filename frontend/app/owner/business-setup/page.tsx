@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
+import SupportChat from "@/app/components/SupportChat";
 import { apiFetch, getCurrentUser, API_URL } from "@/lib/auth";
 import { getSidebarItems } from "@/app/owner/sidebarItems";
 import { useRouter } from "next/navigation";
@@ -626,6 +627,9 @@ export default function OwnerBusinessSetup() {
           </div>
         </div>
       )}
+      
+      {/* Support Chat Button */}
+      <SupportChat chatWith="admin" userRole="owner" accentColor="emerald" />
 
       {/* Google Maps Script */}
       {mapApiKey && (

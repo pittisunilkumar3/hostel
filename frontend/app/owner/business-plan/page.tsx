@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
+import SupportChat from "@/app/components/SupportChat";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/owner/sidebarItems";
 import { useRouter } from "next/navigation";
@@ -253,6 +254,9 @@ export default function OwnerBusinessPlan() {
           </div>
         </div>
       </div>
+      
+      {/* Support Chat Button */}
+      <SupportChat chatWith="admin" userRole="owner" accentColor="emerald" />
     </DashboardShell>
   );
 }
