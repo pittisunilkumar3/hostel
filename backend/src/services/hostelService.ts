@@ -334,21 +334,40 @@ export const registerHostel = async (ownerId: number, data: any) => {
     );
   }
 
-  const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO hostels (owner_id, name, address, phone, email, description, zone_id,
-      latitude, longitude, logo, cover_photo, total_rooms, total_beds, min_stay_days,
-      check_in_time, check_out_time, amenities, custom_fields, status, submitted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', NOW())`,
-    [ownerId, name, address, phone || null, email || null, description || null,
-     zone_id ? parseInt(zone_id) : null,
-     latitude ? parseFloat(latitude) : null, longitude ? parseFloat(longitude) : null,
-     logo || null, cover_photo || null,
-     total_rooms ? parseInt(total_rooms) : 0, total_beds ? parseInt(total_beds) : 0,
-     min_stay_days ? parseInt(min_stay_days) : 1,
-     check_in_time || null, check_out_time || null,
-     amenities ? (typeof amenities === "string" ? amenities : JSON.stringify(amenities)) : null,
-     custom_fields ? (typeof custom_fields === "string" ? custom_fields : JSON.stringify(custom_fields)) : null]
-  );
+  // Ensure all values are proper types
+  const params = [
+    ownerId,
+    name || '',
+    address || '',
+    phone || null,
+    email || null,
+    description || null,
+    zone_id ? parseInt(String(zone_id)) : null,
+    latitude ? parseFloat(String(latitude)) : null,
+    longitude ? parseFloat(String(longitude)) : null,
+    logo || null,
+    cover_photo || null,
+    total_rooms ? parseInt(String(total_rooms)) : 0,
+    total_beds ? parseInt(String(total_beds)) : 0,
+    min_stay_days ? parseInt(String(min_stay_days)) : 1,
+    check_in_time || null,
+    check_out_time || null,
+    amenities ? (typeof amenities === "string" ? amenities : JSON.stringify(amenities)) : null,
+    custom_fields ? (typeof custom_fields === "string" ? custom_fields : JSON.stringify(custom_fields)) : null,
+  ];
 
-  return getHostelById(result.insertId);
+  try {
+    const [result] = await db.query<ResultSetHeader>(
+      `INSERT INTO hostels (owner_id, name, address, phone, email, description, zone_id,
+        latitude, longitude, logo, cover_photo, total_rooms, total_beds, min_stay_days,
+        check_in_time, check_out_time, amenities, custom_fields, status, submitted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', NOW())`,
+      params
+    );
+
+    return getHostelById(result.insertId);
+  } catch (error: any) {
+    console.error("Error inserting hostel:", error);
+    throw error;
+  }
 };
