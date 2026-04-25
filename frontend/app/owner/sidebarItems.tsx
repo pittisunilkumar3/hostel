@@ -30,16 +30,8 @@ function buildItems() {
 
     // ─── BUSINESS MANAGEMENT ─── (mirrors reference restaurant business management)
     { label: "Business Management", heading: true as const },
-    {
-      label: "Hostel Configuration",
-      icon: <ConfigIcon />,
-      children: [
-        { label: "Basic Setup", href: "/owner/business-setup" },
-        { label: "Schedule & Timing", href: "/owner/business-setup/schedule" },
-        { label: "Amenities Setup", href: "/owner/business-setup/amenities" },
-        { label: "Notification Setup", href: "/owner/business-setup/notifications" },
-      ],
-    },
+    { label: "Business Setup", href: "/owner/business-setup", icon: <ConfigIcon /> },
+    { label: "Notification Setup", href: "/owner/business-setup/notifications", icon: <NotifIcon /> },
     { label: "My Business Plan", href: "/owner/business-plan", icon: <PlanIcon /> },
 
     // ─── HELP & SUPPORT ───
