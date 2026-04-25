@@ -102,8 +102,13 @@ export default function OwnerDashboard() {
   }
 
   // No hostel - redirect to registration
+  useEffect(() => {
+    if (hostelStatus === "no_hostel") {
+      router.push("/owner/register-hostel");
+    }
+  }, [hostelStatus, router]);
+
   if (hostelStatus === "no_hostel") {
-    router.push("/owner/register-hostel");
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center">
         <div className="text-center">
