@@ -13,6 +13,18 @@ import {
   getAllZoneCoordinates,
 } from "@/src/services/zoneService";
 
+// GET /api/zones — Public endpoint (no auth required)
+export async function handleGetPublicZones(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get("search") || undefined;
+    const zones = await getAllZones(search);
+    return successResponse(zones, "Zones fetched successfully");
+  } catch (e: any) {
+    return errorResponse(e.message, 500);
+  }
+}
+
 // GET /api/zones — List all zones (with optional ?search=)
 export async function handleGetZones(req: NextRequest) {
   const auth = adminMiddleware(req);
