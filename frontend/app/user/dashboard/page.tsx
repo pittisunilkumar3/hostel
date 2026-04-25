@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import StatCard from "@/app/components/StatCard";
+import CustomerSupportChat from "@/app/components/CustomerSupportChat";
 import { getCurrentUser, apiFetch } from "@/lib/auth";
 
 const sidebarItems = [
@@ -152,6 +153,9 @@ export default function UserDashboard() {
           </div>
         )}
       </div>
+      
+      {/* Floating Support Chat */}
+      <CustomerSupportChat />
     </DashboardShell>
   );
 }
