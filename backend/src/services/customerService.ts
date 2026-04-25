@@ -67,19 +67,19 @@ export const getCustomers = async (params: GetCustomersParams) => {
   else if (sort === "oldest") orderBy = "ORDER BY u.created_at ASC";
 
   const [rows] = await db.execute<CustomerRow[]>(
-    `SELECT u.id, u.name, u.email, u.phone, u.image, u.status, u.created_at,
-      COALESCE(o.orders_count, 0) as orders_count,
-      COALESCE(o.total_spent, 0) as total_spent,
-      o.last_order_date
+    `SELECT u.id, u.name, u.email, u.phone, u.avatar as image, u.status, u.created_at,
+      COALESCE(b.orders_count, 0) as orders_count,
+      COALESCE(b.total_spent, 0) as total_spent,
+      b.last_order_date
      FROM users u
      LEFT JOIN (
-       SELECT user_id,
+       SELECT student_id,
               COUNT(*) as orders_count,
               SUM(total_amount) as total_spent,
               MAX(created_at) as last_order_date
-       FROM orders
-       GROUP BY user_id
-     ) o ON u.id = o.user_id
+       FROM bookings
+       GROUP BY student_id
+     ) b ON u.id = b.student_id
      ${where}
      ${orderBy}
      LIMIT ? OFFSET ?`,
@@ -109,7 +109,7 @@ export const getCustomerStats = async () => {
 // ── Get single customer with details ──
 export const getCustomerById = async (id: number) => {
   const [rows] = await db.execute<CustomerRow[]>(
-    `SELECT id, name, email, phone, image, status, created_at
+    `SELECT id, name, email, phone, avatar as image, status, created_at
      FROM users
      WHERE id = ? AND role = 'CUSTOMER'`,
     [id]
@@ -119,12 +119,13 @@ export const getCustomerById = async (id: number) => {
 
   const customer = rows[0];
 
-  // Get orders
+  // Get bookings
   const [orders] = await db.execute<RowDataPacket[]>(
-    `SELECT id, order_id, hostel_name, check_in, check_out, total_amount as amount, status, created_at
-     FROM orders
-     WHERE user_id = ?
-     ORDER BY created_at DESC
+    `SELECT b.id, CONCAT('BK-', b.id) as order_id, CONCAT('Room ', r.room_number) as hostel_name, b.check_in, b.check_out, b.total_amount as amount, b.status, b.created_at
+     FROM bookings b
+     LEFT JOIN rooms r ON b.room_id = r.id
+     WHERE b.student_id = ?
+     ORDER BY b.created_at DESC
      LIMIT 50`,
     [id]
   );
@@ -132,8 +133,8 @@ export const getCustomerById = async (id: number) => {
   // Get totals
   const [totals] = await db.execute<RowDataPacket[]>(
     `SELECT COUNT(*) as total_orders, COALESCE(SUM(total_amount), 0) as total_spent
-     FROM orders
-     WHERE user_id = ?`,
+     FROM bookings
+     WHERE student_id = ?`,
     [id]
   );
 
