@@ -123,14 +123,61 @@ export default function RegisterHostelPage() {
     if (!mapRef.current || !(window as any).google) return;
     const google = (window as any).google;
     const defaultCenter = { lat: 20.5937, lng: 78.9629 };
-    const map = new google.maps.Map(mapRef.current, { center: defaultCenter, zoom: 5, mapTypeControl: false, streetViewControl: false, fullscreenControl: false });
+    const map = new google.maps.Map(mapRef.current, {
+      center: defaultCenter,
+      zoom: 5,
+      mapTypeControl: true,
+      streetViewControl: false,
+      fullscreenControl: true,
+      zoomControl: true,
+    });
     mapInstanceRef.current = map;
-    const marker = new google.maps.Marker({ position: defaultCenter, map, draggable: true, title: "Hostel Location" });
+
+    // Create marker
+    const marker = new google.maps.Marker({
+      position: defaultCenter,
+      map,
+      draggable: true,
+      title: "Hostel Location",
+      animation: google.maps.Animation.DROP,
+    });
     markerRef.current = marker;
+
+    // Update coordinates when marker is dragged
     marker.addListener("dragend", () => {
       const pos = marker.getPosition();
-      if (pos) { update("latitude", pos.lat().toFixed(6)); update("longitude", pos.lng().toFixed(6)); }
+      if (pos) {
+        update("latitude", pos.lat().toFixed(6));
+        update("longitude", pos.lng().toFixed(6));
+        // Reverse geocode to get address
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: pos }, (results: any, status: any) => {
+          if (status === "OK" && results?.[0]) {
+            update("address", results[0].formatted_address);
+          }
+        });
+      }
     });
+
+    // Click on map to set marker
+    map.addListener("click", (e: any) => {
+      if (e.latLng) {
+        marker.setPosition(e.latLng);
+        marker.setAnimation(google.maps.Animation.BOUNCE);
+        setTimeout(() => marker.setAnimation(null), 750);
+        update("latitude", e.latLng.lat().toFixed(6));
+        update("longitude", e.latLng.lng().toFixed(6));
+        // Reverse geocode
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: e.latLng }, (results: any, status: any) => {
+          if (status === "OK" && results?.[0]) {
+            update("address", results[0].formatted_address);
+          }
+        });
+      }
+    });
+
+    // Search box
     const input = document.getElementById("hostel-map-search-owner") as HTMLInputElement;
     if (input) {
       const searchBox = new google.maps.places.SearchBox(input);
@@ -142,6 +189,8 @@ export default function RegisterHostelPage() {
             map.setCenter(place.geometry.location);
             map.setZoom(15);
             marker.setPosition(place.geometry.location);
+            marker.setAnimation(google.maps.Animation.BOUNCE);
+            setTimeout(() => marker.setAnimation(null), 750);
             update("latitude", place.geometry.location.lat().toFixed(6));
             update("longitude", place.geometry.location.lng().toFixed(6));
             if (place.formatted_address) update("address", place.formatted_address);
@@ -149,6 +198,64 @@ export default function RegisterHostelPage() {
         }
       });
     }
+
+    // Add "Find My Location" button inside the map
+    const locationButton = document.createElement("div");
+    locationButton.className = "custom-map-control-button";
+    locationButton.style.cssText = "background: white; margin: 10px; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-family: Roboto, Arial, sans-serif; font-size: 14px; font-weight: 500; color: #333; border: none; transition: all 0.2s;";
+    locationButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path></svg> Find My Location`;
+    
+    locationButton.addEventListener("mouseover", () => {
+      locationButton.style.background = "#f0f0f0";
+      locationButton.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)";
+    });
+    locationButton.addEventListener("mouseout", () => {
+      locationButton.style.background = "white";
+      locationButton.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+    });
+    
+    locationButton.addEventListener("click", () => {
+      if (navigator.geolocation) {
+        locationButton.innerHTML = `<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10"></path></svg> Getting location...`;
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const pos = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            map.setCenter(pos);
+            map.setZoom(16);
+            marker.setPosition(pos);
+            marker.setAnimation(google.maps.Animation.BOUNCE);
+            setTimeout(() => marker.setAnimation(null), 750);
+            update("latitude", pos.lat.toFixed(6));
+            update("longitude", pos.lng.toFixed(6));
+            // Reverse geocode
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: pos }, (results: any, status: any) => {
+              if (status === "OK" && results?.[0]) {
+                update("address", results[0].formatted_address);
+              }
+            });
+            locationButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path></svg> Find My Location`;
+          },
+          (error) => {
+            console.error("Geolocation error:", error);
+            let msg = "Unable to get your location";
+            if (error.code === 1) msg = "Location access denied. Please allow location permission.";
+            if (error.code === 2) msg = "Location unavailable. Please try again.";
+            if (error.code === 3) msg = "Location request timed out. Please try again.";
+            alert(msg);
+            locationButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4m0 12v4M2 12h4m12 0h4"></path></svg> Find My Location`;
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        alert("Geolocation is not supported by your browser");
+      }
+    });
+
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(locationButton);
   };
 
   const update = (k: string, v: string) => setForm((prev) => ({ ...prev, [k]: v }));
