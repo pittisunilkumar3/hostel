@@ -33,17 +33,18 @@ interface Conversation {
   user_email?: string;
   user_phone?: string;
   user_avatar?: string;
-  _type?: 'admin' | 'customer';
+  chat_type?: "admin" | "customer";
 }
 
-type TabType = "admin" | "customers";
+type TabType = "customer";
 
 export default function OwnerMessages() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>("customers");
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>("customer");
+  const [adminConversation, setAdminConversation] = useState<Conversation | null>(null);
+  const [customerConversations, setCustomerConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -55,49 +56,36 @@ export default function OwnerMessages() {
     const u = getCurrentUser();
     if (!u) { router.push("/login/owner"); return; }
     setUser(u);
-    fetchConversations();
+    fetchAllConversations();
   }, [router]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Poll for new messages
+  // Poll for new messages every 5 seconds
   useEffect(() => {
     if (!selectedConversation) return;
     const interval = setInterval(() => {
       fetchMessages(selectedConversation.id);
-    }, 10000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [selectedConversation]);
 
-  const fetchConversations = async () => {
+  const fetchAllConversations = async () => {
     setLoading(true);
     try {
-      // Fetch both admin and customer conversations
-      const [adminRes, custRes] = await Promise.all([
-        apiFetch(`/api/owner/messages?tab=admin`),
-        apiFetch(`/api/owner/messages?tab=customers`)
-      ]);
-      
-      const allConvs: Conversation[] = [];
-      if (adminRes.success && adminRes.data) {
-        // Tag admin conversations
-        adminRes.data.forEach((c: Conversation) => {
-          allConvs.push({ ...c, _type: 'admin' });
-        });
+      // Fetch admin conversations
+      const adminRes = await apiFetch("/api/owner/messages?tab=admin");
+      if (adminRes.success && adminRes.data && adminRes.data.length > 0) {
+        setAdminConversation({ ...adminRes.data[0], chat_type: "admin" });
       }
+
+      // Fetch customer conversations
+      const custRes = await apiFetch("/api/owner/messages?tab=customers");
       if (custRes.success && custRes.data) {
-        // Tag customer conversations
-        custRes.data.forEach((c: Conversation) => {
-          allConvs.push({ ...c, _type: 'customer' });
-        });
+        setCustomerConversations(custRes.data.map((c: Conversation) => ({ ...c, chat_type: "customer" })));
       }
-      
-      // Sort by updated_at
-      allConvs.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-      
-      setConversations(allConvs);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -113,6 +101,7 @@ export default function OwnerMessages() {
 
   const selectConversation = async (conv: Conversation) => {
     setSelectedConversation(conv);
+    setMessages([]);
     await fetchMessages(conv.id);
     // Mark as read
     await apiFetch("/api/support/chat", {
@@ -120,7 +109,11 @@ export default function OwnerMessages() {
       body: JSON.stringify({ conversationId: conv.id }),
     });
     // Update local state
-    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+    if (conv.chat_type === "admin") {
+      setAdminConversation(prev => prev ? { ...prev, unread_count: 0 } : null);
+    } else {
+      setCustomerConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c));
+    }
   };
 
   const sendMessage = async () => {
@@ -140,11 +133,18 @@ export default function OwnerMessages() {
         setMessages(prev => [...prev, res.data]);
         setNewMessage("");
         // Update conversation last message
-        setConversations(prev => prev.map(c =>
-          c.id === selectedConversation.id
-            ? { ...c, last_message: newMessage.trim(), updated_at: new Date().toISOString() }
-            : c
-        ));
+        const updateConv = (c: Conversation) => ({
+          ...c,
+          last_message: newMessage.trim(),
+          updated_at: new Date().toISOString()
+        });
+        if (selectedConversation.chat_type === "admin") {
+          setAdminConversation(prev => prev ? updateConv(prev) : null);
+        } else {
+          setCustomerConversations(prev => prev.map(c =>
+            c.id === selectedConversation.id ? updateConv(c) : c
+          ));
+        }
       }
     } catch (e) { console.error(e); }
     finally { setSending(false); }
@@ -152,19 +152,15 @@ export default function OwnerMessages() {
 
   const startAdminConversation = async () => {
     try {
-      const res = await apiFetch("/api/support/chat", {
+      const res = await apiFetch("/api/owner/messages", {
         method: "POST",
         body: JSON.stringify({
-          conversationId: 0,
-          senderId: user?.id,
-          senderType: "owner",
           message: "Hello, I need assistance.",
-          createNew: true,
           chatWith: "admin",
         }),
       });
       if (res.success) {
-        fetchConversations();
+        fetchAllConversations();
       }
     } catch (e) { console.error(e); }
   };
@@ -201,30 +197,17 @@ export default function OwnerMessages() {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  const filteredConversations = conversations.filter(conv => {
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = (
-        conv.user_name?.toLowerCase().includes(query) ||
-        conv.user_email?.toLowerCase().includes(query) ||
-        conv.last_message?.toLowerCase().includes(query)
-      );
-      if (!matchesSearch) return false;
-    }
-    
-    // Filter by active tab
-    if (activeTab === "admin") {
-      return !conv.owner_id && !conv.hostel_id; // Admin conversations
-    } else {
-      return conv.owner_id != null; // Customer conversations
-    }
+  const filteredCustomerConversations = customerConversations.filter(conv => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      conv.user_name?.toLowerCase().includes(query) ||
+      conv.user_email?.toLowerCase().includes(query) ||
+      conv.last_message?.toLowerCase().includes(query)
+    );
   });
-  
-  // Get admin conversation for the support section
-  const adminConversation = conversations.find(c => !c.owner_id && !c.hostel_id);
-  
-  // Get unread count for admin conversation
+
+  const totalUnreadCustomer = customerConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
   const adminUnread = adminConversation?.unread_count || 0;
 
   return (
@@ -258,10 +241,8 @@ export default function OwnerMessages() {
 
             {/* Admin Support Section */}
             <div className="px-4 pt-4 pb-2">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Support</h3>
               <div
                 onClick={() => {
-                  setActiveTab("admin");
                   if (adminConversation) {
                     selectConversation(adminConversation);
                   } else {
@@ -269,15 +250,15 @@ export default function OwnerMessages() {
                   }
                 }}
                 className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
-                  selectedConversation && !selectedConversation.owner_id && !selectedConversation.hostel_id
+                  selectedConversation?.chat_type === "admin"
                     ? "bg-emerald-50 border border-emerald-200"
                     : "hover:bg-gray-50"
                 }`}
               >
                 <div className="relative">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                  <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                   </div>
                   {adminUnread > 0 && (
@@ -288,7 +269,7 @@ export default function OwnerMessages() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">Support Team</p>
+                    <p className="text-sm font-bold text-gray-900">Support Team</p>
                     {adminConversation && (
                       <span className="text-xs text-gray-400">{formatRelativeTime(adminConversation.updated_at)}</span>
                     )}
@@ -298,93 +279,69 @@ export default function OwnerMessages() {
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="px-4 pt-2">
-              <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-                <button
-                  onClick={() => setActiveTab("admin")}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                    activeTab === "admin"
-                      ? "bg-white text-emerald-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  Support
-                </button>
-                <button
-                  onClick={() => setActiveTab("customers")}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                    activeTab === "customers"
-                      ? "bg-white text-emerald-600 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  Customers
-                </button>
+            {/* Customer Tab Header */}
+            <div className="px-4 pt-2 pb-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Customers</h3>
+                {totalUnreadCustomer > 0 && (
+                  <span className="px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full font-semibold">
+                    {totalUnreadCustomer} unread
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto p-2">
+            {/* Customer Conversations List */}
+            <div className="flex-1 overflow-y-auto">
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin h-6 w-6 border-2 border-emerald-600 border-t-transparent rounded-full mx-auto mb-2" />
                   <p className="text-xs text-gray-400">Loading conversations...</p>
                 </div>
-              ) : filteredConversations.length === 0 ? (
-                <div className="text-center py-8">
-                  <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              ) : filteredCustomerConversations.length === 0 ? (
+                <div className="text-center py-8 px-4">
+                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <p className="text-sm text-gray-500">No conversations yet</p>
+                  <p className="text-sm text-gray-500 font-medium">No Customer Found</p>
+                  <p className="text-xs text-gray-400 mt-1">Customer conversations will appear here</p>
                 </div>
               ) : (
-                filteredConversations.map(conv => {
-                  const isAdmin = !conv.owner_id && !conv.hostel_id;
-                  return (
-                    <div
-                      key={conv.id}
-                      onClick={() => selectConversation(conv)}
-                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 ${
-                        selectedConversation?.id === conv.id
-                          ? "bg-emerald-50 border border-emerald-200"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="relative">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isAdmin ? "bg-emerald-100" : "bg-blue-100"
-                        }`}>
-                          {isAdmin ? (
-                            <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                          ) : (
-                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          )}
-                        </div>
-                        {conv.unread_count > 0 && (
-                          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-                            {conv.unread_count > 9 ? "9+" : conv.unread_count}
-                          </span>
-                        )}
+                filteredCustomerConversations.map(conv => (
+                  <div
+                    key={conv.id}
+                    onClick={() => selectConversation(conv)}
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all border-b border-gray-100 ${
+                      selectedConversation?.id === conv.id
+                        ? "bg-emerald-50"
+                        : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="relative">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className={`text-sm font-semibold ${conv.unread_count > 0 ? "text-gray-900" : "text-gray-700"}`}>
-                            {isAdmin ? "Support Team" : conv.user_name || "Customer"}
-                          </p>
-                          <span className="text-xs text-gray-400">{formatRelativeTime(conv.updated_at)}</span>
-                        </div>
-                        <p className={`text-xs truncate ${conv.unread_count > 0 ? "text-gray-700 font-medium" : "text-gray-500"}`}>
-                          {conv.last_message || "No messages yet"}
-                        </p>
-                      </div>
+                      {conv.unread_count > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                          {conv.unread_count > 9 ? "9+" : conv.unread_count}
+                        </span>
+                      )}
                     </div>
-                  );
-                })
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className={`text-sm font-semibold ${conv.unread_count > 0 ? "text-gray-900" : "text-gray-700"}`}>
+                          {conv.user_name || "Customer"}
+                        </p>
+                        <span className="text-xs text-gray-400">{formatRelativeTime(conv.updated_at)}</span>
+                      </div>
+                      <p className={`text-xs truncate mt-0.5 ${conv.unread_count > 0 ? "text-gray-700 font-medium" : "text-gray-500"}`}>
+                        {conv.last_message || "No messages yet"}
+                      </p>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>
@@ -394,16 +351,14 @@ export default function OwnerMessages() {
             {selectedConversation ? (
               <>
                 {/* Chat Header */}
-                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <div className="px-6 py-4 border-b border-gray-200 bg-white">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      !selectedConversation.owner_id && !selectedConversation.hostel_id
-                        ? "bg-emerald-100"
-                        : "bg-blue-100"
+                      selectedConversation.chat_type === "admin" ? "bg-emerald-100" : "bg-blue-100"
                     }`}>
-                      {!selectedConversation.owner_id && !selectedConversation.hostel_id ? (
+                      {selectedConversation.chat_type === "admin" ? (
                         <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                       ) : (
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -413,12 +368,12 @@ export default function OwnerMessages() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-900">
-                        {!selectedConversation.owner_id && !selectedConversation.hostel_id
+                        {selectedConversation.chat_type === "admin"
                           ? "Support Team"
                           : selectedConversation.user_name || "Customer"}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {!selectedConversation.owner_id && !selectedConversation.hostel_id
+                        {selectedConversation.chat_type === "admin"
                           ? "Admin Support"
                           : selectedConversation.user_email || "Customer"}
                       </p>
@@ -506,7 +461,7 @@ export default function OwnerMessages() {
                   <svg className="w-20 h-20 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Select a Conversation</h3>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">Please select a user to view the conversation</h3>
                   <p className="text-sm text-gray-500">Choose a conversation from the sidebar to start messaging</p>
                 </div>
               </div>
