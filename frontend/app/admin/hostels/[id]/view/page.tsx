@@ -207,6 +207,9 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
   const [businessSchema, setBusinessSchema] = useState<BusinessSchema[]>([]);
   const [businessForm, setBusinessForm] = useState<Record<string, string>>({});
   const [savingBusiness, setSavingBusiness] = useState(false);
+  const [editCommissionModel, setEditCommissionModel] = useState("commission");
+  const [editCommissionRate, setEditCommissionRate] = useState("12");
+  const [savingCommission, setSavingCommission] = useState(false);
 
   // ── Meta Data state ──
   const [metaData, setMetaData] = useState<MetaData | null>(null);
@@ -417,6 +420,31 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
     finally { setSavingBusiness(false); }
   };
 
+  const saveCommissionSettings = async () => {
+    setSavingCommission(true);
+    try {
+      const res = await apiFetch(`/api/hostels/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          business_model: editCommissionModel,
+          commission_rate: parseFloat(editCommissionRate) || 12,
+        }),
+      });
+      if (res.success) {
+        setMessage({ type: "success", text: "✅ Commission settings saved!" });
+        // Update local hostel state
+        setHostel(prev => prev ? {
+          ...prev,
+          business_model: editCommissionModel,
+          commission_rate: parseFloat(editCommissionRate) || 12,
+        } : null);
+      } else {
+        setMessage({ type: "error", text: res.message || "Failed to save" });
+      }
+    } catch { setMessage({ type: "error", text: "Failed to save commission settings" }); }
+    finally { setSavingCommission(false); }
+  };
+
   // ── Meta Data API ──
   const fetchMetaData = async () => {
     try {
@@ -527,6 +555,9 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
             try { data.custom_fields = JSON.parse(data.custom_fields); } catch { data.custom_fields = null; }
           }
           setHostel(data);
+          // Initialize commission edit fields
+          setEditCommissionModel(data.business_model || "commission");
+          setEditCommissionRate((data.commission_rate || 12).toString());
         }
 
         // Fetch rooms
@@ -1698,36 +1729,51 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
             </button>
           </div>
           <div className="p-6">
-            {/* Per-Hostel Commission Settings */}
+            {/* Per-Hostel Commission Settings (Editable) */}
             <div className="mb-6 p-5 bg-amber-50 rounded-xl border border-amber-200">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Per-Hostel Commission</h4>
+                    <p className="text-xs text-gray-500">Edit commission settings for this hostel</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900">Per-Hostel Commission</h4>
-                  <p className="text-xs text-gray-500">This hostel's specific commission rate (set in Edit page)</p>
-                </div>
+                <button onClick={saveCommissionSettings} disabled={savingCommission} className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-semibold hover:bg-amber-700 disabled:opacity-50 transition-all flex items-center gap-2">
+                  {savingCommission ? (
+                    <><svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Saving...</>
+                  ) : (
+                    <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Save Commission</>
+                  )}
+                </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-3 bg-white rounded-lg border border-amber-200">
-                  <p className="text-xs text-gray-500 mb-1">Business Model</p>
-                  <p className="text-sm font-bold text-gray-900 capitalize">{hostel?.business_model || "commission"}</p>
+                  <label className="block text-xs text-gray-500 mb-1">Business Model</label>
+                  <select 
+                    value={editCommissionModel} 
+                    onChange={e => setEditCommissionModel(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  >
+                    <option value="commission">Commission</option>
+                    <option value="subscription">Subscription</option>
+                  </select>
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-emerald-200">
-                  <p className="text-xs text-emerald-600 mb-1">Commission Rate</p>
-                  <p className="text-sm font-bold text-emerald-700">{hostel?.commission_rate || 12}%</p>
-                </div>
-                <div className="p-3 bg-white rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-600 mb-1">Delivery Commission</p>
-                  <p className="text-sm font-bold text-blue-700">{hostel?.commission_on_delivery || 0}%</p>
+                  <label className="block text-xs text-emerald-600 mb-1">Commission Rate (%)</label>
+                  <input 
+                    type="number" 
+                    value={editCommissionRate} 
+                    onChange={e => setEditCommissionRate(e.target.value)}
+                    min="0" max="100" step="0.5"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                  />
                 </div>
               </div>
-              <p className="text-[10px] text-amber-600 mt-3">
-                * To change these values, go to Edit Hostel page.
-              </p>
             </div>
 
             {/* Dynamic Business Settings Schema */}
