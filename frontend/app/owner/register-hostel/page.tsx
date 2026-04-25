@@ -97,19 +97,24 @@ export default function RegisterHostelPage() {
     const loadMap = async () => {
       try {
         const res = await apiFetch("/api/settings/map");
-        if (!res.success || !res.data?.apiKey) return;
+        const apiKey = res.data?.mapApiKeyClient || res.data?.apiKey;
+        if (!res.success || !apiKey) {
+          console.warn("Google Maps API key not found");
+          return;
+        }
 
         if (document.getElementById("google-maps-script")) {
-          initMap(res.data.apiKey);
+          initMap(apiKey);
           return;
         }
         const script = document.createElement("script");
         script.id = "google-maps-script";
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${res.data.apiKey}&libraries=places`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
         script.async = true;
-        script.onload = () => initMap(res.data.apiKey);
+        script.onload = () => initMap(apiKey);
+        script.onerror = () => console.error("Failed to load Google Maps script");
         document.head.appendChild(script);
-      } catch { /* ignore */ }
+      } catch (e) { console.error("Error loading map:", e); }
     };
     loadMap();
   }, []);
