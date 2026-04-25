@@ -36,6 +36,9 @@ interface HostelData {
   check_out_time: string;
   amenities: string[] | string;
   custom_fields: Record<string, string> | string | null;
+  business_model: string;
+  commission_rate: number;
+  commission_on_delivery: number;
   owner_f_name: string;
   owner_l_name: string;
   owner_phone: string;
@@ -98,6 +101,11 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
   const [checkInTime, setCheckInTime] = useState("14:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
   const [status, setStatus] = useState("PENDING");
+  
+  // ── Commission Settings (per-hostel) ──
+  const [businessModel, setBusinessModel] = useState("commission");
+  const [commissionRate, setCommissionRate] = useState("12");
+  const [commissionOnDelivery, setCommissionOnDelivery] = useState("0");
 
   // ── Amenities (mirrors create form) ──
   const [amenities, setAmenities] = useState<string[]>([]);
@@ -154,6 +162,9 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
           setCheckInTime(h.check_in_time || "14:00");
           setCheckOutTime(h.check_out_time || "11:00");
           setStatus(h.status?.toString() || "PENDING");
+          setBusinessModel(h.business_model || "commission");
+          setCommissionRate(h.commission_rate?.toString() || "12");
+          setCommissionOnDelivery(h.commission_on_delivery?.toString() || "0");
 
           // Parse amenities (stored as JSON string in DB)
           if (h.amenities) {
@@ -320,6 +331,9 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
         },
         amenities,
         custom_fields: customFieldValues,
+        business_model: businessModel,
+        commission_rate: parseFloat(commissionRate) || 12,
+        commission_on_delivery: parseFloat(commissionOnDelivery) || 0,
         status,
       };
 
@@ -625,6 +639,44 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
               <input type="time" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
             </div>
+          </div>
+
+          {/* Commission Settings */}
+          <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">Business Plan & Commission</h4>
+                <p className="text-xs text-gray-500">Set per-hostel commission rate (overrides global settings)</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Business Model</label>
+                <select value={businessModel} onChange={(e) => setBusinessModel(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-400 transition-all bg-white">
+                  <option value="commission">Commission</option>
+                  <option value="subscription">Subscription</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Commission Rate (%)</label>
+                <input type="number" value={commissionRate} onChange={(e) => setCommissionRate(e.target.value)} placeholder="12" min="0" max="100" step="0.01"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-400 transition-all" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Delivery Commission (%)</label>
+                <input type="number" value={commissionOnDelivery} onChange={(e) => setCommissionOnDelivery(e.target.value)} placeholder="0" min="0" max="100" step="0.01"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-400 transition-all" />
+              </div>
+            </div>
+            <p className="text-[10px] text-amber-600 mt-3">
+              * This commission rate applies only to this specific hostel. Owner will see this rate in their Business Plan page.
+            </p>
           </div>
 
           {/* Amenities — mirrors create form */}

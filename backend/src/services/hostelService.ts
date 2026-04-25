@@ -21,6 +21,9 @@ interface HostelRow extends RowDataPacket {
   check_out_time: string;
   amenities: string;
   custom_fields: string;
+  business_model: string;
+  commission_rate: number;
+  commission_on_delivery: number;
   status: string;
   rejection_reason: string;
   submitted_at: Date;
@@ -169,6 +172,7 @@ export const updateHostel = async (id: number, data: any) => {
     "name", "address", "phone", "email", "description", "zone_id",
     "latitude", "longitude", "logo", "cover_photo",
     "total_rooms", "total_beds", "min_stay_days", "check_in_time", "check_out_time",
+    "business_model", "commission_rate", "commission_on_delivery",
   ];
 
   for (const field of allowedFields) {
@@ -312,6 +316,9 @@ export const getOwnerHostelStatus = async (ownerId: number) => {
     hostel,
     status: hostel.status.toLowerCase(),
     rejection_reason: hostel.rejection_reason,
+    business_model: hostel.business_model || 'commission',
+    commission_rate: hostel.commission_rate || 12,
+    commission_on_delivery: hostel.commission_on_delivery || 0,
   };
 };
 
