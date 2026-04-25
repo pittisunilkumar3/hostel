@@ -38,6 +38,7 @@ export default function RegisterHostelPage() {
   const [coverPreview, setCoverPreview] = useState("");
   const [step, setStep] = useState(1);
   const [amenities, setAmenities] = useState<string[]>([]);
+  const [mapApiKey, setMapApiKey] = useState("");
   const logoRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
@@ -94,9 +95,9 @@ export default function RegisterHostelPage() {
       .catch(() => {});
   }, [router]);
 
-  // Load Google Maps
+  // Load Google Maps script
   useEffect(() => {
-    const loadMap = async () => {
+    const loadMapScript = async () => {
       try {
         const res = await apiFetch("/api/settings/map");
         const apiKey = res.data?.mapApiKeyClient || res.data?.apiKey;
@@ -104,22 +105,32 @@ export default function RegisterHostelPage() {
           console.warn("Google Maps API key not found");
           return;
         }
+        setMapApiKey(apiKey);
 
-        if (document.getElementById("google-maps-script")) {
-          initMap(apiKey);
-          return;
+        if (!document.getElementById("google-maps-script")) {
+          const script = document.createElement("script");
+          script.id = "google-maps-script";
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+          script.async = true;
+          script.onerror = () => console.error("Failed to load Google Maps script");
+          document.head.appendChild(script);
         }
-        const script = document.createElement("script");
-        script.id = "google-maps-script";
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-        script.async = true;
-        script.onload = () => initMap(apiKey);
-        script.onerror = () => console.error("Failed to load Google Maps script");
-        document.head.appendChild(script);
       } catch (e) { console.error("Error loading map:", e); }
     };
-    loadMap();
+    loadMapScript();
   }, []);
+
+  // Initialize map when zone is selected and map div exists
+  useEffect(() => {
+    if (!form.zone_id || !mapApiKey) return;
+    // Wait for DOM to update with map div
+    const timer = setTimeout(() => {
+      if (mapRef.current && (window as any).google) {
+        initMap(mapApiKey);
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [form.zone_id, mapApiKey]);
 
   const initMap = (apiKey: string) => {
     if (!mapRef.current || !(window as any).google) return;
@@ -620,25 +631,40 @@ export default function RegisterHostelPage() {
                 </div>
               </div>
 
-              {/* Google Map — matches admin create form */}
+              {/* Google Map — shown only after zone selection */}
               <div className="mt-6">
                 <label className={labelCls}>Location on Map</label>
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mb-3 flex items-start gap-2">
-                  <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  <p className="text-xs text-blue-300">Set precise location on map for your exact pickup location</p>
-                </div>
-                <input id="hostel-map-search-owner" type="text" placeholder="Search location here..." className={ic + " mb-3"} />
-                <div ref={mapRef} className="w-full h-[280px] rounded-xl border border-white/10 bg-white/5" />
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400">Lat:</label>
-                    <input type="text" value={form.latitude} readOnly className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-300 w-28" />
+                {!form.zone_id ? (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-8 text-center">
+                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-7 h-7 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    </div>
+                    <p className="text-gray-400 text-sm font-medium">Please select a zone first</p>
+                    <p className="text-gray-500 text-xs mt-1">The map will appear after you select a zone above</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-400">Lng:</label>
-                    <input type="text" value={form.longitude} readOnly className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-300 w-28" />
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mb-3 flex items-start gap-2">
+                      <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <p className="text-xs text-blue-300">Click inside the highlighted zone area to set your hostel location</p>
+                    </div>
+                    <input id="hostel-map-search-owner" type="text" placeholder="Search location here..." className={ic + " mb-3"} />
+                    <div ref={mapRef} className="w-full h-[350px] rounded-xl border border-white/10 bg-white/5" />
+                    <div className="flex items-center gap-4 mt-3">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-400">Lat:</label>
+                        <input type="text" value={form.latitude} readOnly className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-300 w-28" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-400">Lng:</label>
+                        <input type="text" value={form.longitude} readOnly className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-gray-300 w-28" />
+                      </div>
+                      {form.latitude && form.longitude && (
+                        <span className="text-xs text-emerald-400">✓ Location set</span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
