@@ -34,12 +34,22 @@ interface HostelData {
   minimum_stay: number;
   check_in_time: string;
   check_out_time: string;
-  amenities: string[];
+  amenities: string[] | string;
+  custom_fields: Record<string, string> | string | null;
   owner_f_name: string;
   owner_l_name: string;
   owner_phone: string;
   owner_email: string;
-  status: number;
+  status: number | string;
+}
+
+// ── Custom Fields from Join Us Page Setup ──
+interface CustomField {
+  name: string;
+  label: string;
+  type: "text" | "number" | "select" | "textarea" | "checkbox";
+  required: boolean;
+  options?: string[];
 }
 
 export default function EditHostelPage({ params }: { params: Promise<{ id: string }> }) {
@@ -49,7 +59,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Basic Info
+  // ── Basic Information (mirrors create form) ──
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
@@ -58,37 +68,38 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
   const [zones, setZones] = useState<Zone[]>([]);
   const [description, setDescription] = useState("");
 
-  // Logo & Cover
+  // ── Logo & Cover (mirrors create form) ──
   const [logo, setLogo] = useState("");
   const [logoPreview, setLogoPreview] = useState("");
   const [coverPhoto, setCoverPhoto] = useState("");
   const [coverPreview, setCoverPreview] = useState("");
 
-  // Location
+  // ── Location (mirrors create form) ──
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [mapApiKey, setMapApiKey] = useState("");
+  const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const mapInitDone = useRef(false);
 
-  // Owner
+  // ── Owner Information (mirrors create form) ──
   const [ownerFirstName, setOwnerFirstName] = useState("");
   const [ownerLastName, setOwnerLastName] = useState("");
   const [ownerPhone, setOwnerPhone] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
 
-  // General
+  // ── General Settings (mirrors create form) ──
   const [totalRooms, setTotalRooms] = useState("");
   const [totalBeds, setTotalBeds] = useState("");
   const [minimumStay, setMinimumStay] = useState("");
   const [checkInTime, setCheckInTime] = useState("14:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
-  const [status, setStatus] = useState(1);
+  const [status, setStatus] = useState("PENDING");
 
-  // Amenities
+  // ── Amenities (mirrors create form) ──
   const [amenities, setAmenities] = useState<string[]>([]);
   const amenityOptions = [
     "WiFi", "Parking", "Kitchen", "Laundry", "AC", "Hot Water",
@@ -96,7 +107,11 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
     "Meals", "Housekeeping", "Power Backup", "Water Purifier"
   ];
 
-  // Fetch hostel data
+  // ── Custom Fields from Join Us Page Setup (mirrors create form) ──
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+
+  // ── Fetch hostel data + zones + map key + custom fields ──
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -108,6 +123,12 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
 
         if (zonesRes.success) setZones(zonesRes.data || []);
         if (mapRes.success && mapRes.data?.mapApiKeyClient) setMapApiKey(mapRes.data.mapApiKeyClient);
+
+        // Fetch custom fields from Join Us Page Setup
+        try {
+          const cfRes = await apiFetch("/api/settings/join-us-fields");
+          if (cfRes.success && cfRes.data) setCustomFields(cfRes.data);
+        } catch { /* ignore */ }
 
         if (hostelRes.success) {
           const h = hostelRes.data;
@@ -132,8 +153,33 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
           setMinimumStay(h.minimum_stay?.toString() || "");
           setCheckInTime(h.check_in_time || "14:00");
           setCheckOutTime(h.check_out_time || "11:00");
-          setAmenities(h.amenities || []);
-          setStatus(h.status ?? 1);
+          setStatus(h.status?.toString() || "PENDING");
+
+          // Parse amenities (stored as JSON string in DB)
+          if (h.amenities) {
+            if (typeof h.amenities === "string") {
+              try {
+                setAmenities(JSON.parse(h.amenities));
+              } catch {
+                setAmenities([]);
+              }
+            } else if (Array.isArray(h.amenities)) {
+              setAmenities(h.amenities);
+            }
+          }
+
+          // Parse custom_fields (stored as JSON string in DB)
+          if (h.custom_fields) {
+            if (typeof h.custom_fields === "string") {
+              try {
+                setCustomFieldValues(JSON.parse(h.custom_fields));
+              } catch {
+                setCustomFieldValues({});
+              }
+            } else if (typeof h.custom_fields === "object") {
+              setCustomFieldValues(h.custom_fields);
+            }
+          }
         }
       } catch (e) {
         console.error(e);
@@ -145,7 +191,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
     fetchData();
   }, [id]);
 
-  // Initialize Google Map
+  // ── Initialize Google Map (mirrors create form) ──
   const initMap = useCallback(() => {
     if (!window.google || !mapRef.current || mapInitDone.current) return;
     mapInitDone.current = true;
@@ -178,6 +224,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
       updatePos(e.latLng);
     });
 
+    // Search box
     const input = document.getElementById("hostel-map-search") as HTMLInputElement;
     if (input) {
       const searchBox = new window.google.maps.places.SearchBox(input);
@@ -193,7 +240,9 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
         }
       });
     }
-  }, [latitude, longitude]);
+
+    setMapReady(true);
+  }, []);
 
   useEffect(() => {
     if (mapApiKey && !loading && !mapInitDone.current) {
@@ -203,6 +252,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
     }
   }, [mapApiKey, loading, initMap]);
 
+  // ── Image handlers (mirrors create form) ──
   const handleLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -231,9 +281,10 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
     setAmenities((prev) => prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]);
   };
 
-  // Submit
+  // ── Submit (mirrors create form + status) ──
   const handleSubmit = async () => {
-    if (!name.trim() || !address.trim() || !zoneId) {
+    // Validation
+    if (!name.trim() || !address.trim() || !zoneId || !ownerFirstName.trim() || !ownerLastName.trim() || !ownerPhone.trim() || !ownerEmail.trim()) {
       setMessage({ type: "error", text: "Please fill all required fields" });
       return;
     }
@@ -268,6 +319,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
           check_out_time: checkOutTime,
         },
         amenities,
+        custom_fields: customFieldValues,
         status,
       };
 
@@ -315,7 +367,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
         />
       )}
 
-      {/* Page Header */}
+      {/* ── Page Header (mirrors create form) ── */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
@@ -336,7 +388,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
         </button>
       </div>
 
-      {/* Message */}
+      {/* ── Message ── */}
       {message && (
         <div className={`mb-5 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 ${message.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {message.text}
@@ -349,62 +401,113 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
       )}
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Column */}
+        {/* ── Left Column: Basic Info + Map (mirrors create form) ── */}
         <div className="flex-1 space-y-5">
-          {/* Basic Information */}
+          {/* Basic Information — mirrors create form */}
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50">
               <h3 className="text-base font-bold text-gray-900">Basic Information</h3>
               <p className="text-xs text-gray-400 mt-0.5">Update hostel basic information here</p>
             </div>
             <div className="p-6 space-y-4">
+              {/* Hostel Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Hostel Name <span className="text-red-500">*</span></label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: ABC Hostel" maxLength={191}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Hostel Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ex: ABC Hostel"
+                  maxLength={191}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                />
               </div>
+
+              {/* Address */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Hostel Address <span className="text-red-500">*</span></label>
-                <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Ex: House#94, Road#8, Abc City" maxLength={200} rows={2}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all resize-none" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Hostel Address <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ex: House#94, Road#8, Abc City"
+                  maxLength={200}
+                  rows={2}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all resize-none"
+                />
               </div>
+
+              {/* Zone + Phone */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Zone <span className="text-red-500">*</span></label>
-                  <select value={zoneId} onChange={(e) => setZoneId(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Zone <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={zoneId}
+                    onChange={(e) => setZoneId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                  >
                     <option value="">Select Zone</option>
-                    {zones.map((z) => (<option key={z.id} value={z.id}>{z.display_name || z.name}</option>))}
+                    {zones.map((z) => (
+                      <option key={z.id} value={z.id}>{z.display_name || z.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+(880)00-000-00000"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+(880)00-000-00000"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                  />
                 </div>
               </div>
+
+              {/* Email + Description */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hostel@example.com"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="hostel@example.com"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-                  <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
+                  <input
+                    type="text"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Short description about hostel"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                  />
                 </div>
               </div>
-              {/* Status */}
+
+              {/* Status — only on edit page */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-                <select value={status} onChange={(e) => setStatus(parseInt(e.target.value))}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all">
-                  <option value={1}>Active</option>
-                  <option value={0}>Inactive</option>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                >
+                  <option value="APPROVED">Active</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="REJECTED">Rejected</option>
                 </select>
               </div>
-              {/* Map */}
+
+              {/* Map — mirrors create form */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Location on Map</label>
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3 flex items-start gap-2">
@@ -413,8 +516,12 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
                   </svg>
                   <p className="text-xs text-blue-700">Set precise location on map for your exact pickup location</p>
                 </div>
-                <input id="hostel-map-search" type="text" placeholder="Search location here..."
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all mb-3" />
+                <input
+                  id="hostel-map-search"
+                  type="text"
+                  placeholder="Search location here..."
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all mb-3"
+                />
                 <div ref={mapRef} className="w-full h-[280px] rounded-xl border border-gray-200 bg-gray-100" />
                 <div className="flex items-center gap-4 mt-3">
                   <div className="flex items-center gap-2">
@@ -431,11 +538,12 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* Right Column */}
+        {/* ── Right Column: Logo + Cover (mirrors create form) ── */}
         <div className="w-full lg:w-80 space-y-5">
+          {/* Logo */}
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50">
-              <h3 className="text-sm font-bold text-gray-900">Hostel Logo</h3>
+              <h3 className="text-sm font-bold text-gray-900">Hostel Logo <span className="text-red-500">*</span></h3>
               <p className="text-xs text-gray-400 mt-0.5">Upload hostel logo (1:1 ratio)</p>
             </div>
             <div className="p-6">
@@ -456,9 +564,11 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
               <input type="file" id="logo-upload" accept="image/*" onChange={handleLogo} className="hidden" />
             </div>
           </div>
+
+          {/* Cover Photo */}
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-50">
-              <h3 className="text-sm font-bold text-gray-900">Cover Photo</h3>
+              <h3 className="text-sm font-bold text-gray-900">Cover Photo <span className="text-red-500">*</span></h3>
               <p className="text-xs text-gray-400 mt-0.5">Upload cover photo (3:1 ratio)</p>
             </div>
             <div className="p-6">
@@ -482,7 +592,7 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* General Settings */}
+      {/* ── General Settings (mirrors create form) ── */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
         <div className="px-6 py-4 border-b border-gray-50">
           <h3 className="text-base font-bold text-gray-900">General Settings</h3>
@@ -516,13 +626,17 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
             </div>
           </div>
+
+          {/* Amenities — mirrors create form */}
           <div className="mt-6">
             <label className="block text-sm font-medium text-gray-700 mb-3">Amenities</label>
             <div className="flex flex-wrap gap-2">
               {amenityOptions.map((a) => (
                 <button key={a} type="button" onClick={() => toggleAmenity(a)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    amenities.includes(a) ? "bg-purple-100 text-purple-700 border border-purple-300" : "bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200"
+                    amenities.includes(a)
+                      ? "bg-purple-100 text-purple-700 border border-purple-300"
+                      : "bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200"
                   }`}>
                   {a}
                 </button>
@@ -532,7 +646,67 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* Owner Information */}
+      {/* ── Custom Fields from Join Us Page Setup (mirrors create form) ── */}
+      {customFields.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+          <div className="px-6 py-4 border-b border-gray-50">
+            <h3 className="text-base font-bold text-gray-900">Additional Information</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Custom fields configured in Join Us Page Setup</p>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customFields.map((field) => (
+                <div key={field.name} className={field.type === "textarea" ? "sm:col-span-2 lg:col-span-3" : ""}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                  </label>
+                  {field.type === "textarea" ? (
+                    <textarea
+                      value={customFieldValues[field.name] || ""}
+                      onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.value })}
+                      rows={3}
+                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all resize-none"
+                    />
+                  ) : field.type === "select" ? (
+                    <select
+                      value={customFieldValues[field.name] || ""}
+                      onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                    >
+                      <option value="">Select {field.label}</option>
+                      {(field.options || []).map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : field.type === "checkbox" ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id={`custom-${field.name}`}
+                        checked={customFieldValues[field.name] === "true"}
+                        onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.checked ? "true" : "" })}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                      <label htmlFor={`custom-${field.name}`} className="text-sm text-gray-600">{field.label}</label>
+                    </div>
+                  ) : (
+                    <input
+                      type={field.type}
+                      value={customFieldValues[field.name] || ""}
+                      onChange={(e) => setCustomFieldValues({ ...customFieldValues, [field.name]: e.target.value })}
+                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Owner Information (mirrors create form) ── */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
         <div className="px-6 py-4 border-b border-gray-50">
           <h3 className="text-base font-bold text-gray-900">Owner Information</h3>
@@ -561,15 +735,18 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password <span className="text-gray-400 text-xs">(leave blank to keep current)</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Password <span className="text-gray-400 text-xs">(leave blank to keep current)</span>
+              </label>
               <input type="password" value={ownerPassword} onChange={(e) => setOwnerPassword(e.target.value)} placeholder="8+ characters"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all" />
+              <p className="text-[11px] text-gray-400 mt-1">Must contain at least one number, one uppercase, one lowercase letter, and at least 8 characters.</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Submit */}
+      {/* ── Submit Button (mirrors create form) ── */}
       <div className="mt-6 flex justify-end gap-3">
         <button onClick={() => router.push("/admin/hostels")}
           className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-all">
