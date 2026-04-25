@@ -39,17 +39,22 @@ export default function CustomerSupportChat() {
   const [adminUnread, setAdminUnread] = useState(0);
   const [ownerUnread, setOwnerUnread] = useState(0);
   const [user, setUser] = useState<any>(null);
+  const [isReady, setIsReady] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fetchedRef = useRef<{ admin: boolean; owner: boolean }>({ admin: false, owner: false });
   const isAutoScrollEnabled = useRef(true);
 
+  // Load user on mount
   useEffect(() => {
     const u = getCurrentUser();
-    if (u) setUser(u);
+    if (u) {
+      setUser(u);
+      setIsReady(true);
+    }
   }, []);
 
-  // Auto-scroll only if user is near bottom
+  // Auto-scroll
   useEffect(() => {
     if (isAutoScrollEnabled.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,30 +69,30 @@ export default function CustomerSupportChat() {
 
   // Fetch conversation when tab changes
   useEffect(() => {
-    if (!user || !isOpen) return;
+    if (!isReady || !isOpen || !user) return;
     const tabKey = activeTab as "admin" | "owner";
     if (!fetchedRef.current[tabKey]) {
       fetchConversation(activeTab);
       fetchedRef.current[tabKey] = true;
     }
-  }, [activeTab, isOpen, user]);
+  }, [activeTab, isOpen, isReady]);
 
   // Poll for new messages
   useEffect(() => {
-    if (!isOpen || !conversation || !user) return;
+    if (!isOpen || !conversation || !isReady) return;
     const interval = setInterval(() => {
       fetchMessages(conversation.id);
     }, 5000);
     return () => clearInterval(interval);
-  }, [isOpen, conversation?.id, user]);
+  }, [isOpen, conversation?.id, isReady]);
 
   // Poll for unread counts when closed
   useEffect(() => {
-    if (isOpen || !user) return;
+    if (isOpen || !isReady) return;
     fetchUnreadCounts();
     const interval = setInterval(fetchUnreadCounts, 30000);
     return () => clearInterval(interval);
-  }, [isOpen, user]);
+  }, [isOpen, isReady]);
 
   const fetchUnreadCounts = useCallback(async () => {
     if (!user) return;
@@ -200,6 +205,9 @@ export default function CustomerSupportChat() {
   };
 
   const totalUnread = adminUnread + ownerUnread;
+
+  // Don't render if not ready
+  if (!isReady) return null;
 
   return (
     <>
