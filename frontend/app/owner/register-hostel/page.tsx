@@ -46,6 +46,7 @@ export default function RegisterHostelPage() {
   const markerRef = useRef<any>(null);
   const zonePolygonRef = useRef<any>(null);
   const infoWindowRef = useRef<any>(null);
+  const currentZoneIdRef = useRef<string>("");
 
   // Form data — matches admin create form exactly
   const [form, setForm] = useState({
@@ -158,16 +159,16 @@ export default function RegisterHostelPage() {
 
     // Helper to validate and set marker position
     const setMarkerPosition = (pos: any, showWarning = true) => {
-      const currentZoneId = form.zone_id;
-      if (currentZoneId && zonePolygonRef.current) {
-        const zone = zones.find((z) => z.id.toString() === currentZoneId);
+      const zoneId = currentZoneIdRef.current;
+      if (zoneId && zonePolygonRef.current) {
+        const zone = zones.find((z) => z.id.toString() === zoneId);
         if (zone && zone.coordinates) {
           let coords = zone.coordinates;
           if (typeof coords === 'string') coords = JSON.parse(coords);
           const polygon = coords.map((c: any) => ({ lat: c[0], lng: c[1] }));
           const point = { lat: pos.lat(), lng: pos.lng() };
           if (!isPointInPolygon(point, polygon)) {
-            if (showWarning) alert('Please select a location inside the selected zone.');
+            if (showWarning) alert('Service not available here. Please select a location inside the highlighted zone.');
             return false;
           }
         }
@@ -190,16 +191,16 @@ export default function RegisterHostelPage() {
     marker.addListener("dragend", () => {
       const pos = marker.getPosition();
       if (pos) {
-        const currentZoneId = form.zone_id;
-        if (currentZoneId && zonePolygonRef.current) {
-          const zone = zones.find((z) => z.id.toString() === currentZoneId);
+        const zoneId = currentZoneIdRef.current;
+        if (zoneId && zonePolygonRef.current) {
+          const zone = zones.find((z) => z.id.toString() === zoneId);
           if (zone && zone.coordinates) {
             let coords = zone.coordinates;
             if (typeof coords === 'string') coords = JSON.parse(coords);
             const polygon = coords.map((c: any) => ({ lat: c[0], lng: c[1] }));
             const point = { lat: pos.lat(), lng: pos.lng() };
             if (!isPointInPolygon(point, polygon)) {
-              alert('Location must be inside the selected zone. Please try again.');
+              alert('Service not available here. Please select a location inside the highlighted zone.');
               // Reset to previous position
               const lat = parseFloat(form.latitude) || 20.5937;
               const lng = parseFloat(form.longitude) || 78.9629;
@@ -387,6 +388,7 @@ export default function RegisterHostelPage() {
   // Handle zone change
   const handleZoneChange = (zoneId: string) => {
     update('zone_id', zoneId);
+    currentZoneIdRef.current = zoneId;
     drawZoneBoundary(zoneId);
     // Clear marker position when zone changes
     if (markerRef.current) {
