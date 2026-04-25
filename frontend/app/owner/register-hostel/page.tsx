@@ -108,11 +108,20 @@ export default function RegisterHostelPage() {
         }
         setMapApiKey(apiKey);
 
+        // Check if Google Maps is already loaded
+        if ((window as any).google?.maps) {
+          return;
+        }
+
         if (!document.getElementById("google-maps-script")) {
           const script = document.createElement("script");
           script.id = "google-maps-script";
           script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
           script.async = true;
+          script.defer = true;
+          script.onload = () => {
+            console.log("Google Maps script loaded");
+          };
           script.onerror = () => console.error("Failed to load Google Maps script");
           document.head.appendChild(script);
         }
@@ -124,12 +133,27 @@ export default function RegisterHostelPage() {
   // Initialize map when zone is selected and map div exists
   useEffect(() => {
     if (!form.zone_id || !mapApiKey) return;
-    // Wait for DOM to update with map div
-    const timer = setTimeout(() => {
-      if (mapRef.current && (window as any).google) {
+    
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    const tryInitMap = () => {
+      if (mapRef.current && (window as any).google?.maps) {
         initMap(mapApiKey);
+        // Draw zone boundary after map is initialized
+        setTimeout(() => {
+          drawZoneBoundary(form.zone_id);
+        }, 300);
+      } else if (retryCount < maxRetries) {
+        retryCount++;
+        setTimeout(tryInitMap, 300);
+      } else {
+        console.error("Google Maps failed to load after retries");
       }
-    }, 100);
+    };
+    
+    // Wait for DOM to update with map div
+    const timer = setTimeout(tryInitMap, 200);
     return () => clearTimeout(timer);
   }, [form.zone_id, mapApiKey]);
 
