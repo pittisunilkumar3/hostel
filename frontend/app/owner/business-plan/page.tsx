@@ -59,7 +59,7 @@ export default function OwnerBusinessPlan() {
       {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Business Plan</h1>
-        <p className="text-gray-500 mt-1">View your current business plan, commission details, and earnings summary.</p>
+        <p className="text-gray-500 mt-1">View your hostel's business plan, commission details, and performance metrics.</p>
       </div>
 
       {/* Plan Card */}
@@ -69,14 +69,14 @@ export default function OwnerBusinessPlan() {
         <div className="relative">
           <div className="flex items-center gap-2 mb-1">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
-            <span className="text-sm font-semibold text-emerald-200">Current Plan</span>
+            <span className="text-sm font-semibold text-emerald-200">Hostel Business Plan</span>
           </div>
           <h2 className="text-2xl font-bold capitalize">{plan?.business_model || "Commission"} Model</h2>
           <p className="text-emerald-200 mt-1 text-sm">
             {plan?.business_model === "commission"
-              ? `${plan?.commission_rate || 12}% commission on each booking`
+              ? `${plan?.commission_rate || 12}% platform commission on each booking`
               : "Subscription-based model with recurring payments"}
           </p>
         </div>
@@ -86,22 +86,22 @@ export default function OwnerBusinessPlan() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           {
-            label: "Total Revenue",
-            value: formatCurrency(plan?.total_revenue || 0),
-            icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+            label: "Total Rooms",
+            value: plan?.total_rooms || 0,
+            icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
             color: "emerald",
           },
           {
-            label: "Commission Paid",
-            value: formatCurrency(plan?.commission_earned || 0),
-            icon: "M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z",
-            color: "amber",
+            label: "Total Beds",
+            value: plan?.total_beds || 0,
+            icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+            color: "blue",
           },
           {
-            label: "Net Earnings",
-            value: formatCurrency(plan?.net_earnings || 0),
-            icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
-            color: "blue",
+            label: "Occupancy Rate",
+            value: `${plan?.occupancy_rate || 0}%`,
+            icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+            color: "amber",
           },
           {
             label: "Commission Rate",
@@ -152,23 +152,35 @@ export default function OwnerBusinessPlan() {
               <p className="text-sm font-semibold text-gray-900">{formatDate(plan?.joined_date)}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-1">Total Rooms</p>
-              <p className="text-sm font-semibold text-gray-900">{plan?.total_rooms || 0}</p>
+              <p className="text-xs text-gray-400 mb-1">Address</p>
+              <p className="text-sm font-semibold text-gray-900">{plan?.hostel_address || "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-1">Total Beds</p>
-              <p className="text-sm font-semibold text-gray-900">{plan?.total_beds || 0}</p>
+              <p className="text-xs text-gray-400 mb-1">Phone</p>
+              <p className="text-sm font-semibold text-gray-900">{plan?.hostel_phone || "—"}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-1">Business Model</p>
-              <p className="text-sm font-semibold text-gray-900 capitalize">{plan?.business_model || "Commission"}</p>
+              <p className="text-xs text-gray-400 mb-1">Email</p>
+              <p className="text-sm font-semibold text-gray-900">{plan?.hostel_email || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Check-in Time</p>
+              <p className="text-sm font-semibold text-gray-900">{plan?.check_in_time || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Check-out Time</p>
+              <p className="text-sm font-semibold text-gray-900">{plan?.check_out_time || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Zone</p>
+              <p className="text-sm font-semibold text-gray-900">{plan?.zone_name || "—"}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Commission Breakdown */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-6">
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-900">Commission Breakdown</h3>
           <p className="text-xs text-gray-500 mt-0.5">How your earnings are calculated</p>
@@ -183,11 +195,11 @@ export default function OwnerBusinessPlan() {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Total Revenue</p>
-                  <p className="text-xs text-gray-500">All confirmed & completed bookings</p>
+                  <p className="text-sm font-semibold text-gray-900">Potential Monthly Revenue</p>
+                  <p className="text-xs text-gray-500">Based on all rooms at full capacity</p>
                 </div>
               </div>
-              <p className="text-lg font-bold text-gray-900">{formatCurrency(plan?.total_revenue || 0)}</p>
+              <p className="text-lg font-bold text-gray-900">{formatCurrency(plan?.potential_monthly_revenue || 0)}</p>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
@@ -199,10 +211,10 @@ export default function OwnerBusinessPlan() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-amber-900">Platform Commission ({plan?.commission_rate || 12}%)</p>
-                  <p className="text-xs text-amber-600">Deducted from total revenue</p>
+                  <p className="text-xs text-amber-600">Deducted from revenue</p>
                 </div>
               </div>
-              <p className="text-lg font-bold text-amber-700">- {formatCurrency(plan?.commission_earned || 0)}</p>
+              <p className="text-lg font-bold text-amber-700">- {formatCurrency(plan?.commission_amount || 0)}</p>
             </div>
 
             <div className="border-t border-gray-200 pt-4">
