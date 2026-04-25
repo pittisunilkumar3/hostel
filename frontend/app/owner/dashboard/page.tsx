@@ -46,6 +46,13 @@ export default function OwnerDashboard() {
     checkHostelStatus();
   }, [router]);
 
+  // Redirect to registration if no hostel (must be before any early returns)
+  useEffect(() => {
+    if (!loading && hostelStatus === "no_hostel") {
+      router.push("/owner/register-hostel");
+    }
+  }, [hostelStatus, loading, router]);
+
   const checkHostelStatus = async () => {
     try {
       const res = await apiFetch("/api/owner/hostel/status");
@@ -100,13 +107,6 @@ export default function OwnerDashboard() {
       </div>
     );
   }
-
-  // No hostel - redirect to registration
-  useEffect(() => {
-    if (hostelStatus === "no_hostel") {
-      router.push("/owner/register-hostel");
-    }
-  }, [hostelStatus, router]);
 
   if (hostelStatus === "no_hostel") {
     return (
