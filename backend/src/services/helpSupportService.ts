@@ -27,6 +27,7 @@ export interface Conversation {
   user_email?: string;
   user_phone?: string;
   user_avatar?: string;
+  user_role?: string;
 }
 
 export interface ConversationMessage {
@@ -123,7 +124,11 @@ export const getContactMessageStats = async () => {
 // ===================== CONVERSATIONS =====================
 
 export const getConversations = async (search?: string, page = 1, limit = 20) => {
-  let baseWhere = " WHERE c.status = 1";
+  // Admin should only see:
+  // 1. Customer to admin conversations (owner_id IS NULL AND hostel_id IS NULL)
+  // 2. Owner to admin conversations (owner_id IS NULL AND hostel_id IS NULL)
+  // Admin should NOT see customer-to-owner conversations
+  let baseWhere = " WHERE c.status = 1 AND c.owner_id IS NULL AND c.hostel_id IS NULL";
   const params: any[] = [];
 
   if (search) {
@@ -139,7 +144,8 @@ export const getConversations = async (search?: string, page = 1, limit = 20) =>
 
   // Main query
   const mainQuery = `
-    SELECT c.*, u.name as user_name, u.email as user_email, u.phone as user_phone, u.avatar as user_avatar
+    SELECT c.*, u.name as user_name, u.email as user_email, u.phone as user_phone, u.avatar as user_avatar,
+           u.role as user_role
     FROM conversations c
     LEFT JOIN users u ON c.user_id = u.id
     ${baseWhere}

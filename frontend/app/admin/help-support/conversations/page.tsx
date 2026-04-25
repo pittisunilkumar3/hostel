@@ -19,6 +19,7 @@ interface Conversation {
   user_email: string;
   user_phone: string;
   user_avatar: string | null;
+  user_role?: string;
 }
 
 interface ConvMessage {
@@ -171,7 +172,18 @@ export default function ConversationsPage() {
                 </div>
               ) : conversations.map(conv => (
                 <button key={conv.id} onClick={() => selectConversation(conv)} className={`w-full flex items-center gap-3 p-3.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 ${selectedConv?.id === conv.id ? "bg-orange-50 border-l-2 border-l-orange-500" : ""}`}>
-                  <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-sm font-bold text-indigo-600 shrink-0">{getInitials(conv.user_name || "U")}</div>
+                  <div className="relative">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                      conv.user_role === "OWNER" ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                    }`}>
+                      {getInitials(conv.user_name || "U")}
+                    </div>
+                    {conv.user_role === "OWNER" && (
+                      <span className="absolute -bottom-1 -right-1 px-1 py-0.5 bg-emerald-500 text-white text-[8px] font-bold rounded-full">
+                        Owner
+                      </span>
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-gray-900 truncate">{conv.user_name || "Unknown"}</p>
