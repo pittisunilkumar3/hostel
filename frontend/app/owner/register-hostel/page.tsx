@@ -9,6 +9,7 @@ interface Zone {
   id: number;
   name: string;
   display_name?: string;
+  coordinates?: any;
 }
 
 const amenityOptions = ["WiFi", "Parking", "Laundry", "AC", "Kitchen", "Gym", "Pool", "Security", "Elevator", "CCTV"];
