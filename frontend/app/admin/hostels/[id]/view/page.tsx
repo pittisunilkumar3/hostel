@@ -48,7 +48,24 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
       try {
         const res = await apiFetch(`/api/hostels/${id}`);
         if (res.success) {
-          setHostel(res.data);
+          const data = res.data;
+          // Parse amenities if it's a string
+          if (data.amenities && typeof data.amenities === 'string') {
+            try {
+              data.amenities = JSON.parse(data.amenities);
+            } catch {
+              data.amenities = [];
+            }
+          }
+          // Parse custom_fields if it's a string
+          if (data.custom_fields && typeof data.custom_fields === 'string') {
+            try {
+              data.custom_fields = JSON.parse(data.custom_fields);
+            } catch {
+              data.custom_fields = null;
+            }
+          }
+          setHostel(data);
         } else {
           setMessage({ type: "error", text: "Failed to load hostel data" });
         }
@@ -243,7 +260,7 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Amenities */}
-          {hostel.amenities && hostel.amenities.length > 0 && (
+          {Array.isArray(hostel.amenities) && hostel.amenities.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-50">
                 <h3 className="text-base font-bold text-gray-900">Amenities</h3>
