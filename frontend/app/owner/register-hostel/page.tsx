@@ -33,8 +33,8 @@ export default function RegisterHostelPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [logoFile, setLogoFile] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState("");
   const [coverPreview, setCoverPreview] = useState("");
   const [step, setStep] = useState(1);
@@ -431,8 +431,13 @@ export default function RegisterHostelPage() {
     if (!file) return;
     if (!file.type.startsWith("image/")) { setError("Logo must be an image file"); return; }
     if (file.size > 2 * 1024 * 1024) { setError("Logo must be less than 2MB"); return; }
-    setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setLogoFile(result);
+      setLogoPreview(result);
+    };
+    reader.readAsDataURL(file);
     setError("");
   };
 
@@ -441,8 +446,13 @@ export default function RegisterHostelPage() {
     if (!file) return;
     if (!file.type.startsWith("image/")) { setError("Cover must be an image file"); return; }
     if (file.size > 5 * 1024 * 1024) { setError("Cover must be less than 5MB"); return; }
-    setCoverFile(file);
-    setCoverPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setCoverFile(result);
+      setCoverPreview(result);
+    };
+    reader.readAsDataURL(file);
     setError("");
   };
 
@@ -476,20 +486,25 @@ export default function RegisterHostelPage() {
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      Object.entries(form).forEach(([key, value]) => { if (value) formData.append(key, value); });
-      formData.append("amenities", JSON.stringify(amenities));
-      if (logoFile) formData.append("logo", logoFile);
-      if (coverFile) formData.append("cover_photo", coverFile);
-      // Add custom fields
-      Object.entries(customFieldValues).forEach(([key, value]) => { if (value) formData.append(`custom_${key}`, value); });
+      const payload = {
+        ...form,
+        amenities: JSON.stringify(amenities),
+        logo: logoFile || null,
+        cover_photo: coverFile || null,
+        custom_fields: Object.fromEntries(
+          Object.entries(customFieldValues).filter(([_, v]) => v)
+        ),
+      };
 
       const token = localStorage.getItem("token");
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
       const res = await fetch(`${API_URL}/api/hostels/register`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok && data.success) {
