@@ -49,23 +49,34 @@ export const getHostels = async (params: GetHostelsParams) => {
   const { search, status, zoneId, page = 1, limit = 20 } = params;
   const offset = (page - 1) * limit;
 
-  let where = "WHERE 1=1";
+  const conditions: string[] = [];
   const values: any[] = [];
 
+  // Default: only show APPROVED hostels unless specific status requested
+  if (status && status !== "all" && status !== "1") {
+    // Show hostels with the requested status
+    if (status === "0") {
+      conditions.push("h.status = 'PENDING'");
+    } else if (status === "PENDING" || status === "REJECTED" || status === "APPROVED") {
+      conditions.push("h.status = ?");
+      values.push(status);
+    }
+  } else {
+    // Default: show only APPROVED hostels
+    conditions.push("h.status = 'APPROVED'");
+  }
+
   if (search) {
-    where += " AND (h.name LIKE ? OR h.phone LIKE ? OR h.email LIKE ?)";
+    conditions.push("(h.name LIKE ? OR h.phone LIKE ? OR h.email LIKE ?)");
     values.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  if (status && status !== "all") {
-    where += " AND h.status = ?";
-    values.push(status);
-  }
-
   if (zoneId && zoneId !== "all") {
-    where += " AND h.zone_id = ?";
+    conditions.push("h.zone_id = ?");
     values.push(parseInt(zoneId));
   }
+
+  const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
 
   const [countRows] = await db.execute<RowDataPacket[]>(
     `SELECT COUNT(*) as total FROM hostels h ${where}`,

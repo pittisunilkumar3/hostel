@@ -65,12 +65,12 @@ export default function HostelsPage() {
         const data = res.data?.data || res.data || [];
         setHostels(Array.isArray(data) ? data : []);
 
-        // Calculate stats
+        // Calculate stats - since we now only fetch APPROVED hostels, all are active
         const all = Array.isArray(data) ? data : [];
         setStats({
           total: all.length,
-          active: all.filter((h: Hostel) => h.status === 1).length,
-          inactive: all.filter((h: Hostel) => h.status === 0).length,
+          active: all.filter((h: Hostel) => h.status === 'APPROVED').length,
+          inactive: all.filter((h: Hostel) => h.status === 'PENDING' || h.status === 'REJECTED').length,
           newThisMonth: all.filter((h: Hostel) => {
             const d = new Date(h.created_at);
             const now = new Date();
@@ -250,8 +250,9 @@ export default function HostelsPage() {
             className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
           >
             <option value="all">All Status</option>
-            <option value="1">Active</option>
-            <option value="0">Inactive</option>
+            <option value="APPROVED">Approved</option>
+            <option value="PENDING">Pending</option>
+            <option value="REJECTED">Rejected</option>
           </select>
           <select
             value={zoneFilter}
@@ -343,16 +344,15 @@ export default function HostelsPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <button
-                        onClick={() => toggleStatus(h.id, h.status)}
-                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                          h.status === 1
-                            ? "bg-green-100 text-green-700 hover:bg-green-200"
-                            : "bg-red-100 text-red-700 hover:bg-red-200"
-                        }`}
-                      >
-                        {h.status === 1 ? "Active" : "Inactive"}
-                      </button>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        h.status === 'APPROVED'
+                          ? "bg-green-100 text-green-700"
+                          : h.status === 'PENDING'
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
+                      }`}>
+                        {h.status === 'APPROVED' ? "Active" : h.status === 'PENDING' ? "Pending" : "Rejected"}
+                      </span>
                     </td>
                     <td className="px-5 py-4">
                       <span className="text-sm text-gray-500">{formatDate(h.created_at)}</span>
