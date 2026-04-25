@@ -43,6 +43,8 @@ export default function RegisterHostelPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const zonePolygonRef = useRef<any>(null);
+  const infoWindowRef = useRef<any>(null);
 
   // Form data — matches admin create form exactly
   const [form, setForm] = useState({
@@ -143,13 +145,59 @@ export default function RegisterHostelPage() {
     });
     markerRef.current = marker;
 
+    // Helper to validate and set marker position
+    const setMarkerPosition = (pos: any, showWarning = true) => {
+      const currentZoneId = form.zone_id;
+      if (currentZoneId && zonePolygonRef.current) {
+        const zone = zones.find((z) => z.id.toString() === currentZoneId);\n        if (zone && zone.coordinates) {
+          let coords = zone.coordinates;
+          if (typeof coords === 'string') coords = JSON.parse(coords);
+          const polygon = coords.map((c: any) => ({ lat: c[0], lng: c[1] }));
+          const point = { lat: pos.lat(), lng: pos.lng() };
+          if (!isPointInPolygon(point, polygon)) {
+            if (showWarning) alert('Please select a location inside the selected zone.');
+            return false;
+          }
+        }
+      }
+      marker.setPosition(pos);
+      marker.setAnimation(google.maps.Animation.BOUNCE);
+      setTimeout(() => marker.setAnimation(null), 750);
+      update('latitude', pos.lat().toFixed(6));
+      update('longitude', pos.lng().toFixed(6));
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ location: pos }, (results: any, status: any) => {
+        if (status === 'OK' && results?.[0]) {
+          update('address', results[0].formatted_address);
+        }
+      });
+      return true;
+    };
+
     // Update coordinates when marker is dragged
     marker.addListener("dragend", () => {
       const pos = marker.getPosition();
       if (pos) {
+        const currentZoneId = form.zone_id;
+        if (currentZoneId && zonePolygonRef.current) {
+          const zone = zones.find((z) => z.id.toString() === currentZoneId);
+          if (zone && zone.coordinates) {
+            let coords = zone.coordinates;
+            if (typeof coords === 'string') coords = JSON.parse(coords);
+            const polygon = coords.map((c: any) => ({ lat: c[0], lng: c[1] }));
+            const point = { lat: pos.lat(), lng: pos.lng() };
+            if (!isPointInPolygon(point, polygon)) {
+              alert('Location must be inside the selected zone. Please try again.');
+              // Reset to previous position
+              const lat = parseFloat(form.latitude) || 20.5937;
+              const lng = parseFloat(form.longitude) || 78.9629;
+              marker.setPosition({ lat, lng });
+              return;
+            }
+          }
+        }
         update("latitude", pos.lat().toFixed(6));
         update("longitude", pos.lng().toFixed(6));
-        // Reverse geocode to get address
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: pos }, (results: any, status: any) => {
           if (status === "OK" && results?.[0]) {
@@ -162,18 +210,7 @@ export default function RegisterHostelPage() {
     // Click on map to set marker
     map.addListener("click", (e: any) => {
       if (e.latLng) {
-        marker.setPosition(e.latLng);
-        marker.setAnimation(google.maps.Animation.BOUNCE);
-        setTimeout(() => marker.setAnimation(null), 750);
-        update("latitude", e.latLng.lat().toFixed(6));
-        update("longitude", e.latLng.lng().toFixed(6));
-        // Reverse geocode
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ location: e.latLng }, (results: any, status: any) => {
-          if (status === "OK" && results?.[0]) {
-            update("address", results[0].formatted_address);
-          }
-        });
+        setMarkerPosition(e.latLng);
       }
     });
 
@@ -256,6 +293,95 @@ export default function RegisterHostelPage() {
     });
 
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(locationButton);
+    infoWindowRef.current = new google.maps.InfoWindow();
+  };
+
+  // Check if a point is inside a polygon (ray casting algorithm)
+  const isPointInPolygon = (point: { lat: number; lng: number }, polygon: { lat: number; lng: number }[]): boolean => {
+    let inside = false;
+    const x = point.lat;
+    const y = point.lng;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].lat;
+      const yi = polygon[i].lng;
+      const xj = polygon[j].lat;
+      const yj = polygon[j].lng;
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+
+  // Draw zone boundary on map
+  const drawZoneBoundary = (zoneId: string) => {
+    const google = (window as any).google;
+    if (!google || !mapInstanceRef.current) return;
+
+    // Remove existing polygon
+    if (zonePolygonRef.current) {
+      zonePolygonRef.current.setMap(null);
+      zonePolygonRef.current = null;
+    }
+
+    if (!zoneId) return;
+
+    const zone = zones.find((z) => z.id.toString() === zoneId);
+    if (!zone || !zone.coordinates) return;
+
+    try {
+      let coords = zone.coordinates;
+      if (typeof coords === 'string') {
+        coords = JSON.parse(coords);
+      }
+
+      if (!Array.isArray(coords) || coords.length < 3) return;
+
+      const polygonPath = coords.map((c: any) => ({
+        lat: c[0],
+        lng: c[1],
+      }));
+
+      // Create polygon
+      const polygon = new google.maps.Polygon({
+        paths: polygonPath,
+        strokeColor: '#4285F4',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#4285F4',
+        fillOpacity: 0.15,
+        clickable: false,
+        map: mapInstanceRef.current,
+      });
+
+      zonePolygonRef.current = polygon;
+
+      // Fit map to zone bounds
+      const bounds = new google.maps.LatLngBounds();
+      polygonPath.forEach((p) => bounds.extend(p));
+      mapInstanceRef.current.fitBounds(bounds, 50);
+
+      // Add zone name label at center
+      const center = bounds.getCenter();
+      if (infoWindowRef.current) {
+        infoWindowRef.current.setContent(`<div style="font-weight:600;font-size:14px;color:#4285F4;padding:4px 8px;">${zone.display_name || zone.name}</div>`);
+        infoWindowRef.current.setPosition(center);
+        infoWindowRef.current.open(mapInstanceRef.current);
+      }
+    } catch (e) {
+      console.error('Error drawing zone:', e);
+    }
+  };
+
+  // Handle zone change
+  const handleZoneChange = (zoneId: string) => {
+    update('zone_id', zoneId);
+    drawZoneBoundary(zoneId);
+    // Clear marker position when zone changes
+    if (markerRef.current) {
+      markerRef.current.setPosition({ lat: 20.5937, lng: 78.9629 });
+    }
+    update('latitude', '');
+    update('longitude', '');
   };
 
   const update = (k: string, v: string) => setForm((prev) => ({ ...prev, [k]: v }));
@@ -473,10 +599,11 @@ export default function RegisterHostelPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Zone <span className="text-red-400">*</span></label>
-                  <select value={form.zone_id} onChange={(e) => update("zone_id", e.target.value)} className={ic + " bg-white/5"}>
+                  <select value={form.zone_id} onChange={(e) => handleZoneChange(e.target.value)} className={ic + " bg-white/5"}>
                     <option value="">Select Zone</option>
                     {zones.map((z) => (<option key={z.id} value={z.id} className="bg-slate-800">{z.display_name || z.name}</option>))}
                   </select>
+                  {form.zone_id && <p className="text-xs text-emerald-400 mt-1">✓ Zone selected - set location inside the highlighted area</p>}
                 </div>
                 <div>
                   <label className={labelCls}>Phone <span className="text-red-400">*</span></label>
