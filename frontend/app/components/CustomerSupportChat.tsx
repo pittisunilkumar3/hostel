@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 
 interface Message {
@@ -38,29 +38,48 @@ export default function CustomerSupportChat() {
   const [sending, setSending] = useState(false);
   const [adminUnread, setAdminUnread] = useState(0);
   const [ownerUnread, setOwnerUnread] = useState(0);
+  const [user, setUser] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const user = getCurrentUser();
-  const conversationFetched = useRef<{ admin: boolean; owner: boolean }>({ admin: false, owner: false });
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const fetchedRef = useRef<{ admin: boolean; owner: boolean }>({ admin: false, owner: false });
+  const isAutoScrollEnabled = useRef(true);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const u = getCurrentUser();
+    if (u) setUser(u);
+  }, []);
+
+  // Auto-scroll only if user is near bottom
+  useEffect(() => {
+    if (isAutoScrollEnabled.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
-  // Fetch conversation when tab changes or chat opens
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    isAutoScrollEnabled.current = scrollHeight - scrollTop - clientHeight < 100;
+  };
+
+  // Fetch conversation when tab changes
   useEffect(() => {
-    if (isOpen && user) {
+    if (!user || !isOpen) return;
+    const tabKey = activeTab as "admin" | "owner";
+    if (!fetchedRef.current[tabKey]) {
       fetchConversation(activeTab);
+      fetchedRef.current[tabKey] = true;
     }
-  }, [isOpen, activeTab, user]);
+  }, [activeTab, isOpen, user]);
 
   // Poll for new messages
   useEffect(() => {
-    if (!isOpen || !conversation) return;
+    if (!isOpen || !conversation || !user) return;
     const interval = setInterval(() => {
       fetchMessages(conversation.id);
     }, 5000);
     return () => clearInterval(interval);
-  }, [isOpen, conversation]);
+  }, [isOpen, conversation?.id, user]);
 
   // Poll for unread counts when closed
   useEffect(() => {
@@ -70,34 +89,32 @@ export default function CustomerSupportChat() {
     return () => clearInterval(interval);
   }, [isOpen, user]);
 
-  const fetchUnreadCounts = async () => {
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!user) return;
     try {
-      // Admin unread
-      const adminRes = await apiFetch(`/api/support/chat?userId=${user?.id}&chatWith=admin&userRole=customer`);
+      const adminRes = await apiFetch(`/api/support/chat?userId=${user.id}&chatWith=admin&userRole=customer`);
       if (adminRes.success && adminRes.data?.conversation) {
         setAdminUnread(adminRes.data.conversation.unread_count || 0);
       }
-
-      // Owner unread
       const ownerRes = await apiFetch("/api/user/messages");
       if (ownerRes.success && ownerRes.data) {
         const total = ownerRes.data.reduce((sum: number, c: any) => sum + (c.unread_count || 0), 0);
         setOwnerUnread(total);
       }
     } catch (e) { /* ignore */ }
-  };
+  }, [user]);
 
   const fetchConversation = async (tab: ChatTab) => {
+    if (!user) return;
     setLoading(true);
     setMessages([]);
     setConversation(null);
     try {
       if (tab === "admin") {
-        const res = await apiFetch(`/api/support/chat?userId=${user?.id}&chatWith=admin&userRole=customer`);
+        const res = await apiFetch(`/api/support/chat?userId=${user.id}&chatWith=admin&userRole=customer`);
         if (res.success && res.data) {
-          setConversation(res.data.conversation);
+          setConversation(res.data.conversation || null);
           if (res.data.messages) setMessages(res.data.messages);
-          // Mark as read
           if (res.data.conversation) {
             await apiFetch("/api/support/chat", {
               method: "PUT",
@@ -107,16 +124,12 @@ export default function CustomerSupportChat() {
           }
         }
       } else {
-        // Fetch owner conversations
         const res = await apiFetch("/api/user/messages");
         if (res.success && res.data && res.data.length > 0) {
-          // Use the first owner conversation
           const conv = res.data[0];
           setConversation(conv);
-          // Fetch messages
           const msgRes = await apiFetch(`/api/support/chat/messages?conversationId=${conv.id}`);
           if (msgRes.success && msgRes.data) setMessages(msgRes.data);
-          // Mark as read
           await apiFetch("/api/support/chat", {
             method: "PUT",
             body: JSON.stringify({ conversationId: conv.id }),
@@ -136,14 +149,14 @@ export default function CustomerSupportChat() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !conversation || sending) return;
+    if (!newMessage.trim() || !conversation || sending || !user) return;
     setSending(true);
     try {
       const res = await apiFetch("/api/support/chat", {
         method: "POST",
         body: JSON.stringify({
           conversationId: conversation.id,
-          senderId: user?.id,
+          senderId: user.id,
           senderType: "user",
           message: newMessage.trim(),
         }),
@@ -151,26 +164,35 @@ export default function CustomerSupportChat() {
       if (res.success && res.data) {
         setMessages(prev => [...prev, res.data]);
         setNewMessage("");
+        isAutoScrollEnabled.current = true;
       }
     } catch (e) { console.error(e); }
     finally { setSending(false); }
   };
 
   const startConversation = async (tab: ChatTab) => {
+    if (!user) return;
     try {
       const res = await apiFetch("/api/support/chat", {
         method: "POST",
         body: JSON.stringify({
           conversationId: 0,
-          senderId: user?.id,
+          senderId: user.id,
           senderType: "user",
           message: "Hello, I need help.",
           chatWith: tab,
           userRole: "customer",
         }),
       });
-      if (res.success) fetchConversation(tab);
+      if (res.success) {
+        fetchedRef.current[tab] = false;
+        fetchConversation(tab);
+      }
     } catch (e) { console.error(e); }
+  };
+
+  const handleTabChange = (tab: ChatTab) => {
+    setActiveTab(tab);
   };
 
   const formatTime = (dateStr: string) => {
@@ -223,7 +245,7 @@ export default function CustomerSupportChat() {
           {/* Tabs */}
           <div className="flex border-b border-gray-200 bg-gray-50">
             <button
-              onClick={() => setActiveTab("admin")}
+              onClick={() => handleTabChange("admin")}
               className={`flex-1 py-3 text-xs font-semibold transition-all relative ${
                 activeTab === "admin"
                   ? "text-blue-600 bg-white border-b-2 border-blue-600"
@@ -243,7 +265,7 @@ export default function CustomerSupportChat() {
               )}
             </button>
             <button
-              onClick={() => setActiveTab("owner")}
+              onClick={() => handleTabChange("owner")}
               className={`flex-1 py-3 text-xs font-semibold transition-all relative ${
                 activeTab === "owner"
                   ? "text-blue-600 bg-white border-b-2 border-blue-600"
@@ -265,7 +287,7 @@ export default function CustomerSupportChat() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+          <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2" />
