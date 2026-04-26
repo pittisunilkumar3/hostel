@@ -55,9 +55,11 @@ export const loginUser = async (
   password: string,
   expectedRole: string
 ) => {
+  const trimmedEmail = email.trim().toLowerCase();
+  const trimmedPassword = password.trim();
   const [rows] = await db.execute<UserRow[]>(
-    "SELECT * FROM users WHERE email = ?",
-    [email]
+    "SELECT * FROM users WHERE LOWER(TRIM(email)) = ?",
+    [trimmedEmail]
   );
 
   if (rows.length === 0) {
@@ -76,7 +78,7 @@ export const loginUser = async (
     throw new Error(`Access denied. This login is for ${roleName} only.`);
   }
 
-  const isMatch = await comparePassword(password, user.password);
+  const isMatch = await comparePassword(trimmedPassword, user.password);
   if (!isMatch) {
     throw new Error("Invalid email or password");
   }

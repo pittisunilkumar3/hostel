@@ -64,9 +64,9 @@ export default function AdRequestsPage() {
   const approveAd = async (id: number) => {
     if (!confirm("Are you sure you want to approve this advertisement? It will be shown to users.")) return;
     try {
-      const res = await apiFetch(`/api/advertisements/${id}`, {
+      const res = await apiFetch(`/api/advertisements/${id}/status`, {
         method: "PUT",
-        body: JSON.stringify({ status: "approved", active: 1 }),
+        body: JSON.stringify({ status: "approved" }),
       });
       if (res.success) {
         setMessage({ type: "success", text: "✅ Advertisement approved!" });
@@ -80,7 +80,7 @@ export default function AdRequestsPage() {
   const denyAd = async (id: number) => {
     if (!confirm("Are you sure you want to deny this advertisement request?")) return;
     try {
-      const res = await apiFetch(`/api/advertisements/${id}`, {
+      const res = await apiFetch(`/api/advertisements/${id}/status`, {
         method: "PUT",
         body: JSON.stringify({ status: "denied" }),
       });

@@ -35,10 +35,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, description, add_type, owner_id, owner_name, profile_image, cover_image, video_attachment, start_date, end_date } = body;
     if (!title) return errorResponse("Title is required", 400);
-    const [result] = await db.execute<ResultSetHeader>(
-      `INSERT INTO advertisements (title, description, add_type, owner_id, owner_name, profile_image, cover_image, video_attachment, start_date, end_date, status, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 1)`,
-      [title, description || null, add_type || "restaurant_promotion", owner_id || null, owner_name || null, profile_image || null, cover_image || null, video_attachment || null, start_date || null, end_date || null]
+    // Auto-assign priority (max + 1)
+    const [maxPriority] = await db.execute<RowDataPacket[]>(
+      "SELECT COALESCE(MAX(priority), 0) + 1 as next_priority FROM advertisements"
     );
-    return successResponse({ id: result.insertId, title }, "Advertisement created successfully");
+    const nextPriority = maxPriority[0].next_priority;
+
+    // Admin creates are auto-approved and paid
+    const today = new Date().toISOString().split("T")[0];
+    let activeValue = 1; // running
+    if (start_date && start_date > today) activeValue = 2; // scheduled
+    if (end_date && end_date < today) activeValue = 0; // expired
+
+    const [result] = await db.execute<ResultSetHeader>(
+      `INSERT INTO advertisements (title, description, add_type, owner_id, owner_name, profile_image, cover_image, video_attachment, start_date, end_date, status, active, is_paid, priority, created_by_type, created_by_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, 1, ?, 'admin', ?)`,
+      [title, description || null, add_type || "restaurant_promotion", owner_id || null, owner_name || null, profile_image || null, cover_image || null, video_attachment || null, start_date || null, end_date || null, activeValue, nextPriority, user.userId]
+    );
+    return successResponse({ id: result.insertId, title, status: "approved" }, "Advertisement created successfully");
   } catch (e: any) { return errorResponse(e.message, 500); }
 }

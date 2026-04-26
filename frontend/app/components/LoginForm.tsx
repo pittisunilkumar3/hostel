@@ -102,11 +102,13 @@ export default function LoginForm({
     setError("");
     setLoading(true);
     try {
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
       const rolePath = role === "SUPER_ADMIN" ? "admin" : role === "OWNER" ? "owner" : "user";
       const res = await fetch(`http://localhost:3001/api/auth/login/${rolePath}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data.message || "Login failed"); return; }

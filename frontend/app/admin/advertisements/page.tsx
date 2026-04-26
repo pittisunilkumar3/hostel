@@ -54,14 +54,19 @@ export default function AdvertisementsListPage() {
 
   const changeStatus = async (id: number, status: string) => {
     try {
-      await apiFetch(`/api/advertisements/${id}`, { method: "PUT", body: JSON.stringify({ status }) });
+      const res = await apiFetch(`/api/advertisements/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) });
+      if (res.success) {
+        setMessage({ type: "success", text: `✅ ${res.message || "Status updated"}` });
+      } else {
+        setMessage({ type: "error", text: res.message || "Failed" });
+      }
       fetchAds(pagination.page);
     } catch {}
   };
 
   const togglePaid = async (id: number, current: number) => {
     try {
-      await apiFetch(`/api/advertisements/${id}`, { method: "PUT", body: JSON.stringify({ is_paid: current ? 0 : 1 }) });
+      await apiFetch(`/api/advertisements/${id}/paid-status`, { method: "PUT", body: JSON.stringify({ is_paid: current ? 0 : 1 }) });
       fetchAds(pagination.page);
     } catch {}
   };

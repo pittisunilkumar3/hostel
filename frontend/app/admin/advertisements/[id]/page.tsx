@@ -24,7 +24,12 @@ interface Advertisement {
   status: string;
   is_paid: number;
   active: number;
+  pause_note: string | null;
+  cancellation_note: string | null;
+  is_updated: number;
+  created_by_type: string | null;
   created_at: string;
+  updated_at: string;
   previousId: number | null;
   nextId: number | null;
 }
@@ -34,6 +39,8 @@ export default function AdvertisementDetailsPage() {
   const [ad, setAd] = useState<Advertisement | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [showDenyModal, setShowDenyModal] = useState(false);
+  const [denyReason, setDenyReason] = useState("");
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -56,23 +63,49 @@ export default function AdvertisementDetailsPage() {
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  const changeStatus = async (status: string, active?: number) => {
-    const body: any = { status };
-    if (active !== undefined) body.active = active;
+  const changeStatus = async (status: string, cancellation_note?: string) => {
     try {
-      const res = await apiFetch(`/api/advertisements/${id}`, { method: "PUT", body: JSON.stringify(body) });
+      const body: any = { status };
+      if (cancellation_note) body.cancellation_note = cancellation_note;
+      const res = await apiFetch(`/api/advertisements/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      });
       if (res.success) {
-        setMessage({ type: "success", text: `✅ Status updated to ${status}` });
+        setMessage({ type: "success", text: `✅ ${res.message || `Status updated to ${status}`}` });
+        setShowDenyModal(false);
+        setDenyReason("");
         fetchAd();
+      } else {
+        setMessage({ type: "error", text: res.message || "Failed" });
       }
-    } catch {}
+    } catch { setMessage({ type: "error", text: "Network error" }); }
   };
 
   const togglePaid = async () => {
     if (!ad) return;
     try {
-      await apiFetch(`/api/advertisements/${id}`, { method: "PUT", body: JSON.stringify({ is_paid: ad.is_paid ? 0 : 1 }) });
-      fetchAd();
+      const res = await apiFetch(`/api/advertisements/${id}/paid-status`, {
+        method: "PUT",
+        body: JSON.stringify({ is_paid: ad.is_paid ? 0 : 1 }),
+      });
+      if (res.success) {
+        setMessage({ type: "success", text: `✅ ${ad.is_paid ? "Marked as unpaid" : "Marked as paid"}` });
+        fetchAd();
+      }
+    } catch {}
+  };
+
+  const changePriority = async (direction: string) => {
+    try {
+      const res = await apiFetch(`/api/advertisements/${id}/priority`, {
+        method: "PUT",
+        body: JSON.stringify({ direction }),
+      });
+      if (res.success) {
+        setMessage({ type: "success", text: `✅ Priority moved ${direction}` });
+        fetchAd();
+      }
     } catch {}
   };
 
@@ -86,12 +119,12 @@ export default function AdvertisementDetailsPage() {
 
   const statusBadge = () => {
     if (!ad) return null;
-    if (ad.status === "approved" && ad.active === 1) return <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">Running</span>;
-    if (ad.status === "approved" && ad.active === 2) return <span className="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold rounded-full">Approved</span>;
+    if (ad.status === "approved" && ad.active === 1) return <span className="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold rounded-full">Running</span>;
+    if (ad.status === "approved" && ad.active === 2) return <span className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-bold rounded-full">Scheduled</span>;
     if (ad.status === "paused") return <span className="px-3 py-1.5 bg-yellow-50 text-yellow-700 text-xs font-bold rounded-full">Paused</span>;
     if (ad.status === "denied") return <span className="px-3 py-1.5 bg-red-50 text-red-700 text-xs font-bold rounded-full">Denied</span>;
     if (ad.status === "expired" || ad.active === 0) return <span className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">Expired</span>;
-    if (ad.status === "pending") return <span className="px-3 py-1.5 bg-sky-50 text-sky-700 text-xs font-bold rounded-full">Pending</span>;
+    if (ad.status === "pending") return <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">Pending</span>;
     return <span className="px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-bold rounded-full capitalize">{ad.status}</span>;
   };
 
@@ -115,9 +148,41 @@ export default function AdvertisementDetailsPage() {
     <DashboardShell role="admin" title="Super Admin" items={sidebarItems} accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10">
       {message && <div className={`mb-5 px-4 py-3 rounded-xl text-sm font-medium ${message.type === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>{message.text}</div>}
 
+      {/* Deny Modal */}
+      {showDenyModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Deny Advertisement</h3>
+            <textarea
+              value={denyReason}
+              onChange={(e) => setDenyReason(e.target.value)}
+              placeholder="Reason for denial (optional)..."
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 mb-4"
+            />
+            <div className="flex items-center gap-3 justify-end">
+              <button onClick={() => { setShowDenyModal(false); setDenyReason(""); }} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl">
+                Cancel
+              </button>
+              <button onClick={() => changeStatus("denied", denyReason)} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl">
+                Deny
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ads Details</h1>
+        <div>
+          <button onClick={() => router.push("/admin/advertisements")} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">Ads Details</h1>
+        </div>
         <div className="flex items-center gap-2">
           {ad.previousId && (
             <button onClick={() => router.push(`/admin/advertisements/${ad.previousId}`)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg" title="Previous">
@@ -145,20 +210,27 @@ export default function AdvertisementDetailsPage() {
                     <p className="flex gap-2"><span className="text-gray-400 w-24">Ad Placed</span><span className="text-gray-700 font-medium">{new Date(ad.created_at).toLocaleDateString()}</span></p>
                     <p className="flex gap-2"><span className="text-gray-400 w-24">Ad Type</span><span className="text-gray-700 font-medium capitalize">{ad.add_type.replace("_", " ")}</span></p>
                     <p className="flex gap-2"><span className="text-gray-400 w-24">Duration</span><span className="text-gray-700 font-medium">{ad.start_date?.split("T")[0]} — {ad.end_date?.split("T")[0]}</span></p>
+                    <p className="flex gap-2"><span className="text-gray-400 w-24">Created By</span><span className="text-gray-700 font-medium capitalize">{ad.created_by_type || "—"}</span></p>
+                    {ad.is_updated === 1 && (
+                      <p className="flex gap-2">
+                        <span className="text-gray-400 w-24">Updated</span>
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">Pending Re-review</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Right - actions & status */}
                 <div className="flex flex-col items-end gap-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 justify-end">
                     {ad.status === "pending" && (
                       <>
-                        <button onClick={() => changeStatus("denied")} className="px-4 py-2 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition-all">Deny</button>
-                        <button onClick={() => changeStatus("approved", 1)} className="px-4 py-2 border border-green-200 text-green-600 rounded-xl text-sm font-semibold hover:bg-green-50 transition-all">Approve</button>
+                        <button onClick={() => setShowDenyModal(true)} className="px-4 py-2 border border-red-200 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-50 transition-all">Deny</button>
+                        <button onClick={() => changeStatus("approved")} className="px-4 py-2 border border-green-200 text-green-600 rounded-xl text-sm font-semibold hover:bg-green-50 transition-all">Approve</button>
                       </>
                     )}
                     {ad.status === "denied" && (
-                      <button onClick={() => changeStatus("approved", 1)} className="px-4 py-2 border border-green-200 text-green-600 rounded-xl text-sm font-semibold hover:bg-green-50 transition-all">Approve</button>
+                      <button onClick={() => changeStatus("approved")} className="px-4 py-2 border border-green-200 text-green-600 rounded-xl text-sm font-semibold hover:bg-green-50 transition-all">Approve</button>
                     )}
                     <button onClick={() => router.push(`/admin/advertisements/create?edit=${ad.id}`)} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -186,6 +258,20 @@ export default function AdvertisementDetailsPage() {
                 <div className="mb-5">
                   <h4 className="text-sm font-bold text-gray-700 mb-1">Description:</h4>
                   <p className="text-gray-600">{ad.description}</p>
+                </div>
+              )}
+
+              {/* Admin Notes */}
+              {ad.cancellation_note && (
+                <div className="mb-5 bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-red-700 mb-1">Denial Reason</p>
+                  <p className="text-sm text-red-600">{ad.cancellation_note}</p>
+                </div>
+              )}
+              {ad.pause_note && (
+                <div className="mb-5 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-yellow-700 mb-1">Pause Note</p>
+                  <p className="text-sm text-yellow-600">{ad.pause_note}</p>
                 </div>
               )}
 
@@ -232,25 +318,41 @@ export default function AdvertisementDetailsPage() {
                 </label>
               </div>
 
-              {/* Ads Status Buttons */}
-              {!["denied", "pending"].includes(ad.status) && (
+              {/* Status Actions */}
+              {ad.status === "approved" && ad.active >= 1 && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Ads Status</label>
-                  {ad.status === "paused" ? (
-                    <button onClick={() => changeStatus("approved", 1)} className="w-full py-2.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-semibold hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>
-                      Resume Ads
-                    </button>
-                  ) : ad.status === "approved" && ad.active >= 1 ? (
-                    <button onClick={() => changeStatus("paused")} className="w-full py-2.5 bg-red-50 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-100 transition-all flex items-center justify-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      Pause Ads
-                    </button>
-                  ) : null}
+                  <button onClick={() => changeStatus("paused")} className="w-full py-2.5 bg-yellow-50 text-yellow-700 rounded-xl text-sm font-semibold hover:bg-yellow-100 transition-all flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Pause Advertisement
+                  </button>
+                </div>
+              )}
+              {ad.status === "paused" && (
+                <div className="mb-4">
+                  <button onClick={() => changeStatus("approved")} className="w-full py-2.5 bg-green-50 text-green-700 rounded-xl text-sm font-semibold hover:bg-green-100 transition-all flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /></svg>
+                    Resume Advertisement
+                  </button>
                 </div>
               )}
 
-              {/* Validity Display */}
+              {/* Priority */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => changePriority("up")} className="px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all" title="Move Up">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <span className="flex-1 text-center text-sm font-bold text-gray-900 bg-gray-50 py-2 rounded-xl">
+                    #{ad.priority ?? "—"}
+                  </span>
+                  <button onClick={() => changePriority("down")} className="px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all" title="Move Down">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Validity */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Validity</label>
                 <div className="relative">
@@ -274,6 +376,7 @@ export default function AdvertisementDetailsPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">{ad.owner_name}</p>
+                    <p className="text-xs text-gray-400">ID: {ad.owner_id}</p>
                   </div>
                 </div>
               </div>
