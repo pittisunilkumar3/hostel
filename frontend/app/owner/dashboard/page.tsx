@@ -52,6 +52,7 @@ export default function OwnerDashboard() {
   const checkHostelStatus = async () => {
     try {
       const res = await apiFetch("/api/owner/hostel/status");
+      console.log("Hostel status response:", res);
 
       if (res.success && res.data) {
         const data = res.data;

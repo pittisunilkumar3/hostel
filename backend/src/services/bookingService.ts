@@ -1,5 +1,6 @@
 import db, { RowDataPacket, ResultSetHeader } from "../config/database";
 import { BookingInput } from "../validators";
+import * as taxService from "./taxService";
 
 interface BookingRow extends RowDataPacket {
   id: number;
@@ -25,17 +26,48 @@ export const createBooking = async (data: BookingInput) => {
     throw new Error("Room is fully occupied");
   }
 
+  // ── Calculate taxes ──
+  let subTotal = data.totalAmount;
+  let taxAmount = 0;
+  let finalAmount = data.totalAmount;
+
+  try {
+    const taxResult = await taxService.calculateTax(data.totalAmount);
+    subTotal = taxResult.sub_total;
+    taxAmount = taxResult.tax_amount;
+    finalAmount = taxResult.total_amount;
+  } catch (e) {
+    // If tax calculation fails, proceed without tax
+    console.error("Tax calculation error:", e);
+  }
+
   const [result] = await db.execute<ResultSetHeader>(
-    "INSERT INTO bookings (student_id, room_id, check_in, check_out, total_amount) VALUES (?, ?, ?, ?, ?)",
-    [data.studentId, data.roomId, data.checkIn, data.checkOut || null, data.totalAmount]
+    "INSERT INTO bookings (student_id, room_id, check_in, check_out, total_amount, sub_total, tax_amount) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [data.studentId, data.roomId, data.checkIn, data.checkOut || null, finalAmount, subTotal, taxAmount]
   );
+
+  // ── Save order taxes ──
+  try {
+    const taxResult = await taxService.calculateTax(data.totalAmount);
+    if (taxResult.taxes.length > 0) {
+      await taxService.saveOrderTaxes(result.insertId, taxResult.taxes);
+    }
+  } catch (e) {
+    console.error("Save order taxes error:", e);
+  }
 
   await db.execute(
     "UPDATE rooms SET current_occupancy = current_occupancy + 1 WHERE id = ?",
     [data.roomId]
   );
 
-  return { id: result.insertId, ...data };
+  return {
+    id: result.insertId,
+    ...data,
+    sub_total: subTotal,
+    tax_amount: taxAmount,
+    total_amount: finalAmount,
+  };
 };
 
 export const getAllBookings = async (page: number, limit: number) => {
@@ -56,7 +88,28 @@ export const getAllBookings = async (page: number, limit: number) => {
   );
 
   const total = (countRows[0] as any).total;
-  return { bookings, total, page, totalPages: Math.ceil(total / limit) };
+
+  // Attach taxes to each booking
+  const bookingsWithTaxes = await Promise.all(
+    bookings.map(async (booking: any) => {
+      try {
+        const taxes = await taxService.getOrderTaxes(booking.id);
+        booking.order_taxes = taxes;
+        booking.tax_breakdown = taxes.map((t: any) => ({
+          name: t.tax_name,
+          rate: t.tax_rate,
+          type: t.tax_type,
+          amount: t.tax_amount,
+        }));
+      } catch {
+        booking.order_taxes = [];
+        booking.tax_breakdown = [];
+      }
+      return booking;
+    })
+  );
+
+  return { bookings: bookingsWithTaxes, total, page, totalPages: Math.ceil(total / limit) };
 };
 
 export const getBookingById = async (id: number) => {
@@ -70,7 +123,24 @@ export const getBookingById = async (id: number) => {
     [id]
   );
   if (rows.length === 0) throw new Error("Booking not found");
-  return rows[0];
+
+  // Attach order taxes
+  const booking = rows[0] as any;
+  try {
+    const taxes = await taxService.getOrderTaxes(id);
+    booking.order_taxes = taxes;
+    booking.tax_breakdown = taxes.map((t: any) => ({
+      name: t.tax_name,
+      rate: t.tax_rate,
+      type: t.tax_type,
+      amount: t.tax_amount,
+    }));
+  } catch {
+    booking.order_taxes = [];
+    booking.tax_breakdown = [];
+  }
+
+  return booking;
 };
 
 export const updateBookingStatus = async (id: number, status: string) => {

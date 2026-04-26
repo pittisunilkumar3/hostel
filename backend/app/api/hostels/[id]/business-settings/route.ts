@@ -3,18 +3,18 @@ import { getAuthenticatedUser } from "@/src/middleware/auth";
 import db, { RowDataPacket, ResultSetHeader } from "@/src/config/database";
 import { successResponse, errorResponse } from "@/src/utils";
 
-// Business settings schema - defines what settings are available
+// Business settings schema - defines what settings are available (hostel-specific)
 const BUSINESS_SETTINGS_SCHEMA = [
-  { key: "order_confirmation", label: "Order Confirmation", type: "toggle", default: "1" },
-  { key: "auto_refresh", label: "Auto Refresh", type: "toggle", default: "0" },
-  { key: "schedule_order", label: "Schedule Order", type: "toggle", default: "1" },
-  { key: "instant_order", label: "Instant Order", type: "toggle", default: "1" },
-  { key: "takeaway", label: "Takeaway", type: "toggle", default: "1" },
-  { key: "delivery", label: "Delivery", type: "toggle", default: "1" },
-  { key: "minimum_order", label: "Minimum Order Amount", type: "number", default: "0" },
-  { key: "maximum_order", label: "Maximum Order Amount", type: "number", default: "10000" },
-  { key: "delivery_charge", label: "Delivery Charge", type: "number", default: "0" },
-  { key: "free_delivery_over", label: "Free Delivery Over", type: "number", default: "0" },
+  { key: "booking_confirmation", label: "Booking Confirmation", type: "toggle", default: "1" },
+  { key: "instant_booking", label: "Instant Booking", type: "toggle", default: "1" },
+  { key: "scheduled_booking", label: "Scheduled Booking", type: "toggle", default: "1" },
+  { key: "cancellation_allowed", label: "Allow Cancellation", type: "toggle", default: "1" },
+  { key: "cancellation_period_hours", label: "Cancellation Period (hours)", type: "number", default: "24" },
+  { key: "auto_checkin", label: "Auto Check-in", type: "toggle", default: "0" },
+  { key: "minimum_stay_days", label: "Minimum Stay (days)", type: "number", default: "1" },
+  { key: "maximum_stay_days", label: "Maximum Stay (days)", type: "number", default: "365" },
+  { key: "security_deposit", label: "Security Deposit", type: "number", default: "0" },
+  { key: "late_checkout_fee", label: "Late Checkout Fee", type: "number", default: "0" },
   { key: "commission_rate", label: "Commission Rate (%)", type: "number", default: "12" },
   { key: "tax_rate", label: "Tax Rate (%)", type: "number", default: "0" },
 ];

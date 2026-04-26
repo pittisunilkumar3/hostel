@@ -37,7 +37,7 @@ export interface ZoneData {
 export const getAllZones = async (search?: string) => {
   let query = `
     SELECT z.*,
-      (SELECT COUNT(*) FROM users u WHERE u.role = 'OWNER' AND u.zone_id = z.id) AS hostels_count
+      (SELECT COUNT(*) FROM hostels h WHERE h.zone_id = z.id) AS hostels_count
     FROM zones z
   `;
   const params: any[] = [];
@@ -57,7 +57,7 @@ export const getAllZones = async (search?: string) => {
 export const getZoneById = async (id: number) => {
   const [rows] = await db.execute<ZoneRow[]>(
     `SELECT z.*,
-      (SELECT COUNT(*) FROM users u WHERE u.role = 'OWNER' AND u.zone_id = z.id) AS hostels_count
+      (SELECT COUNT(*) FROM hostels h WHERE h.zone_id = z.id) AS hostels_count
     FROM zones z WHERE z.id = ?`,
     [id]
   );

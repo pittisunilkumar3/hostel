@@ -87,7 +87,7 @@ export const getHostels = async (params: GetHostelsParams) => {
   );
   const total = countRows[0].total;
 
-  const [rows] = await db.execute<HostelRow[]>(
+  const [rows] = await db.query<HostelRow[]>(
     `SELECT h.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone,
             z.name as zone_name
      FROM hostels h
@@ -96,7 +96,7 @@ export const getHostels = async (params: GetHostelsParams) => {
      ${where}
      ORDER BY h.created_at DESC
      LIMIT ? OFFSET ?`,
-    [...values, limit, offset]
+    [...values, Number(limit), Number(offset)]
   );
 
   return {
@@ -173,12 +173,21 @@ export const updateHostel = async (id: number, data: any) => {
     "latitude", "longitude", "logo", "cover_photo",
     "total_rooms", "total_beds", "min_stay_days", "check_in_time", "check_out_time",
     "business_model", "commission_rate", "commission_on_delivery",
+    "status", "rejection_reason",
   ];
 
   for (const field of allowedFields) {
     if (data[field] !== undefined) {
       fields.push(`${field} = ?`);
       values.push(data[field]);
+    }
+  }
+
+  // Set reviewed_at when status is being updated
+  if (data.status) {
+    fields.push("reviewed_at = NOW()");
+    if (data.status === "APPROVED") {
+      fields.push("rejection_reason = NULL");
     }
   }
 
@@ -247,7 +256,7 @@ export const getHostelRequests = async (params: GetHostelsParams) => {
   );
   const total = countRows[0].total;
 
-  const [rows] = await db.execute<HostelRow[]>(
+  const [rows] = await db.query<HostelRow[]>(
     `SELECT h.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone,
             u.name as owner_f_name, z.name as zone_name
      FROM hostels h
@@ -256,7 +265,7 @@ export const getHostelRequests = async (params: GetHostelsParams) => {
      ${where}
      ORDER BY h.submitted_at DESC
      LIMIT ? OFFSET ?`,
-    [...values, limit, offset]
+    [...values, Number(limit), Number(offset)]
   );
 
   return {

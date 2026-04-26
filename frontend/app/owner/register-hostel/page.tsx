@@ -507,12 +507,14 @@ export default function RegisterHostelPage() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+      console.log("Registration response:", data);
       if (res.ok && data.success) {
         setSuccess(true);
       } else {
         setError(data.message || "Registration failed. Please try again.");
       }
-    } catch {
+    } catch (e: any) {
+      console.error("Registration error:", e);
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
