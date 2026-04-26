@@ -157,9 +157,874 @@ const getCompanyEmail = async (): Promise<string> => {
   } catch { return "support@example.com"; }
 };
 
-// ─── HTML Template Generation (async — fetches real URLs from DB) ────
+const getCompanyPhone = async (): Promise<string> => {
+  try {
+    const v = await getSettingValue("company_phone");
+    return v || "";
+  } catch { return ""; }
+};
 
-const generateTemplateHTML = async (template: EmailTemplateRow, companyName: string, companyLogo: string, replacements: Record<string, string> = {}): Promise<string> => {
+const getCompanyAddress = async (): Promise<string> => {
+  try {
+    const v = await getSettingValue("company_address");
+    return v || "";
+  } catch { return ""; }
+};
+
+// ─── Shared CSS & Footer (matches reference project exactly) ─────────
+
+const SHARED_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap');
+  body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    font-size: 13px;
+    line-height: 21px;
+    color: #737883;
+    background-color: #e9ecef;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  h1,h2,h3,h4,h5,h6 { color: #334257; }
+  * { box-sizing: border-box; }
+  :root { --base: #ffa726; }
+  .main-table {
+    width: 500px;
+    background: #FFFFFF;
+    margin: 0 auto;
+    padding: 40px;
+  }
+  .main-table-td {}
+  img { max-width: 100%; }
+  .cmn-btn{
+    background: var(--base);
+    color: #fff;
+    padding: 8px 20px;
+    display: inline-block;
+    text-decoration: none;
+  }
+  .mb-1 { margin-bottom: 5px; }
+  .mb-2 { margin-bottom: 10px; }
+  .mb-3 { margin-bottom: 15px; }
+  .mb-4 { margin-bottom: 20px; }
+  .mb-5 { margin-bottom: 25px; }
+  hr {
+    border-color: rgba(0, 170, 109, 0.3);
+    margin: 16px 0;
+  }
+  .border-top {
+    border-top: 1px solid rgba(0, 170, 109, 0.3);
+    padding: 15px 0 10px;
+    display: block;
+  }
+  .d-block { display: block; }
+  .privacy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+  }
+  .privacy a {
+    text-decoration: none;
+    color: #334257;
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .privacy a span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #334257;
+    display: inline-block;
+    margin: 0 7px;
+  }
+  .social {
+    margin: 15px 0 8px;
+    display: block;
+  }
+  .copyright{
+    text-align: center;
+    display: block;
+  }
+  div { display: block; }
+  a { text-decoration: none; }
+  .text-base {
+    color: var(--base);
+    font-weight: 700;
+  }
+  .text-center { text-align: center; }
+  .w-100 { width: 100%; }
+  .bg-section { background: #E3F5F1; }
+  table.bg-section { color: #334257; }
+  .p-10 { padding: 10px; }
+  table.bg-section tr th,
+  table.bg-section tr td { padding: 5px; }
+  .mail-img-1 {
+    width: 140px;
+    height: 60px;
+    object-fit: contain;
+  }
+  .mail-img-2 {
+    width: 130px;
+    height: 45px;
+    object-fit: contain;
+  }
+  .mail-img-3 {
+    width: 100%;
+    height: 172px;
+    object-fit: cover;
+  }
+  .social img { width: 24px; }
+`;
+
+// ─── Build privacy links HTML ────────────────────────────────────────
+
+const buildPrivacyHtml = (
+  template: EmailTemplateRow,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const cmsUrl = (slug: string) => baseUrl ? `${baseUrl}/page/${slug}` : `#/page/${slug}`;
+  const contactUrl = baseUrl ? `${baseUrl}/contact` : "#/contact";
+
+  const links: string[] = [];
+  if (template.privacy) {
+    const slug = cmsSlugs["privacy policy"] || "privacy-policy";
+    links.push(`<a href="${cmsUrl(slug)}" style="display:inline-block">Privacy Policy</a>`);
+  }
+  if (template.refund) {
+    const slug = cmsSlugs["refund policy"] || "refund-policy";
+    links.push(`<a href="${cmsUrl(slug)}" style="display:inline-block"><span></span>Refund Policy</a>`);
+  }
+  if (template.cancelation) {
+    const slug = cmsSlugs["cancellation policy"] || "cancellation-policy";
+    links.push(`<a href="${cmsUrl(slug)}" style="display:inline-block"><span></span>Cancellation Policy</a>`);
+  }
+  if (template.contact) {
+    links.push(`<a href="${contactUrl}" style="display:inline-block"><span></span>Contact Us</a>`);
+  }
+
+  return links.length
+    ? `<span class="privacy">${links.join("")}</span>`
+    : "";
+};
+
+// ─── Build social media icons HTML ───────────────────────────────────
+
+const buildSocialHtml = (
+  template: EmailTemplateRow,
+  socialMap: Record<string, string>
+): string => {
+  const socialIconMap: Record<string, string> = {
+    facebook: "https://img.icons8.com/color/24/facebook.png",
+    instagram: "https://img.icons8.com/color/24/instagram.png",
+    twitter: "https://img.icons8.com/color/24/twitter.png",
+    linkedin: "https://img.icons8.com/color/24/linkedin.png",
+    pinterest: "https://img.icons8.com/color/24/pinterest.png",
+  };
+
+  const platforms = ["facebook", "instagram", "twitter", "linkedin", "pinterest"];
+  const icons: string[] = [];
+
+  for (const platform of platforms) {
+    if ((template as any)[platform]) {
+      const link = socialMap[platform] || "#";
+      const icon = socialIconMap[platform];
+      icons.push(`<a href="${link}" target="_blank" style="margin:0 5px;text-decoration:none"><img src="${icon}" alt="${platform}" /></a>`);
+    }
+  }
+
+  return icons.length
+    ? `<span class="social" style="text-align:center">${icons.join("")}</span>`
+    : "";
+};
+
+// ─── Build button HTML ───────────────────────────────────────────────
+
+const buildButtonHtml = (template: EmailTemplateRow): string => {
+  if (!template.button_url || !template.button_name) return "";
+  return `<span class="d-block text-center" style="margin-top:16px">
+    <a href="${template.button_url || '#'}" class="cmn-btn">${template.button_name || 'Submit'}</a>
+  </span>`;
+};
+
+// ─── Build footer section (privacy + social + copyright) ─────────────
+
+const buildFooterSection = (
+  template: EmailTemplateRow,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string,
+  copyrightText: string
+): string => {
+  const privacyHtml = buildPrivacyHtml(template, cmsSlugs, baseUrl);
+  const socialHtml = buildSocialHtml(template, socialMap);
+
+  return `
+    <tr>
+      <td>
+        ${privacyHtml}
+        ${socialHtml}
+        <span class="copyright" id="mail-copyright">${copyrightText}</span>
+      </td>
+    </tr>`;
+};
+
+// ─── Get image URLs ──────────────────────────────────────────────────
+
+const getImageUrl = (path: string | null, fallback: string): string => {
+  if (!path) return fallback;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const baseUrl = process.env.SITE_URL || "";
+  return baseUrl ? `${baseUrl}/${path.replace(/^\//, "")}` : path;
+};
+
+// ─── Format Template 1: Logo → Title → Body → Banner → Button → Footer ───
+
+const formatTemplate1 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const logoUrl = getImageUrl(template.logo, "");
+  const bannerUrl = getImageUrl(template.banner_image, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <img class="mail-img-1" id="logoViewer" src="${logoUrl}" alt="logo" onerror="this.style.display='none'">
+          <h2 id="mail-title" class="mt-2">${title}</h2>
+          <div class="mb-1" id="mail-body">${body}</div>
+          ${bannerUrl ? `<img class="mb-2 mail-img-3" id="bannerViewer" src="${bannerUrl}" alt="banner" onerror="this.style.display='none'">` : ''}
+          ${btnHtml}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 2: Logo → Title → Body → Button → Footer (no banner) ───
+
+const formatTemplate2 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const logoUrl = getImageUrl(template.logo, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <img class="mail-img-1" id="logoViewer" src="${logoUrl}" alt="logo" onerror="this.style.display='none'">
+          <h2 id="mail-title" class="mt-2">${title}</h2>
+          <div class="mb-1" id="mail-body">${body}</div>
+          ${btnHtml}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 3: Title → Body → Button → Green section → Footer ───
+
+const formatTemplate3 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const logoUrl = getImageUrl(template.logo, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    ${SHARED_CSS}
+    .order-table { padding: 10px; background: #fff; }
+    .order-table tr td { vertical-align: top; }
+    .order-table .subtitle { margin: 0; margin-bottom: 10px; }
+    .text-left { text-align: left; }
+    .text-right { text-align: right; }
+    .bg-section-2 { background: #F8F9FB; }
+    .p-1 { padding: 5px; }
+    .p-2 { padding: 10px; }
+    .px-3 { padding-inline: 15px; }
+    .mb-0 { margin-bottom: 0; }
+    .m-0 { margin: 0; }
+    .font-medium { font-weight: 500; }
+    .font-bold { font-weight: 700; }
+    .mt-0 { margin-top: 0; }
+  </style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <h2 class="mb-3" id="mail-title">${title}</h2>
+          <div class="mb-1" id="mail-body">${body}</div>
+          ${btnHtml}
+          <table class="bg-section p-10 w-100">
+            <tbody>
+              <tr>
+                <td class="p-10">
+                  <span class="d-block text-center">
+                    <img class="mb-2 mail-img-2" src="${logoUrl}" alt="logo" onerror="this.style.display='none'">
+                    <h3 class="mb-3 mt-0">Order Info</h3>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 4: Icon centered → Title → Body → Code → Button → Footer ───
+
+const formatTemplate4 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string,
+  replacements: Record<string, string>
+): string => {
+  const iconUrl = getImageUrl(template.icon, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+  const code = replacements["code"] || replacements["otp"] || "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <div class="text-center">
+            <img class="mail-img-2" id="iconViewer" src="${iconUrl}" alt="icon" onerror="this.style.display='none'">
+            <h2 id="mail-title" class="mt-2">${title}</h2>
+            <div class="mb-1" id="mail-body">${body}</div>
+            ${code ? `<h2 style="font-size:26px;margin:0;letter-spacing:4px">${code}</h2>` : ''}
+          </div>
+          ${btnHtml}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 5: Icon centered → Title → Body → Button → Footer (simple) ───
+
+const formatTemplate5 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const iconUrl = getImageUrl(template.icon, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <div class="text-center">
+            <img class="mail-img-2" id="iconViewer" src="${iconUrl}" alt="icon" onerror="this.style.display='none'">
+            <h2 id="mail-title" class="mt-2">${title}</h2>
+            <div class="mb-2" id="mail-body">${body}</div>
+          </div>
+          ${btnHtml}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 6: Icon centered → Title → Body → Transaction table → Button → Footer ───
+
+const formatTemplate6 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string,
+  replacements: Record<string, string>
+): string => {
+  const iconUrl = getImageUrl(template.icon, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  const transactionId = replacements["transaction_id"] || "";
+  const time = replacements["time"] || "";
+  const amount = replacements["amount"] || "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <div class="text-center">
+            <img class="mail-img-2" id="iconViewer" src="${iconUrl}" alt="icon" onerror="this.style.display='none'">
+            <h2 id="mail-title" class="mt-2">${title}</h2>
+            <div class="mb-2" id="mail-body">${body}</div>
+          </div>
+          <table class="bg-section p-10 w-100 text-center">
+            <thead>
+              <tr>
+                <th>SL</th>
+                <th>Transaction ID</th>
+                <th>Time</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>${transactionId}</td>
+                <td>${time}</td>
+                <td>${amount}</td>
+              </tr>
+            </tbody>
+          </table>
+          ${btnHtml}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 7: Logo → Title → Body → Banner → Footer (no button) ───
+
+const formatTemplate7 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const logoUrl = getImageUrl(template.logo, "");
+  const bannerUrl = getImageUrl(template.banner_image, "");
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <img class="mail-img-1" id="logoViewer" src="${logoUrl}" alt="logo" onerror="this.style.display='none'">
+          <h2 id="mail-title" class="mt-2">${title}</h2>
+          <div class="mb-1" id="mail-body">${body}</div>
+          ${bannerUrl ? `<img class="mb-2 mail-img-3" id="bannerViewer" src="${bannerUrl}" alt="banner" onerror="this.style.display='none'">` : ''}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 8: Logo → Title → Body → Banner → Button → Footer ───
+
+const formatTemplate8 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const logoUrl = getImageUrl(template.logo, "");
+  const bannerUrl = getImageUrl(template.banner_image, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <img class="mail-img-1" id="logoViewer" src="${logoUrl}" alt="logo" onerror="this.style.display='none'">
+          <h2 id="mail-title" class="mt-2">${title}</h2>
+          <div class="mb-1" id="mail-body">${body}</div>
+          ${bannerUrl ? `<img class="mb-2 mail-img-3" id="bannerViewer" src="${bannerUrl}" alt="banner" onerror="this.style.display='none'">` : ''}
+          ${btnHtml}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 9: Title → Body → Green section → Order Info → Footer ───
+
+const formatTemplate9 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const logoUrl = getImageUrl(template.logo, "");
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    ${SHARED_CSS}
+    .order-table { padding: 10px; background: #fff; }
+    .order-table tr td { vertical-align: top; }
+    .order-table .subtitle { margin: 0; margin-bottom: 10px; }
+    .text-left { text-align: left; }
+    .text-right { text-align: right; }
+    .bg-section-2 { background: #F8F9FB; }
+    .p-1 { padding: 5px; }
+    .p-2 { padding: 10px; }
+    .px-3 { padding-inline: 15px; }
+    .mb-0 { margin-bottom: 0; }
+    .m-0 { margin: 0; }
+    .mt-0 { margin-top: 0; }
+  </style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <h2 class="mb-3" id="mail-title">${title}</h2>
+          <div class="mb-1" id="mail-body">${body}</div>
+          <table class="bg-section p-10 w-100">
+            <tbody>
+              <tr>
+                <td class="p-10">
+                  <span class="d-block text-center">
+                    <img class="mb-2 mail-img-2" src="${logoUrl}" alt="logo" onerror="this.style.display='none'">
+                    <h3 class="mb-3 mt-0">Order Info</h3>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 10: Icon → Title → Body → Banner → Credentials → Body2 → Footer ───
+
+const formatTemplate10 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  body2: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string,
+  replacements: Record<string, string>
+): string => {
+  const iconUrl = getImageUrl(template.icon, "");
+  const bannerUrl = getImageUrl(template.banner_image, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  const email = replacements["email"] || "";
+  const password = replacements["password"] || "";
+
+  const credentialsHtml = (email || password) ? `
+    <div class="mb-1">
+      Your account credentials:
+      ${email ? `<h6>Email: ${email}</h6>` : ''}
+      ${password ? `<h6>Password: ${password}</h6>` : ''}
+    </div>` : '';
+
+  const body2Html = body2 ? `<div class="mb-1" id="mail-body2">${body2}</div>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <img class="mail-img-1" id="iconViewer" src="${iconUrl}" alt="icon" onerror="this.style.display='none'">
+          <h2 id="mail-title" class="mt-2">${title}</h2>
+          <div class="mb-1" id="mail-body">${body}</div>
+          ${bannerUrl ? `<img class="mb-2 mail-img-3" id="bannerViewer" src="${bannerUrl}" alt="banner" onerror="this.style.display='none'">` : ''}
+          ${btnHtml}
+          ${credentialsHtml}
+          ${body2Html}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Format Template 11: Icon centered → Title → Body → Button → Footer ───
+
+const formatTemplate11 = (
+  template: EmailTemplateRow,
+  title: string,
+  body: string,
+  footerText: string,
+  copyrightText: string,
+  companyName: string,
+  socialMap: Record<string, string>,
+  cmsSlugs: Record<string, string>,
+  baseUrl: string
+): string => {
+  const iconUrl = getImageUrl(template.icon, "");
+  const btnHtml = buildButtonHtml(template);
+  const footerSection = buildFooterSection(template, socialMap, cmsSlugs, baseUrl, copyrightText);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>${SHARED_CSS}</style>
+</head>
+<body style="background-color:#e9ecef;padding:15px">
+  <table class="main-table">
+    <tbody>
+      <tr>
+        <td class="main-table-td">
+          <div class="text-center">
+            <img class="mail-img-2" id="iconViewer" src="${iconUrl}" alt="icon" onerror="this.style.display='none'">
+            <h2 id="mail-title" class="mt-2 mb-2">${title}</h2>
+          </div>
+          <div class="mb-2" id="mail-body">${body}</div>
+          ${btnHtml}
+          <hr>
+          <div class="mb-2" id="mail-footer">${footerText}</div>
+          <div>Thanks &amp; Regards,</div>
+          <div class="mb-4">${companyName}</div>
+        </td>
+      </tr>
+      ${footerSection}
+    </tbody>
+  </table>
+</body>
+</html>`;
+};
+
+// ─── Main HTML Template Generation ───────────────────────────────────
+
+const generateTemplateHTML = async (
+  template: EmailTemplateRow,
+  companyName: string,
+  companyLogo: string,
+  replacements: Record<string, string> = {}
+): Promise<string> => {
   // Process body with variable replacements
   let body = template.body || "";
   let body2 = template.body_2 || "";
@@ -181,186 +1046,51 @@ const generateTemplateHTML = async (template: EmailTemplateRow, companyName: str
   copyrightText = replaceVars(copyrightText);
   title = replaceVars(title);
 
-  // ─── Fetch real URLs from database ───────────────────────
+  // Fetch real URLs from database
   const [dbSocials, cmsSlugs, companyEmail] = await Promise.all([
     getSocialLinksFromDB(),
     getCmsPageSlugs(),
     getCompanyEmail(),
   ]);
 
-  // Build a lookup: lowercase platform name → link
+  // Build social map
   const socialMap: Record<string, string> = {};
   for (const s of dbSocials) {
     socialMap[s.name] = s.link;
   }
 
-  // Build CMS page URLs using slug
   const baseUrl = process.env.SITE_URL || "";
-  const cmsUrl = (slug: string) => baseUrl ? `${baseUrl}/page/${slug}` : `#/page/${slug}`;
-  const contactUrl = baseUrl ? `${baseUrl}/contact` : "#/contact";
 
-  // Privacy / Footer links — from CMS pages table
-  const privacyLinks: string[] = [];
-  if (template.privacy) {
-    const slug = cmsSlugs["privacy policy"] || "privacy-policy";
-    privacyLinks.push(`<a href="${cmsUrl(slug)}" style="color:#334257;text-decoration:none">Privacy Policy</a>`);
+  // Get template format number (1-11), default to 5
+  const formatNum = parseInt(template.email_template) || 5;
+
+  // Route to the correct format template
+  switch (formatNum) {
+    case 1:
+      return formatTemplate1(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    case 2:
+      return formatTemplate2(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    case 3:
+      return formatTemplate3(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    case 4:
+      return formatTemplate4(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl, replacements);
+    case 5:
+      return formatTemplate5(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    case 6:
+      return formatTemplate6(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl, replacements);
+    case 7:
+      return formatTemplate7(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    case 8:
+      return formatTemplate8(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    case 9:
+      return formatTemplate9(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    case 10:
+      return formatTemplate10(template, title, body, body2, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl, replacements);
+    case 11:
+      return formatTemplate11(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
+    default:
+      return formatTemplate5(template, title, body, footerText, copyrightText, companyName, socialMap, cmsSlugs, baseUrl);
   }
-  if (template.refund) {
-    const slug = cmsSlugs["refund policy"] || "refund-policy";
-    privacyLinks.push(`<a href="${cmsUrl(slug)}" style="color:#334257;text-decoration:none"><span style="width:6px;height:6px;border-radius:50%;background:#334257;display:inline-block;margin:0 7px"></span>Refund Policy</a>`);
-  }
-  if (template.cancelation) {
-    const slug = cmsSlugs["cancellation policy"] || "cancellation-policy";
-    privacyLinks.push(`<a href="${cmsUrl(slug)}" style="color:#334257;text-decoration:none"><span style="width:6px;height:6px;border-radius:50%;background:#334257;display:inline-block;margin:0 7px"></span>Cancellation Policy</a>`);
-  }
-  if (template.contact) {
-    privacyLinks.push(`<a href="${contactUrl}" style="color:#334257;text-decoration:none"><span style="width:6px;height:6px;border-radius:50%;background:#334257;display:inline-block;margin:0 7px"></span>Contact Us</a>`);
-  }
-  const privacyHtml = privacyLinks.length
-    ? `<span class="privacy">${privacyLinks.join("")}</span>`
-    : "";
-
-  // Social media icons — from social_media_links table
-  const socialIconMap: Record<string, string> = {
-    facebook: "https://img.icons8.com/color/24/facebook.png",
-    instagram: "https://img.icons8.com/color/24/instagram.png",
-    twitter: "https://img.icons8.com/color/24/twitter.png",
-    linkedin: "https://img.icons8.com/color/24/linkedin.png",
-    pinterest: "https://img.icons8.com/color/24/pinterest.png",
-  };
-  const socialLinks: string[] = [];
-  const platforms = ["facebook", "instagram", "twitter", "linkedin", "pinterest"];
-  for (const platform of platforms) {
-    if ((template as any)[platform]) {
-      const dbLink = socialMap[platform] || socialMap[platform.replace("facebook", "facebook")] || "#";
-      const icon = socialIconMap[platform];
-      socialLinks.push(`<a href="${dbLink}" target="_blank" style="margin:0 4px;text-decoration:none"><img src="${icon}" alt="${platform}" /></a>`);
-    }
-  }
-  const socialHtml = socialLinks.length
-    ? `<span class="social">${socialLinks.join("")}</span>`
-    : "";
-
-  const btnHtml = template.button_name ? `
-    <span class="d-block" style="text-align:center;margin-top:16px">
-      <a href="${template.button_url || "#"}" style="background:#4f46e5;color:#fff;padding:10px 28px;display:inline-block;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">${template.button_name}</a>
-    </span>` : "";
-
-  const iconHtml = template.icon ? `
-    <div style="text-align:center;margin-bottom:8px">
-      <img src="${template.icon}" alt="" style="width:130px;height:45px;object-fit:contain" />
-    </div>` : `<div style="text-align:center;margin-bottom:8px">
-      <img src="" alt="" style="width:130px;height:45px;object-fit:contain" onerror="this.style.display='none'" />
-    </div>`;
-
-  const bannerHtml = template.banner_image ? `
-    <div style="margin:16px 0;border-radius:8px;overflow:hidden">
-      <img src="${template.banner_image}" alt="" style="width:100%;max-height:180px;object-fit:cover;display:block" />
-    </div>` : "";
-
-  const body2Html = body2 ? `
-    <div style="margin-bottom:14px;color:#737883;font-size:13px;line-height:21px">${body2}</div>` : "";
-
-  // Company logo at bottom of email (fallback to template logo or business logo)
-  const bottomLogoHtml = `
-    <div style="text-align:center;margin:10px 0">
-      <img src="${template.logo || companyLogo || ''}" alt="${companyName}" style="width:120px;display:block;margin:0 auto;object-fit:contain" onerror="this.style.display='none'" />
-    </div>`;
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <style type="text/css">
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-    body {
-      font-family: 'Roboto', Arial, sans-serif;
-      width: 100% !important;
-      height: 100% !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      background: #e9ecef;
-      color: #737883;
-      font-size: 13px;
-      line-height: 21px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    table { border-collapse: collapse !important; }
-    a { text-decoration: none; }
-    .border-top {
-      border-top: 1px solid rgba(0, 170, 109, 0.3);
-      padding: 15px 0 10px;
-      display: block;
-    }
-    .d-block { display: block; }
-    .privacy {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-    }
-    .privacy a {
-      text-decoration: none;
-      color: #334257;
-      position: relative;
-      margin-left: auto;
-      margin-right: auto;
-      font-size: 12px;
-    }
-    .privacy a span {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #334257;
-      display: inline-block;
-      margin: 0 7px;
-    }
-    .social {
-      margin: 15px 0 8px;
-      display: block;
-      text-align: center;
-    }
-    .social img { width: 24px; }
-    .copyright {
-      text-align: center;
-      display: block;
-      color: #aaa;
-      font-size: 11px;
-    }
-  </style>
-</head>
-<body style="background-color:#e9ecef;padding:15px">
-  <table style="width:100%;max-width:500px;margin:0 auto;text-align:center;background:#fff">
-    <tr>
-      <td style="padding:30px 30px 0">
-        ${iconHtml}
-        <h3 style="font-size:17px;font-weight:500;color:#334257;margin:8px 0 0" id="mail-title">${title}</h3>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:0 30px 30px;text-align:left">
-        <span style="font-weight:500;display:block;margin:20px 0 11px;color:#737883;font-size:13px;line-height:21px">${body}</span>
-        ${body2Html}
-        ${bannerHtml}
-        ${btnHtml}
-        <span class="border-top"></span>
-        <span class="d-block" style="margin-bottom:14px;color:#737883;font-size:13px;line-height:18px">${footerText}</span>
-        <span class="d-block" style="color:#334257;font-size:13px;font-weight:500">Thanks &amp; Regards,</span>
-        <span class="d-block" style="color:#334257;font-size:13px;font-weight:500;margin-bottom:20px">${companyName}</span>
-        ${bottomLogoHtml}
-        ${privacyHtml}
-        ${socialHtml}
-        <span class="copyright">${copyrightText}</span>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
 };
 
 // ─── Send Templated Email ────────────────────────────────────────────

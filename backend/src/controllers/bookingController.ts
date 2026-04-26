@@ -6,6 +6,7 @@ import {
   sendPushNotificationByRole,
   isPushNotificationEnabled,
 } from "../services/pushNotificationService";
+import { sendTemplatedEmail } from "../services/emailTemplateService";
 import db, { RowDataPacket } from "../config/database";
 
 // POST /api/bookings
@@ -58,6 +59,55 @@ export async function createBookingController(request: NextRequest) {
       }
     } catch (notifError: any) {
       console.error("[Push] Booking notification error:", notifError.message);
+    }
+
+    // Send booking confirmation email to customer (non-blocking)
+    try {
+      const [userRows] = await db.execute<RowDataPacket[]>(
+        "SELECT name, email FROM users WHERE id = ?", [studentId]
+      );
+      const [roomRows] = await db.execute<RowDataPacket[]>(
+        "SELECT room_number FROM rooms WHERE id = ?", [roomId]
+      );
+      const user = userRows[0];
+      const room = roomRows[0];
+      if (user?.email) {
+        sendTemplatedEmail(
+          user.email,
+          "booking_confirmation",
+          "user",
+          {
+            name: user.name || "Customer",
+            email: user.email,
+            room_name: room?.room_number || String(roomId),
+            check_in: checkIn || "",
+            check_out: checkOut || "",
+            amount: String(totalAmount || ""),
+          }
+        ).then(r => {
+          if (r.success) console.log(`[Email] Booking confirmation sent to ${user.email}`);
+          else console.log(`[Email] Booking email failed: ${r.error}`);
+        }).catch(e => console.error(`[Email] Error:`, e.message));
+      }
+
+      // Notify admin about new booking via email
+      const adminEmail = process.env.ADMIN_EMAIL || "";
+      if (adminEmail) {
+        sendTemplatedEmail(
+          adminEmail,
+          "new_booking",
+          "admin",
+          {
+            customer_name: user?.name || "Customer",
+            room_name: room?.room_number || String(roomId),
+            check_in: checkIn || "",
+            check_out: checkOut || "",
+            amount: String(totalAmount || ""),
+          }
+        ).catch(() => {});
+      }
+    } catch (emailErr: any) {
+      console.error("[Email] Booking email error:", emailErr.message);
     }
 
     return successResponse(booking, "Booking created successfully", 201);
@@ -140,6 +190,32 @@ export async function updateBookingStatusController(id: number, request: NextReq
       }
     } catch (notifError: any) {
       console.error("[Push] Status notification error:", notifError.message);
+    }
+
+    // Send booking status update email to customer (non-blocking)
+    try {
+      const studentId = (bookingData as any).student_id;
+      const [userRows] = await db.execute<RowDataPacket[]>(
+        "SELECT name, email FROM users WHERE id = ?", [studentId]
+      );
+      const user = userRows[0];
+      if (user?.email) {
+        sendTemplatedEmail(
+          user.email,
+          "booking_status",
+          "user",
+          {
+            name: user.name || "Customer",
+            status: status,
+            room_name: String(roomNumber),
+          }
+        ).then(r => {
+          if (r.success) console.log(`[Email] Booking status update sent to ${user.email}`);
+          else console.log(`[Email] Status email failed: ${r.error}`);
+        }).catch(e => console.error(`[Email] Error:`, e.message));
+      }
+    } catch (emailErr: any) {
+      console.error("[Email] Status email error:", emailErr.message);
     }
 
     return successResponse(booking, "Booking status updated successfully");
