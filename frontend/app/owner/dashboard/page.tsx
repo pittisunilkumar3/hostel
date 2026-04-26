@@ -23,6 +23,24 @@ interface Room {
 
 type HostelStatus = "loading" | "no_hostel" | "pending" | "rejected" | "approved";
 
+interface SubscriptionHostelStatus {
+  hostel_id: number;
+  hostel_name: string;
+  business_model: string;
+  subscription_status: string;
+  message: string | null;
+  grace_days_left: number;
+  end_date: string | null;
+  plan_name: string | null;
+}
+
+interface SubscriptionStatusData {
+  hostels: SubscriptionHostelStatus[];
+  needs_warning_popup: boolean;
+  needs_block_popup: boolean;
+  needs_subscription_popup: boolean;
+}
+
 export default function OwnerDashboard() {
   const router = useRouter();
   const [hostelStatus, setHostelStatus] = useState<HostelStatus>("loading");
@@ -31,6 +49,12 @@ export default function OwnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Subscription popup states
+  const [subStatusData, setSubStatusData] = useState<SubscriptionStatusData | null>(null);
+  const [showWarningPopup, setShowWarningPopup] = useState(false);
+  const [showBlockedPopup, setShowBlockedPopup] = useState(false);
+  const [showNoSubPopup, setShowNoSubPopup] = useState(false);
 
   useEffect(() => {
     const u = getCurrentUser();
@@ -89,6 +113,26 @@ export default function OwnerDashboard() {
       if (res.success) setRooms(res.data?.rooms || []);
     } catch (e) { console.error(e); }
   };
+
+  // Check subscription status for popup
+  const checkSubscriptionStatus = async () => {
+    try {
+      const res = await apiFetch("/api/owner/subscriptions/status");
+      if (res.success && res.data) {
+        setSubStatusData(res.data);
+        if (res.data.needs_warning_popup) setShowWarningPopup(true);
+        if (res.data.needs_block_popup) setShowBlockedPopup(true);
+        if (res.data.needs_subscription_popup) setShowNoSubPopup(true);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  // Check subscription when hostel is approved
+  useEffect(() => {
+    if (hostelStatus === "approved") {
+      checkSubscriptionStatus();
+    }
+  }, [hostelStatus]);
 
   // Loading state
   if (loading || hostelStatus === "loading") {
@@ -513,6 +557,138 @@ export default function OwnerDashboard() {
           </div>
         )}
       </div>
+
+      {/* Subscription Warning Popup */}
+      {showWarningPopup && subStatusData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Subscription Alert</h3>
+                  <p className="text-amber-100 text-sm">Action required for your hostel</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {subStatusData.hostels
+                .filter((h) => h.subscription_status === "expiring_soon" || h.subscription_status === "grace")
+                .map((h) => (
+                  <div key={h.hostel_id} className="mb-4 last:mb-0">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <p className="text-sm font-semibold text-amber-900 mb-1">{h.hostel_name}</p>
+                      <p className="text-xs text-amber-700 mb-2">Plan: {h.plan_name}</p>
+                      {h.message && <p className="text-xs text-amber-600 leading-relaxed">{h.message}</p>}
+                    </div>
+                  </div>
+                ))}
+              <div className="flex items-center gap-3 mt-5">
+                <button
+                  onClick={() => { router.push("/owner/subscriptions"); setShowWarningPopup(false); }}
+                  className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-all"
+                >
+                  Renew Now
+                </button>
+                <button
+                  onClick={() => setShowWarningPopup(false)}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-all"
+                >
+                  Later
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Blocked Popup */}
+      {showBlockedPopup && subStatusData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Access Blocked</h3>
+                  <p className="text-red-100 text-sm">Your subscription has expired</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {subStatusData.hostels
+                .filter((h) => h.subscription_status === "blocked")
+                .map((h) => (
+                  <div key={h.hostel_id} className="mb-4 last:mb-0">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                      <p className="text-sm font-semibold text-red-900 mb-1">{h.hostel_name}</p>
+                      <p className="text-xs text-red-600 leading-relaxed">{h.message}</p>
+                    </div>
+                  </div>
+                ))}
+              <button
+                onClick={() => { router.push("/owner/subscriptions"); setShowBlockedPopup(false); }}
+                className="w-full px-4 py-3 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                Renew Subscription
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Subscription Popup */}
+      {showNoSubPopup && subStatusData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Subscribe Your Hostel</h3>
+                  <p className="text-blue-100 text-sm">Choose a plan to get started</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
+                <p className="text-sm text-blue-700 leading-relaxed">
+                  Your hostel is using the subscription model. Please subscribe to a plan to access all platform features and manage your hostel effectively.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { router.push("/owner/subscriptions"); setShowNoSubPopup(false); }}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all"
+                >
+                  View Plans
+                </button>
+                <button
+                  onClick={() => setShowNoSubPopup(false)}
+                  className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-200 transition-all"
+                >
+                  Later
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }
