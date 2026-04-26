@@ -159,12 +159,13 @@ export async function toggleNotificationSetting(
   type: string,
   channel: "mail" | "sms" | "push_notification"
 ): Promise<NotificationSettingRow | null> {
-  const column =
-    channel === "mail"
-      ? "mail_status"
-      : channel === "sms"
-        ? "sms_status"
-        : "push_notification_status";
+  const validColumns: Record<string, string> = {
+    mail: "mail_status",
+    sms: "sms_status",
+    push_notification: "push_notification_status",
+  };
+  const column = validColumns[channel];
+  if (!column) return null;
 
   const [existing] = await db.execute<NotificationSettingRow[]>(
     "SELECT * FROM notification_settings WHERE `key` = ? AND type = ?",

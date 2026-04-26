@@ -16,9 +16,9 @@ interface MessageData {
   status: boolean;
 }
 
-const USER_TYPE_TABS: { key: UserType; label: string; color: string }[] = [
-  { key: "CUSTOMER", label: "Customer", color: "green" },
-  { key: "OWNER", label: "Owner", color: "blue" },
+const USER_TYPE_TABS: { key: UserType; label: string }[] = [
+  { key: "CUSTOMER", label: "Customer" },
+  { key: "OWNER", label: "Owner" },
 ];
 
 // Available variables for message templates
@@ -180,21 +180,22 @@ export default function NotificationMessagesPage() {
       )}
 
       {/* User Type Tabs */}
-      <div className="flex gap-2 mb-5">
+      <ul className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-lg w-fit">
         {USER_TYPE_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveType(tab.key)}
-            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              activeType === tab.key
-                ? `bg-${tab.color}-600 text-white shadow-lg`
-                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
-            }`}
-          >
-            {tab.label}
-          </button>
+          <li key={tab.key}>
+            <button
+              onClick={() => setActiveType(tab.key)}
+              className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
+                activeType === tab.key
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          </li>
         ))}
-      </div>
+      </ul>
 
       {/* Form */}
       {loading ? (
