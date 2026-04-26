@@ -78,7 +78,7 @@ interface Stats {
   occupancy_rate: number;
 }
 
-type Tab = "overview" | "rooms" | "bookings" | "transactions" | "reviews" | "discount" | "conversations" | "business" | "meta" | "qrcode";
+type Tab = "overview" | "rooms" | "bookings" | "transactions" | "reviews" | "discount" | "conversations" | "business" | "subscription" | "meta" | "qrcode";
 
 // ── Conversation interfaces ──
 interface ConvMessage {
@@ -244,6 +244,14 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [savingDiscount, setSavingDiscount] = useState(false);
 
+  // ── Subscription state ──
+  const [hostelSubData, setHostelSubData] = useState<any>(null);
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  const [extendDays, setExtendDays] = useState("30");
+  const [subLoading, setSubLoading] = useState(false);
+  const [subAction, setSubAction] = useState<string | null>(null);
+
 
 
   // ── Fetch feature data when tab changes ──
@@ -255,7 +263,51 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
     if (activeTab === "qrcode") fetchQRData();
     if (activeTab === "reviews") fetchReviews();
     if (activeTab === "discount") fetchDiscount();
+    if (activeTab === "subscription") { fetchHostelSubscription(); fetchAvailablePlans(); }
   }, [activeTab, id]);
+
+  // ── Subscription API ──
+  const fetchHostelSubscription = async () => {
+    try {
+      setSubLoading(true);
+      const res = await apiFetch(`/api/admin/subscriptions/hostel/${id}`);
+      if (res.success) {
+        setHostelSubData(res.data);
+        // Update local hostel state
+        if (res.data.hostel) {
+          setHostel(prev => prev ? { ...prev, business_model: res.data.hostel.business_model, commission_rate: res.data.hostel.commission_rate } : null);
+          setEditCommissionModel(res.data.hostel.business_model || "commission");
+          setEditCommissionRate((res.data.hostel.commission_rate || 12).toString());
+        }
+      }
+    } catch (e) { console.error(e); }
+    finally { setSubLoading(false); }
+  };
+
+  const fetchAvailablePlans = async () => {
+    try {
+      const res = await apiFetch("/api/admin/subscriptions/plans?status=active");
+      if (res.success) setAvailablePlans(res.data || []);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleSubscriptionAction = async (action: string, extraData: any = {}) => {
+    try {
+      setSubAction(action);
+      const res = await apiFetch(`/api/admin/subscriptions/hostel/${id}`, {
+        method: "POST",
+        body: JSON.stringify({ action, ...extraData }),
+      });
+      if (res.success) {
+        setMessage({ type: "success", text: `✅ ${res.message || "Action completed"}` });
+        fetchHostelSubscription();
+      } else {
+        setMessage({ type: "error", text: res.message || "Action failed" });
+      }
+    } catch (e: any) {
+      setMessage({ type: "error", text: e.message || "Action failed" });
+    } finally { setSubAction(null); }
+  };
 
 
 
@@ -744,6 +796,7 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                 { id: "discount" as Tab, label: "Discount", icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" },
                 { id: "conversations" as Tab, label: "Conversations", icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" },
                 { id: "business" as Tab, label: "Business Plan", icon: "M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
+                { id: "subscription" as Tab, label: "Subscription", icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" },
                 { id: "meta" as Tab, label: "Meta Data", icon: "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
                 { id: "qrcode" as Tab, label: "QR Code", icon: "M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" },
               ].map((tab) => (
@@ -1806,6 +1859,387 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* ── SUBSCRIPTION MANAGEMENT TAB ── */}
+      {/* ════════════════════════════════════════════════════════ */}
+      {activeTab === "subscription" && (
+        <div className="space-y-6">
+          {subLoading ? (
+            <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+              <svg className="animate-spin h-8 w-8 text-purple-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <p className="text-gray-400">Loading subscription data...</p>
+            </div>
+          ) : hostelSubData ? (
+            <>
+              {/* Business Model Selector */}
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-50">
+                  <h3 className="text-base font-bold text-gray-900">Business Model</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Switch between commission and subscription model for this hostel</p>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Commission Option */}
+                    <button
+                      onClick={() => handleSubscriptionAction("change_model", { business_model: "commission", commission_rate: editCommissionRate })}
+                      disabled={subAction === "change_model"}
+                      className={`p-5 rounded-xl border-2 transition-all text-left ${
+                        hostelSubData.hostel?.business_model === "commission"
+                          ? "border-amber-500 bg-amber-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          hostelSubData.hostel?.business_model === "commission" ? "bg-amber-100" : "bg-gray-100"
+                        }`}>
+                          <svg className={`w-5 h-5 ${
+                            hostelSubData.hostel?.business_model === "commission" ? "text-amber-600" : "text-gray-500"
+                          }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900">Commission Model</h4>
+                          <p className="text-xs text-gray-500">Platform takes % per booking</p>
+                        </div>
+                      </div>
+                      {hostelSubData.hostel?.business_model === "commission" && (
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">Active</span>
+                          <span className="text-sm font-semibold text-amber-700">{hostelSubData.hostel?.commission_rate || 12}% per booking</span>
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Subscription Option */}
+                    <button
+                      onClick={() => handleSubscriptionAction("change_model", { business_model: "subscription" })}
+                      disabled={subAction === "change_model"}
+                      className={`p-5 rounded-xl border-2 transition-all text-left ${
+                        hostelSubData.hostel?.business_model === "subscription"
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          hostelSubData.hostel?.business_model === "subscription" ? "bg-purple-100" : "bg-gray-100"
+                        }`}>
+                          <svg className={`w-5 h-5 ${
+                            hostelSubData.hostel?.business_model === "subscription" ? "text-purple-600" : "text-gray-500"
+                          }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900">Subscription Model</h4>
+                          <p className="text-xs text-gray-500">Fixed monthly/quarterly payment</p>
+                        </div>
+                      </div>
+                      {hostelSubData.hostel?.business_model === "subscription" && (
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold">Active</span>
+                          <span className="text-sm font-semibold text-purple-700">
+                            {hostelSubData.active_subscription ? hostelSubData.active_subscription.plan_name : "No plan assigned"}
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Commission Rate (when commission is selected) */}
+                  {hostelSubData.hostel?.business_model === "commission" && (
+                    <div className="mt-5 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-amber-900">Commission Rate</p>
+                          <p className="text-xs text-amber-600">Percentage charged per booking</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={editCommissionRate}
+                            onChange={(e) => setEditCommissionRate(e.target.value)}
+                            min="0" max="100" step="0.5"
+                            className="w-20 px-3 py-2 border border-amber-300 rounded-lg text-sm font-bold text-amber-700 text-center focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                          />
+                          <span className="text-sm font-bold text-amber-700">%</span>
+                          <button
+                            onClick={() => handleSubscriptionAction("change_model", { business_model: "commission", commission_rate: editCommissionRate })}
+                            disabled={subAction === "change_model"}
+                            className="px-4 py-2 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 disabled:opacity-50 transition-all"
+                          >
+                            Update
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Current Subscription (when subscription model is active) */}
+              {hostelSubData.hostel?.business_model === "subscription" && (
+                <>
+                  {/* Active Subscription Card */}
+                  {hostelSubData.active_subscription ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                      <div className={`px-6 py-4 ${
+                        hostelSubData.active_subscription.computed_status === "grace" 
+                          ? "bg-gradient-to-r from-amber-500 to-orange-600"
+                          : hostelSubData.active_subscription.computed_status === "expired"
+                          ? "bg-gradient-to-r from-red-500 to-rose-600"
+                          : "bg-gradient-to-r from-emerald-600 to-teal-700"
+                      } text-white`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-white/70">Current Subscription</p>
+                            <h3 className="text-lg font-bold">{hostelSubData.active_subscription.plan_name}</h3>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            hostelSubData.active_subscription.computed_status === "active" ? "bg-white/20" :
+                            hostelSubData.active_subscription.computed_status === "grace" ? "bg-amber-800/50" :
+                            "bg-red-800/50"
+                          }`}>
+                            {hostelSubData.active_subscription.computed_status === "grace" ? "Grace Period" :
+                             hostelSubData.active_subscription.computed_status.charAt(0).toUpperCase() +
+                             hostelSubData.active_subscription.computed_status.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <p className="text-xs text-gray-400">Plan Type</p>
+                            <p className="text-sm font-bold text-gray-900">{hostelSubData.active_subscription.plan_type === "half_yearly" ? "Half Yearly" : hostelSubData.active_subscription.plan_type?.charAt(0).toUpperCase() + hostelSubData.active_subscription.plan_type?.slice(1)}</p>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <p className="text-xs text-gray-400">Amount Paid</p>
+                            <p className="text-sm font-bold text-gray-900">₹{hostelSubData.active_subscription.amount_paid}</p>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <p className="text-xs text-gray-400">Start Date</p>
+                            <p className="text-sm font-bold text-gray-900">{new Date(hostelSubData.active_subscription.start_date).toLocaleDateString()}</p>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-xl">
+                            <p className="text-xs text-gray-400">End Date</p>
+                            <p className="text-sm font-bold text-gray-900">{new Date(hostelSubData.active_subscription.end_date).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+
+                        {/* Status Alerts */}
+                        {hostelSubData.active_subscription.computed_status === "active" && hostelSubData.active_subscription.days_remaining > 0 && (
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4">
+                            <p className="text-sm text-emerald-700 font-medium">⏰ {hostelSubData.active_subscription.days_remaining} days remaining</p>
+                          </div>
+                        )}
+                        {hostelSubData.active_subscription.computed_status === "grace" && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                            <p className="text-sm text-amber-700 font-medium">⚠️ Grace period: {hostelSubData.active_subscription.grace_days_remaining} days left before access blocked!</p>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            onClick={() => handleSubscriptionAction("extend", { extend_days: extendDays })}
+                            disabled={subAction === "extend"}
+                            className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                          >
+                            {subAction === "extend" ? (
+                              <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Extending...</>
+                            ) : (
+                              <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>Extend (+{extendDays} days)</>
+                            )}
+                          </button>
+                          <select
+                            value={extendDays}
+                            onChange={(e) => setExtendDays(e.target.value)}
+                            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                          >
+                            <option value="7">7 days</option>
+                            <option value="14">14 days</option>
+                            <option value="30">30 days</option>
+                            <option value="60">60 days</option>
+                            <option value="90">90 days</option>
+                          </select>
+                          <button
+                            onClick={() => handleSubscriptionAction("renew")}
+                            disabled={subAction === "renew"}
+                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-all"
+                          >
+                            {subAction === "renew" ? "Renewing..." : "Renew"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm("Are you sure you want to cancel this subscription?")) {
+                                handleSubscriptionAction("cancel");
+                              }
+                            }}
+                            disabled={subAction === "cancel"}
+                            className="px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 disabled:opacity-50 transition-all"
+                          >
+                            {subAction === "cancel" ? "Cancelling..." : "Cancel Subscription"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* No Active Subscription */
+                    <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+                      <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">No Active Subscription</h3>
+                      <p className="text-sm text-gray-500 mb-6">This hostel is on subscription model but has no active plan</p>
+                    </div>
+                  )}
+
+                  {/* Assign New Plan */}
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-50">
+                      <h3 className="text-base font-bold text-gray-900">
+                        {hostelSubData.active_subscription ? "Change Plan" : "Assign Plan"}
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-0.5">Select a subscription plan for this hostel</p>
+                    </div>
+                    <div className="p-6">
+                      {availablePlans.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-4">No active plans available. Create plans in Subscription Management first.</p>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+                            {availablePlans.map((plan) => (
+                              <button
+                                key={plan.id}
+                                onClick={() => setSelectedPlanId(plan.id)}
+                                className={`p-4 rounded-xl border-2 transition-all text-left ${
+                                  selectedPlanId === plan.id
+                                    ? "border-purple-500 bg-purple-50"
+                                    : hostelSubData.active_subscription?.plan_id === plan.id
+                                    ? "border-emerald-500 bg-emerald-50"
+                                    : "border-gray-200 hover:border-gray-300"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-semibold">
+                                    {plan.plan_type === "half_yearly" ? "Half Yr" : plan.plan_type?.charAt(0).toUpperCase() + plan.plan_type?.slice(1)}
+                                  </span>
+                                  {hostelSubData.active_subscription?.plan_id === plan.id && (
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">Current</span>
+                                  )}
+                                </div>
+                                <h4 className="font-bold text-gray-900 mb-1">{plan.name}</h4>
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-lg font-bold text-gray-900">₹{plan.amount - (plan.amount * (plan.discount_percent || 0) / 100)}</span>
+                                  {plan.discount_percent > 0 && (
+                                    <>
+                                      <span className="text-sm text-gray-400 line-through">₹{plan.amount}</span>
+                                      <span className="text-xs text-emerald-600 font-bold">{plan.discount_percent}% OFF</span>
+                                    </>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">{plan.grace_period_days}-day grace period</p>
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (selectedPlanId) {
+                                if (hostelSubData.active_subscription) {
+                                  if (confirm("This will cancel the current subscription and assign the new plan. Continue?")) {
+                                    handleSubscriptionAction("assign_plan", { plan_id: selectedPlanId });
+                                  }
+                                } else {
+                                  handleSubscriptionAction("assign_plan", { plan_id: selectedPlanId });
+                                }
+                              }
+                            }}
+                            disabled={!selectedPlanId || subAction === "assign_plan"}
+                            className="px-6 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                          >
+                            {subAction === "assign_plan" ? (
+                              <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Assigning...</>
+                            ) : (
+                              <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{hostelSubData.active_subscription ? "Change Plan" : "Assign Plan"}</>
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Subscription History */}
+                  {hostelSubData.all_subscriptions?.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                      <div className="px-6 py-4 border-b border-gray-50">
+                        <h3 className="text-base font-bold text-gray-900">Subscription History</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100">
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Plan</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Period</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Payment</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {hostelSubData.all_subscriptions.map((sub: any) => (
+                              <tr key={sub.id} className="hover:bg-gray-50/50">
+                                <td className="px-6 py-3">
+                                  <p className="text-sm font-semibold text-gray-900">{sub.plan_name}</p>
+                                  <p className="text-xs text-gray-400">{sub.plan_type}</p>
+                                </td>
+                                <td className="px-6 py-3 text-sm font-bold text-gray-900">₹{sub.amount_paid}</td>
+                                <td className="px-6 py-3">
+                                  <p className="text-xs text-gray-600">{new Date(sub.start_date).toLocaleDateString()} - {new Date(sub.end_date).toLocaleDateString()}</p>
+                                </td>
+                                <td className="px-6 py-3">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    sub.computed_status === "active" ? "bg-emerald-100 text-emerald-700" :
+                                    sub.computed_status === "grace" ? "bg-amber-100 text-amber-700" :
+                                    sub.computed_status === "expired" ? "bg-red-100 text-red-700" :
+                                    "bg-gray-100 text-gray-700"
+                                  }`}>
+                                    {sub.computed_status === "grace" ? "Grace" : sub.computed_status?.charAt(0).toUpperCase() + sub.computed_status?.slice(1)}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-3">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    sub.payment_status === "paid" ? "bg-emerald-100 text-emerald-700" :
+                                    sub.payment_status === "pending" ? "bg-amber-100 text-amber-700" :
+                                    "bg-red-100 text-red-700"
+                                  }`}>
+                                    {sub.payment_status?.charAt(0).toUpperCase() + sub.payment_status?.slice(1)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+              <p className="text-gray-500">Failed to load subscription data</p>
+            </div>
+          )}
         </div>
       )}
 
