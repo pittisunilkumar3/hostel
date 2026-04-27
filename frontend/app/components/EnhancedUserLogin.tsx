@@ -83,7 +83,7 @@ export default function EnhancedUserLogin() {
       }
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
-      router.push("/user/dashboard");
+      router.push("/");
     } catch {
       setError("Network error. Please check your connection.");
     } finally {
@@ -125,7 +125,7 @@ export default function EnhancedUserLogin() {
             }
             localStorage.setItem("token", data.data.token);
             localStorage.setItem("user", JSON.stringify(data.data.user));
-            router.push("/user/dashboard");
+            router.push("/");
           } catch {
             setError("Google authentication failed");
           }
@@ -180,7 +180,7 @@ export default function EnhancedUserLogin() {
       }
       localStorage.setItem("token", data.data.token);
       localStorage.setItem("user", JSON.stringify(data.data.user));
-      router.push("/user/dashboard");
+      router.push("/");
     } catch {
       setError("Network error");
     } finally {
