@@ -78,7 +78,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const {
       room_number, room_type, capacity, pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing,
-      amenities, furnishing, dimensions, description, status, is_active
+      amenities, furnishing, dimensions, description, status, is_active, current_occupancy
     } = body;
 
     // Verify room belongs to owner's hostel
@@ -176,6 +176,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (is_active !== undefined) {
       updates.push("is_active = ?");
       values.push(is_active ? 1 : 0);
+    }
+    if (current_occupancy !== undefined) {
+      const newOccupancy = parseInt(current_occupancy);
+      if (newOccupancy < 0) {
+        return errorResponse("Occupancy cannot be negative", 400);
+      }
+      // Use the existing capacity or the new one if being updated
+      const maxCapacity = capacity !== undefined ? parseInt(capacity) : existing[0].capacity;
+      if (newOccupancy > maxCapacity) {
+        return errorResponse(`Occupancy cannot exceed capacity (${maxCapacity})`, 400);
+      }
+      updates.push("current_occupancy = ?");
+      values.push(newOccupancy);
     }
 
     if (updates.length === 0) {

@@ -312,6 +312,24 @@ export default function FloorRoomManagement() {
     }
   };
 
+  const handleUpdateRoom = async (roomId: number, updates: any) => {
+    try {
+      const res = await apiFetch(`/api/owner/rooms/${roomId}`, {
+        method: "PUT",
+        body: JSON.stringify(updates)
+      });
+      if (res.success) {
+        setMessage({ type: "success", text: "Room updated successfully" });
+        fetchRooms();
+        fetchFloors();
+      } else {
+        setMessage({ type: "error", text: res.message || "Failed to update room" });
+      }
+    } catch (e: any) {
+      setMessage({ type: "error", text: e.message || "Failed to update room" });
+    }
+  };
+
   const resetRoomForm = () => {
     setRoomForm({
       floor_id: "", room_number: "", room_type: "SINGLE", capacity: "1",
@@ -702,7 +720,7 @@ export default function FloorRoomManagement() {
                                 <div>
                                   <h4 className="text-lg font-bold text-gray-900">{room.room_number}</h4>
                                   <p className="text-sm text-gray-400">
-                                    {room.type.charAt(0) + room.type.slice(1).toLowerCase()} • {room.capacity} bed{room.capacity !== 1 ? "s" : ""}
+                                    {room.type.charAt(0) + room.type.slice(1).toLowerCase()} • {room.capacity > 1 ? room.capacity + ' beds' : 'bed'}
                                   </p>
                                 </div>
                                 <span className={`px-2 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(room.status)}`}>
@@ -762,6 +780,34 @@ export default function FloorRoomManagement() {
 
                               {/* Actions */}
                               <div className="flex gap-2 pt-2 border-t border-gray-100">
+                                <button
+                                  onClick={() => {
+                                    const newOccupancy = Math.min(room.current_occupancy + 1, room.capacity);
+                                    const newStatus = newOccupancy === room.capacity ? "OCCUPIED" : newOccupancy > 0 ? "AVAILABLE" : "AVAILABLE";
+                                    handleUpdateRoom(room.id, { current_occupancy: newOccupancy, status: newStatus });
+                                  }}
+                                  disabled={room.current_occupancy >= room.capacity}
+                                  className="flex items-center justify-center gap-1 px-2 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Add occupant"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const newOccupancy = Math.max(room.current_occupancy - 1, 0);
+                                    const newStatus = newOccupancy === 0 ? "AVAILABLE" : "AVAILABLE";
+                                    handleUpdateRoom(room.id, { current_occupancy: newOccupancy, status: newStatus });
+                                  }}
+                                  disabled={room.current_occupancy <= 0}
+                                  className="flex items-center justify-center gap-1 px-2 py-2 text-sm font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Remove occupant"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+                                  </svg>
+                                </button>
                                 <button
                                   onClick={() => openEditRoom(room)}
                                   className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
