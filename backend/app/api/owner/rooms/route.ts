@@ -160,8 +160,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Insert room
     const [result] = await db.execute(
-      `INSERT INTO rooms (hostel_id, floor_id, floor, room_number, type, capacity, price_per_month, amenities, furnishing, dimensions, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rooms (hostel_id, floor_id, floor, room_number, type, capacity, price_per_month, amenities, furnishing, dimensions, description, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         parseInt(hostel_id),
         parseInt(floor_id),

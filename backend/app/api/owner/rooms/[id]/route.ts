@@ -152,6 +152,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return errorResponse("No fields to update", 400);
     }
 
+    // Always update updated_at
+    updates.push("updated_at = NOW()");
+
     values.push(parseInt(id));
     await db.execute(
       `UPDATE rooms SET ${updates.join(", ")} WHERE id = ?`,
