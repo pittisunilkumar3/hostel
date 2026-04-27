@@ -702,7 +702,7 @@ export default function FloorRoomManagement() {
                                 <div>
                                   <h4 className="text-lg font-bold text-gray-900">{room.room_number}</h4>
                                   <p className="text-sm text-gray-400">
-                                    {room.type.charAt(0) + room.type.slice(1).toLowerCase()} • {room.capacity > 1 ? room.capacity + ' beds' : 'bed'}
+                                    {room.type.charAt(0) + room.type.slice(1).toLowerCase()} • {room.capacity} bed{room.capacity !== 1 ? "s" : ""}
                                   </p>
                                 </div>
                                 <span className={`px-2 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(room.status)}`}>
@@ -950,7 +950,7 @@ export default function FloorRoomManagement() {
                           'SINGLE': '1',
                           'DOUBLE': '2',
                           'TRIPLE': '3',
-                          'DORMITORY': '10'
+                          'DORMITORY': '4'
                         };
                         setRoomForm({ 
                           ...roomForm, 
@@ -963,21 +963,24 @@ export default function FloorRoomManagement() {
                       <option value="SINGLE">Single (1 bed)</option>
                       <option value="DOUBLE">Double (2 beds)</option>
                       <option value="TRIPLE">Triple (3 beds)</option>
-                      <option value="DORMITORY">Dormitory (10 beds)</option>
+                      <option value="DORMITORY">Dormitory (4-10 beds)</option>
                     </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Capacity (beds) *</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="20"
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Capacity (beds) *
+                    </label>
+                    <select
                       value={roomForm.capacity}
                       onChange={(e) => setRoomForm({ ...roomForm, capacity: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                    />
+                    >
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map(num => (
+                        <option key={num} value={num}>{num} bed{num !== 1 ? 's' : ''}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Pricing Type *</label>
