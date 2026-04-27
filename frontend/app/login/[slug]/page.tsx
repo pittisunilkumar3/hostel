@@ -18,12 +18,6 @@ export default function DynamicLoginPage() {
   useEffect(() => {
     const resolveLoginType = async () => {
       try {
-        // First check hardcoded routes
-        if (slug === "admin") { setLoginType("admin"); setLoading(false); return; }
-        if (slug === "owner") { setLoginType("owner"); setLoading(false); return; }
-        if (slug === "user") { setLoginType("customer"); setLoading(false); return; }
-
-        // Fetch configured login URLs from API
         const res = await fetch(`${API_URL}/api/settings/login-url-public`);
         const data = await res.json();
 
@@ -37,11 +31,7 @@ export default function DynamicLoginPage() {
           setNotFound(true);
         }
       } catch {
-        // Fallback to hardcoded routes
-        if (slug === "admin") setLoginType("admin");
-        else if (slug === "owner") setLoginType("owner");
-        else if (slug === "user") setLoginType("customer");
-        else setNotFound(true);
+        setNotFound(true);
       } finally {
         setLoading(false);
       }
@@ -86,7 +76,6 @@ export default function DynamicLoginPage() {
     );
   }
 
-  // Render the appropriate login form
   if (loginType === "admin") {
     return (
       <LoginForm

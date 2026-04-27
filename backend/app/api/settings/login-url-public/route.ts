@@ -21,11 +21,6 @@ export async function GET() {
       data[row.setting_key] = row.setting_value;
     }
 
-    // Defaults
-    if (!data.admin_login_url) data.admin_login_url = "admin";
-    if (!data.owner_login_url) data.owner_login_url = "owner";
-    if (!data.customer_login_url) data.customer_login_url = "user";
-
     return successResponse(data, "Login URLs fetched");
   } catch (error: any) {
     return errorResponse(error.message, 500);

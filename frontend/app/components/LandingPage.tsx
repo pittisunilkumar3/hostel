@@ -11,7 +11,7 @@ export default function LandingPage() {
   const site = useSiteSettings();
   const name = site.companyName || "Hostel Management";
   const [activeTab, setActiveTab] = useState(0);
-  const [loginUrls, setLoginUrls] = useState({ admin: "admin", owner: "owner", customer: "user" });
+  const [loginUrls, setLoginUrls] = useState({ admin: "", owner: "", customer: "" });
 
   useEffect(() => {
     const fetchLoginUrls = async () => {
@@ -20,9 +20,9 @@ export default function LandingPage() {
         const data = await res.json();
         if (data.success && data.data) {
           setLoginUrls({
-            admin: data.data.admin_login_url || "admin",
-            owner: data.data.owner_login_url || "owner",
-            customer: data.data.customer_login_url || "user",
+            admin: data.data.admin_login_url || "",
+            owner: data.data.owner_login_url || "",
+            customer: data.data.customer_login_url || "",
           });
         }
       } catch (e) {

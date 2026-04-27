@@ -11,7 +11,7 @@ export default function PublicHeader() {
   const logo = site.companyLogo;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [loginUrl, setLoginUrl] = useState("/login/user");
+  const [loginUrl, setLoginUrl] = useState("/");
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
