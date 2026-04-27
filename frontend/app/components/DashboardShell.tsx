@@ -162,13 +162,47 @@ export default function DashboardShell({
 
   /* ── Auth gate ── */
   useEffect(() => {
-    const u = getCurrentUser();
-    const authed = isAuthenticated();
-    if (!authed || !u) { router.replace(`/login/${role}`); return; }
-    const expectedRole = role === "admin" ? "SUPER_ADMIN" : role === "owner" ? "OWNER" : "CUSTOMER";
-    if (u.role !== expectedRole) { router.replace(`/login/${role}`); return; }
-    setUser(u);
-    setChecked(true);
+    const checkAuth = async () => {
+      const u = getCurrentUser();
+      const authed = isAuthenticated();
+      if (!authed || !u) {
+        // Fetch dynamic login URL
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/settings/login-url-public`);
+          const data = await res.json();
+          let loginSlug = role;
+          if (data.success && data.data) {
+            if (role === "admin") loginSlug = data.data.admin_login_url || "admin";
+            else if (role === "owner") loginSlug = data.data.owner_login_url || "owner";
+            else loginSlug = data.data.customer_login_url || "user";
+          }
+          router.replace(`/login/${loginSlug}`);
+        } catch {
+          router.replace(`/login/${role}`);
+        }
+        return;
+      }
+      const expectedRole = role === "admin" ? "SUPER_ADMIN" : role === "owner" ? "OWNER" : "CUSTOMER";
+      if (u.role !== expectedRole) {
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/settings/login-url-public`);
+          const data = await res.json();
+          let loginSlug = role;
+          if (data.success && data.data) {
+            if (role === "admin") loginSlug = data.data.admin_login_url || "admin";
+            else if (role === "owner") loginSlug = data.data.owner_login_url || "owner";
+            else loginSlug = data.data.customer_login_url || "user";
+          }
+          router.replace(`/login/${loginSlug}`);
+        } catch {
+          router.replace(`/login/${role}`);
+        }
+        return;
+      }
+      setUser(u);
+      setChecked(true);
+    };
+    checkAuth();
   }, [role, router]);
 
   const initials = user?.name
