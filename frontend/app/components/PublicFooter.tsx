@@ -75,14 +75,14 @@ export default function PublicFooter() {
             <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-5">Contact</h4>
             <ul className="space-y-3">
               <li>
-                <Link href="/pages/about-us" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">
+                <Link href="/contact" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">
                   Contact Us
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">
+                <Link href="/contact" className="text-gray-400 hover:text-emerald-400 text-sm transition-colors">
                   Support
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

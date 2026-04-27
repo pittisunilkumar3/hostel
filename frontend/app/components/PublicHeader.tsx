@@ -34,11 +34,10 @@ export default function PublicHeader() {
 
   const navLinks = [
     { href: "/", label: "Home" },
+    { href: "/contact", label: "Contact Us" },
     { href: "/pages/about-us", label: "About Us" },
     { href: "/pages/privacy-policy", label: "Privacy Policy" },
     { href: "/pages/terms-and-conditions", label: "Terms & Conditions" },
-    { href: "/pages/refund-policy", label: "Refund Policy" },
-    { href: "/pages/cancellation-policy", label: "Cancellation Policy" },
   ];
 
   return (
