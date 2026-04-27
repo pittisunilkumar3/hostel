@@ -705,10 +705,12 @@ export default function LandingPage() {
             <div>
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+                <li><Link href="/pages/about-us" className="hover:text-white transition-colors">About Us</Link></li>
                 <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
+                <li><Link href="/pages/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/pages/terms-and-conditions" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><Link href="/pages/refund-policy" className="hover:text-white transition-colors">Refund Policy</Link></li>
+                <li><Link href="/pages/cancellation-policy" className="hover:text-white transition-colors">Cancellation Policy</Link></li>
               </ul>
             </div>
           </div>
