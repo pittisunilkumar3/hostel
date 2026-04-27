@@ -127,7 +127,7 @@ export default function PublicHeader() {
               ))}
             </nav>
             <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-              <Link href="/login" className="block">
+              <Link href={loginUrl} className="block">
                 <button className="w-full px-4 py-3 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-sm font-semibold transition-all">
                   Sign In
                 </button>
