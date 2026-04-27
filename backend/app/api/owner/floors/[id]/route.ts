@@ -27,10 +27,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return errorResponse("Floor not found", 404);
     }
 
+    let amenities: string[] = [];
+    try {
+      if (floors[0].amenities && typeof floors[0].amenities === 'string') {
+        amenities = JSON.parse(floors[0].amenities);
+      } else if (Array.isArray(floors[0].amenities)) {
+        amenities = floors[0].amenities;
+      }
+    } catch (e) {
+      amenities = [];
+    }
+
     const floor = {
       ...floors[0],
-      amenities: floors[0].amenities ? JSON.parse(floors[0].amenities) : [],
-      is_active: Boolean(floors[0].is_active),
+      amenities,
+      is_active: floors[0].is_active === 1 || floors[0].is_active === true,
     };
 
     return successResponse(floor);

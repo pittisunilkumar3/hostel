@@ -53,11 +53,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const [floors] = await db.execute<RowDataPacket[]>(query, params);
 
     // Parse JSON fields
-    const parsedFloors = floors.map(floor => ({
-      ...floor,
-      amenities: floor.amenities ? JSON.parse(floor.amenities) : [],
-      is_active: Boolean(floor.is_active),
-    }));
+    const parsedFloors = floors.map(floor => {
+      let amenities: string[] = [];
+      try {
+        if (floor.amenities && typeof floor.amenities === 'string') {
+          amenities = JSON.parse(floor.amenities);
+        } else if (Array.isArray(floor.amenities)) {
+          amenities = floor.amenities;
+        }
+      } catch (e) {
+        amenities = [];
+      }
+      return {
+        ...floor,
+        amenities,
+        is_active: floor.is_active === 1 || floor.is_active === true,
+      };
+    });
 
     return successResponse(parsedFloors);
   } catch (e: any) {

@@ -63,14 +63,32 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const [rooms] = await db.execute<RowDataPacket[]>(query, params);
 
     // Parse JSON fields
-    const parsedRooms = rooms.map(room => ({
-      ...room,
-      amenities: room.amenities ? JSON.parse(room.amenities) : [],
-      furnishing: room.furnishing ? JSON.parse(room.furnishing) : [],
-      dimensions: room.dimensions ? JSON.parse(room.dimensions) : null,
-      images: room.images ? JSON.parse(room.images) : [],
-      is_active: Boolean(room.is_active),
-    }));
+    const parsedRooms = rooms.map(room => {
+      const parseJson = (val: any) => {
+        try {
+          if (!val) return [];
+          if (typeof val === 'string') return JSON.parse(val);
+          if (Array.isArray(val)) return val;
+          return [];
+        } catch { return []; }
+      };
+      const parseDimensions = (val: any) => {
+        try {
+          if (!val) return null;
+          if (typeof val === 'string') return JSON.parse(val);
+          if (typeof val === 'object') return val;
+          return null;
+        } catch { return null; }
+      };
+      return {
+        ...room,
+        amenities: parseJson(room.amenities),
+        furnishing: parseJson(room.furnishing),
+        dimensions: parseDimensions(room.dimensions),
+        images: parseJson(room.images),
+        is_active: room.is_active === 1 || room.is_active === true,
+      };
+    });
 
     return successResponse(parsedRooms);
   } catch (e: any) {

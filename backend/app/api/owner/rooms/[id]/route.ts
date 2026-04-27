@@ -25,13 +25,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return errorResponse("Room not found", 404);
     }
 
+    const parseJson = (val: any) => {
+      try {
+        if (!val) return [];
+        if (typeof val === 'string') return JSON.parse(val);
+        if (Array.isArray(val)) return val;
+        return [];
+      } catch { return []; }
+    };
+    const parseDimensions = (val: any) => {
+      try {
+        if (!val) return null;
+        if (typeof val === 'string') return JSON.parse(val);
+        if (typeof val === 'object') return val;
+        return null;
+      } catch { return null; }
+    };
+
     const room = {
       ...rooms[0],
-      amenities: rooms[0].amenities ? JSON.parse(rooms[0].amenities) : [],
-      furnishing: rooms[0].furnishing ? JSON.parse(rooms[0].furnishing) : [],
-      dimensions: rooms[0].dimensions ? JSON.parse(rooms[0].dimensions) : null,
-      images: rooms[0].images ? JSON.parse(rooms[0].images) : [],
-      is_active: Boolean(rooms[0].is_active),
+      amenities: parseJson(rooms[0].amenities),
+      furnishing: parseJson(rooms[0].furnishing),
+      dimensions: parseDimensions(rooms[0].dimensions),
+      images: parseJson(rooms[0].images),
+      is_active: rooms[0].is_active === 1 || rooms[0].is_active === true,
     };
 
     return successResponse(room);
