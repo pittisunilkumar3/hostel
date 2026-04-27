@@ -26,10 +26,16 @@ export default function OwnerRegister() {
   const loginSetup = useLoginSetup();
   const anySocial = loginSetup.socialLogin && ((loginSetup.googleLogin && googleActive) || (loginSetup.facebookLogin && facebookActive) || (loginSetup.appleLogin && appleActive));
   const anyAlt = anySocial || (loginSetup.otpLogin && twilioActive);
+  const [ownerLoginUrl, setOwnerLoginUrl] = useState("/login/owner");
 
   useEffect(() => {
     (async () => {
-      try {
+      try {        
+        // Fetch login URLs
+        const lr = await (await fetch("http://localhost:3001/api/settings/login-url-public")).json();
+        if (lr.success && lr.data && lr.data.owner_login_url) {
+          setOwnerLoginUrl(`/login/${lr.data.owner_login_url}`);
+        }
         const gd = await (await fetch("http://localhost:3001/api/settings/google-status")).json();
         if (gd.success && gd.data.active) { setGoogleActive(true); setGoogleClientId(gd.data.clientId); }
         const td = await (await fetch("http://localhost:3001/api/settings/twilio-status")).json();
@@ -124,7 +130,7 @@ export default function OwnerRegister() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center p-4">
       {anySocial && googleClientId && <script src="https://accounts.google.com/gsi/client" async defer />}
       <div className="w-full max-w-[420px]">
-        <Link href="/login/owner" className="inline-flex items-center text-emerald-300 text-sm mb-5 hover:underline">
+        <Link href={ownerLoginUrl} className="inline-flex items-center text-emerald-300 text-sm mb-5 hover:underline">
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Back to Login
         </Link>
@@ -264,7 +270,7 @@ export default function OwnerRegister() {
 
         <p className="text-center text-gray-400 text-sm mt-5">
           Already have an account?{" "}
-          <Link href="/login/owner" className="text-emerald-400 font-semibold hover:underline">Sign In</Link>
+          <Link href={ownerLoginUrl} className="text-emerald-400 font-semibold hover:underline">Sign In</Link>
         </p>
       </div>
     </div>
