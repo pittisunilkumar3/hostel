@@ -65,6 +65,9 @@ export default function PublicHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const isCustomer = user?.role === "CUSTOMER";
+  const dashboardPath = user?.role === "SUPER_ADMIN" ? "/admin/dashboard" : user?.role === "OWNER" ? "/owner/dashboard" : "/";
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -166,8 +169,15 @@ export default function PublicHeader() {
 
             {/* Auth Buttons / Profile */}
             <div className="flex items-center gap-2">
-              {user ? (
-                /* Profile Dropdown */
+              {user && !isCustomer ? (
+                /* Admin/Owner - Show Dashboard Button */
+                <Link href={dashboardPath}>
+                  <button className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-lg transition-all shadow-md shadow-emerald-500/25">
+                    Go to Dashboard
+                  </button>
+                </Link>
+              ) : user && isCustomer ? (
+                /* Customer - Show Profile Dropdown */
                 <div ref={profileRef} className="relative">
                   <button
                     onClick={() => setProfileOpen(!profileOpen)}
@@ -324,7 +334,13 @@ export default function PublicHeader() {
                 ))}
               </div>
               <div className="border-t border-gray-100 pt-3 mt-3">
-                {user ? (
+                {user && !isCustomer ? (
+                  <Link href={dashboardPath} className="block">
+                    <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg text-sm font-semibold shadow-md shadow-emerald-500/25">
+                      Go to Dashboard
+                    </button>
+                  </Link>
+                ) : user && isCustomer ? (
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all"
