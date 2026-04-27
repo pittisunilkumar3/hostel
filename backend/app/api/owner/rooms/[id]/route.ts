@@ -110,7 +110,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       values.push(room_number);
     }
     if (room_type !== undefined) {
-      const validTypes = ["SINGLE", "DOUBLE", "TRIPLE", "DORMITORY"];
+      const validTypes = ["SINGLE", "DOUBLE", "TRIPLE", "QUAD", "FIVE_BED", "SIX_BED", "SEVEN_BED", "EIGHT_BED", "NINE_BED", "TEN_BED", "DORMITORY"];
       if (!validTypes.includes(room_type)) {
         return errorResponse("Invalid room type", 400);
       }

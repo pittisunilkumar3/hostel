@@ -169,9 +169,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Validate room type
-    const validTypes = ["SINGLE", "DOUBLE", "TRIPLE", "DORMITORY"];
+    const validTypes = ["SINGLE", "DOUBLE", "TRIPLE", "QUAD", "FIVE_BED", "SIX_BED", "SEVEN_BED", "EIGHT_BED", "NINE_BED", "TEN_BED", "DORMITORY"];
     if (!validTypes.includes(room_type)) {
-      return errorResponse("Invalid room type. Must be: SINGLE, DOUBLE, TRIPLE, or DORMITORY", 400);
+      return errorResponse("Invalid room type. Must be: SINGLE, DOUBLE, TRIPLE, QUAD, FIVE_BED, SIX_BED, SEVEN_BED, EIGHT_BED, NINE_BED, TEN_BED, or DORMITORY", 400);
     }
 
     const floorNumber = floors[0].floor_number;

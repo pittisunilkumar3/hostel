@@ -364,6 +364,23 @@ export default function FloorRoomManagement() {
     }
   };
 
+  const getRoomTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      'SINGLE': 'Single',
+      'DOUBLE': 'Double',
+      'TRIPLE': 'Triple',
+      'QUAD': 'Quad',
+      'FIVE_BED': '5 Bed',
+      'SIX_BED': '6 Bed',
+      'SEVEN_BED': '7 Bed',
+      'EIGHT_BED': '8 Bed',
+      'NINE_BED': '9 Bed',
+      'TEN_BED': '10 Bed',
+      'DORMITORY': 'Dormitory'
+    };
+    return labels[type] || type;
+  };
+
   // ── Loading state ──
   if (loading) {
     return (
@@ -702,7 +719,7 @@ export default function FloorRoomManagement() {
                                 <div>
                                   <h4 className="text-lg font-bold text-gray-900">{room.room_number}</h4>
                                   <p className="text-sm text-gray-400">
-                                    {room.type.charAt(0) + room.type.slice(1).toLowerCase()} • {room.capacity} bed{room.capacity !== 1 ? "s" : ""}
+                                    {getRoomTypeLabel(room.type)} • {room.capacity} bed{room.capacity !== 1 ? "s" : ""}
                                   </p>
                                 </div>
                                 <span className={`px-2 py-1 rounded-lg text-xs font-semibold border ${getStatusColor(room.status)}`}>
@@ -950,7 +967,14 @@ export default function FloorRoomManagement() {
                           'SINGLE': '1',
                           'DOUBLE': '2',
                           'TRIPLE': '3',
-                          'DORMITORY': '4'
+                          'QUAD': '4',
+                          'FIVE_BED': '5',
+                          'SIX_BED': '6',
+                          'SEVEN_BED': '7',
+                          'EIGHT_BED': '8',
+                          'NINE_BED': '9',
+                          'TEN_BED': '10',
+                          'DORMITORY': '10'
                         };
                         setRoomForm({ 
                           ...roomForm, 
@@ -963,7 +987,14 @@ export default function FloorRoomManagement() {
                       <option value="SINGLE">Single (1 bed)</option>
                       <option value="DOUBLE">Double (2 beds)</option>
                       <option value="TRIPLE">Triple (3 beds)</option>
-                      <option value="DORMITORY">Dormitory (4-10 beds)</option>
+                      <option value="QUAD">Quad (4 beds)</option>
+                      <option value="FIVE_BED">5 Beds</option>
+                      <option value="SIX_BED">6 Beds</option>
+                      <option value="SEVEN_BED">7 Beds</option>
+                      <option value="EIGHT_BED">8 Beds</option>
+                      <option value="NINE_BED">9 Beds</option>
+                      <option value="TEN_BED">10 Beds</option>
+                      <option value="DORMITORY">Dormitory (10+ beds)</option>
                     </select>
                   </div>
                 </div>
