@@ -10,9 +10,10 @@ const LOGIN_URL_KEYS = [
 // GET /api/settings/login-url-public (no auth required)
 export async function GET() {
   try {
+    const placeholders = LOGIN_URL_KEYS.map(() => "?").join(",");
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (?)`,
-      [LOGIN_URL_KEYS]
+      `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (${placeholders})`,
+      LOGIN_URL_KEYS
     );
 
     const data: Record<string, string> = {};

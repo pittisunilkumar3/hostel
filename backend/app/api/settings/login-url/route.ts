@@ -17,9 +17,10 @@ export async function GET(request: NextRequest) {
     const user = await getAuthenticatedUser(request);
     if (!user || user.role !== "SUPER_ADMIN") return errorResponse("Unauthorized", 401);
 
+    const placeholders = LOGIN_URL_KEYS.map(() => "?").join(",");
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (?)`,
-      [LOGIN_URL_KEYS]
+      `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (${placeholders})`,
+      LOGIN_URL_KEYS
     );
 
     const data: Record<string, string> = {};
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     // Defaults
     if (!data.admin_login_url) data.admin_login_url = "admin";
     if (!data.owner_login_url) data.owner_login_url = "owner";
+    if (!data.customer_login_url) data.customer_login_url = "user";
 
     return successResponse(data, "Login URLs fetched");
   } catch (error: any) {
@@ -62,20 +64,24 @@ export async function PUT(request: NextRequest) {
     };
 
     const key = validTypes[type];
-    if (!key) return errorResponse("Invalid type. Must be: admin, admin_employee, owner, or owner_employee", 400);
+    if (!key) return errorResponse("Invalid type. Must be: admin, admin_employee, owner, owner_employee, or customer", 400);
 
     // Check uniqueness — no two login URLs can be the same
-    const [existing] = await pool.execute<RowDataPacket[]>(
-      `SELECT setting_key FROM system_settings WHERE setting_value = ? AND setting_key != ? AND setting_key IN (?)`,
-      [value, key, Object.values(validTypes)]
-    );
-    if (existing.length > 0) {
-      return errorResponse(`This URL is already used by ${(existing[0] as any).setting_key.replace(/_/g, " ")}`, 400);
+    const otherKeys = Object.values(validTypes).filter((k) => k !== key);
+    if (otherKeys.length > 0) {
+      const placeholders = otherKeys.map(() => "?").join(",");
+      const [existing] = await pool.execute<RowDataPacket[]>(
+        `SELECT setting_key FROM system_settings WHERE setting_value = ? AND setting_key IN (${placeholders})`,
+        [value, ...otherKeys]
+      );
+      if (existing.length > 0) {
+        return errorResponse(`This URL is already used by ${(existing[0] as any).setting_key.replace(/_/g, " ")}`, 400);
+      }
     }
 
     await pool.execute(
-      `INSERT INTO system_settings (setting_key, setting_value, is_active) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE setting_value = ?`,
-      [key, value, value]
+      `INSERT INTO system_settings (setting_key, setting_value, is_active) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [key, value]
     );
 
     return successResponse({ type, key, value }, "Login URL updated successfully");
