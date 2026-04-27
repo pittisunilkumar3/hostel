@@ -78,6 +78,25 @@ export default function AdminRoomsPage() {
     maintenance: 0,
   });
 
+  // Color theme - using purple to match super admin panel
+  const colors = {
+    primary: 'purple',
+    iconBg: 'bg-purple-50',
+    iconText: 'text-purple-600',
+    iconHover: 'hover:bg-purple-100',
+    focusRing: 'focus:ring-purple-500/20',
+    focusBorder: 'focus:border-purple-400',
+    btnBg: 'bg-purple-600',
+    btnHover: 'hover:bg-purple-700',
+    btnShadow: 'shadow-purple-600/20',
+    gradientFrom: 'from-purple-500',
+    gradientTo: 'to-purple-600',
+    bgLight: 'bg-purple-50',
+    textLight: 'text-purple-100',
+    border: 'border-purple-200',
+    text: 'text-purple-700',
+  };
+
   // Edit dialog
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -244,8 +263,8 @@ export default function AdminRoomsPage() {
       role="admin"
       title="Super Admin"
       items={sidebarItems}
-      accentColor="text-indigo-300"
-      accentBg="bg-gradient-to-b from-indigo-900 to-indigo-950"
+      accentColor="text-purple-300"
+      accentBg="bg-gradient-to-b from-purple-900 to-purple-950"
       hoverBg="bg-white/10"
     >
       {/* Message Toast */}
@@ -257,65 +276,59 @@ export default function AdminRoomsPage() {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Room Management</h1>
-        <p className="text-gray-500 mt-1">Manage all rooms across all hostels</p>
+      {/* Page Header — mirrors reference vendor/list.blade.php page-header */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Rooms</h1>
+            <p className="text-gray-500 text-sm">Manage all rooms across all hostels</p>
+          </div>
+          <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">{stats.total}</span>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Total Rooms</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
+      {/* Stats Cards — mirrors reference resturant-card wrapper */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-3xl font-bold">{stats.total}</p>
+            <p className="text-purple-100 text-sm mt-1">Total Rooms</p>
           </div>
+          <svg className="absolute right-3 bottom-3 w-12 h-12 text-purple-400/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Available</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.available}</p>
-            </div>
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-5 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-3xl font-bold">{stats.available}</p>
+            <p className="text-green-100 text-sm mt-1">Available</p>
           </div>
+          <svg className="absolute right-3 bottom-3 w-12 h-12 text-green-400/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Occupied</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.occupied}</p>
-            </div>
+        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-3xl font-bold">{stats.occupied}</p>
+            <p className="text-blue-100 text-sm mt-1">Occupied</p>
           </div>
+          <svg className="absolute right-3 bottom-3 w-12 h-12 text-blue-400/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Maintenance</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.maintenance}</p>
-            </div>
+        <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-3xl font-bold">{stats.maintenance}</p>
+            <p className="text-amber-100 text-sm mt-1">Maintenance</p>
           </div>
+          <svg className="absolute right-3 bottom-3 w-12 h-12 text-amber-400/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
         </div>
       </div>
 
@@ -333,7 +346,7 @@ export default function AdminRoomsPage() {
                 placeholder="Search rooms or hostels..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
               />
             </div>
           </div>
@@ -343,7 +356,7 @@ export default function AdminRoomsPage() {
             <select
               value={hostelFilter}
               onChange={(e) => { setHostelFilter(e.target.value); setPage(1); }}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
             >
               <option value="all">All Hostels</option>
               {hostels.map(h => (
@@ -357,7 +370,7 @@ export default function AdminRoomsPage() {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
             >
               <option value="all">All Status</option>
               <option value="AVAILABLE">Available</option>
@@ -371,7 +384,7 @@ export default function AdminRoomsPage() {
             <select
               value={typeFilter}
               onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
             >
               <option value="all">All Types</option>
               <option value="SINGLE">Single</option>
@@ -423,8 +436,8 @@ export default function AdminRoomsPage() {
                       {/* Room Number */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                            <span className="text-indigo-600 font-bold text-sm">{room.room_number.slice(0, 2)}</span>
+                          <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+                            <span className="text-purple-600 font-bold text-sm">{room.room_number.slice(0, 2)}</span>
                           </div>
                           <div>
                             <p className="font-semibold text-gray-900">{room.room_number}</p>
@@ -491,7 +504,7 @@ export default function AdminRoomsPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditDialog(room)}
-                            className="p-2 text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                            className="p-2 text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
                             title="Edit Room"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -538,7 +551,7 @@ export default function AdminRoomsPage() {
                         onClick={() => setPage(pageNum)}
                         className={`px-3 py-1.5 text-sm rounded-lg ${
                           page === pageNum
-                            ? "bg-indigo-600 text-white"
+                            ? "bg-purple-600 text-white"
                             : "border border-gray-200 hover:bg-gray-50"
                         }`}
                       >
@@ -579,8 +592,8 @@ export default function AdminRoomsPage() {
               {/* Room Info */}
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                    <span className="text-indigo-600 font-bold">{editingRoom.room_number.slice(0, 2)}</span>
+                  <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <span className="text-purple-600 font-bold">{editingRoom.room_number.slice(0, 2)}</span>
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900">{editingRoom.room_number}</p>
@@ -605,7 +618,7 @@ export default function AdminRoomsPage() {
                 <select
                   value={editForm.status}
                   onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
                 >
                   <option value="AVAILABLE">Available</option>
                   <option value="OCCUPIED">Occupied</option>
@@ -622,7 +635,7 @@ export default function AdminRoomsPage() {
                 <button
                   onClick={() => setEditForm({ ...editForm, is_active: !editForm.is_active })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    editForm.is_active ? "bg-indigo-600" : "bg-gray-300"
+                    editForm.is_active ? "bg-purple-600" : "bg-gray-300"
                   }`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -641,7 +654,7 @@ export default function AdminRoomsPage() {
                 </button>
                 <button
                   onClick={handleUpdateRoom}
-                  className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all"
+                  className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition-all"
                 >
                   Update Room
                 </button>
