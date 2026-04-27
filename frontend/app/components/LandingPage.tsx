@@ -168,42 +168,50 @@ export default function LandingPage() {
             <div className="hidden lg:block">
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-3xl blur-2xl" />
-                <div className="relative space-y-4">
-                  <h3 className="text-gray-500 text-sm font-semibold uppercase tracking-wider mb-6 text-center">
-                    Choose Your Portal
-                  </h3>
-
-                  {[
-                    { href: "/login/admin", label: "Super Admin", desc: "Full system control & analytics", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", gradient: "from-purple-500 to-violet-600", shadow: "shadow-purple-500/25", hover: "hover:border-purple-200 hover:shadow-purple-500/10", textHover: "group-hover:text-purple-600", bg: "bg-purple-50", bgHover: "group-hover:bg-purple-100", iconColor: "text-purple-500" },
-                    { href: "/login/owner", label: "Hostel Owner", desc: "Manage properties & bookings", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", gradient: "from-emerald-500 to-teal-600", shadow: "shadow-emerald-500/25", hover: "hover:border-emerald-200 hover:shadow-emerald-500/10", textHover: "group-hover:text-emerald-600", bg: "bg-emerald-50", bgHover: "group-hover:bg-emerald-100", iconColor: "text-emerald-500" },
-                    { href: "/login/user", label: "Customer", desc: "Browse & book rooms easily", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z", gradient: "from-blue-500 to-cyan-600", shadow: "shadow-blue-500/25", hover: "hover:border-blue-200 hover:shadow-blue-500/10", textHover: "group-hover:text-blue-600", bg: "bg-blue-50", bgHover: "group-hover:bg-blue-100", iconColor: "text-blue-500" },
-                  ].map((portal) => (
-                    <Link key={portal.href} href={portal.href} className="group block">
-                      <div className={`bg-white rounded-2xl p-6 flex items-center gap-5 border border-gray-100 ${portal.hover} hover:shadow-xl transition-all duration-300`}>
-                        <div className={`w-14 h-14 bg-gradient-to-br ${portal.gradient} rounded-xl flex items-center justify-center shadow-lg ${portal.shadow}`}>
-                          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={portal.icon} />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className={`text-lg font-bold text-gray-900 ${portal.textHover} transition-colors`}>{portal.label}</h4>
-                          <p className="text-gray-500 text-sm">{portal.desc}</p>
-                        </div>
-                        <div className={`w-10 h-10 ${portal.bg} rounded-xl flex items-center justify-center ${portal.bgHover} transition-colors`}>
-                          <svg className={`w-5 h-5 ${portal.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                          </svg>
-                        </div>
+                <div className="relative bg-white rounded-3xl shadow-2xl border border-gray-100 p-8">
+                  {/* Dashboard Preview Illustration */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-3 h-3 bg-red-400 rounded-full" />
+                      <div className="w-3 h-3 bg-yellow-400 rounded-full" />
+                      <div className="w-3 h-3 bg-green-400 rounded-full" />
+                      <div className="ml-auto text-xs text-gray-400">Dashboard</div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="bg-white rounded-xl p-4 shadow-sm">
+                        <div className="text-2xl font-bold text-emerald-600">142</div>
+                        <div className="text-xs text-gray-500">Total Rooms</div>
                       </div>
-                    </Link>
-                  ))}
-
-                  <p className="text-center text-gray-400 text-sm mt-6">
-                    Don&apos;t have an account?{" "}
-                    <Link href="/register" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                      Register here
-                    </Link>
-                  </p>
+                      <div className="bg-white rounded-xl p-4 shadow-sm">
+                        <div className="text-2xl font-bold text-teal-600">89%</div>
+                        <div className="text-xs text-gray-500">Occupancy</div>
+                      </div>
+                      <div className="bg-white rounded-xl p-4 shadow-sm">
+                        <div className="text-2xl font-bold text-cyan-600">₹3.2L</div>
+                        <div className="text-xs text-gray-500">Revenue</div>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-700">Recent Bookings</span>
+                        <span className="text-xs text-emerald-600">View All</span>
+                      </div>
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex items-center gap-3 py-2 border-t border-gray-100">
+                          <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-700">Guest {i}</div>
+                            <div className="text-xs text-gray-400">Room {100 + i}</div>
+                          </div>
+                          <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs">Active</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
