@@ -237,10 +237,10 @@ export default function AdminRoomsPage() {
 
   const getRoomTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      'SINGLE': 'Single',
-      'DOUBLE': 'Double',
-      'TRIPLE': 'Triple',
-      'QUAD': 'Quad',
+      'SINGLE': 'Single (1 Bed)',
+      'DOUBLE': 'Double (2 Beds)',
+      'TRIPLE': 'Triple (3 Beds)',
+      'QUAD': 'Quad (4 Beds)',
       'FIVE_BED': '5 Bed',
       'SIX_BED': '6 Bed',
       'SEVEN_BED': '7 Bed',
@@ -387,10 +387,16 @@ export default function AdminRoomsPage() {
               className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
             >
               <option value="all">All Types</option>
-              <option value="SINGLE">Single</option>
-              <option value="DOUBLE">Double</option>
-              <option value="TRIPLE">Triple</option>
-              <option value="QUAD">Quad</option>
+              <option value="SINGLE">Single (1 Bed)</option>
+              <option value="DOUBLE">Double (2 Beds)</option>
+              <option value="TRIPLE">Triple (3 Beds)</option>
+              <option value="QUAD">Quad (4 Beds)</option>
+              <option value="FIVE_BED">5 Bed</option>
+              <option value="SIX_BED">6 Bed</option>
+              <option value="SEVEN_BED">7 Bed</option>
+              <option value="EIGHT_BED">8 Bed</option>
+              <option value="NINE_BED">9 Bed</option>
+              <option value="TEN_BED">10 Bed</option>
               <option value="DORMITORY">Dormitory</option>
             </select>
           </div>
