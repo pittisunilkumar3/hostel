@@ -401,7 +401,7 @@ export default function AdminRoomsPage() {
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="text-center py-20">
-            <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
             <p className="text-gray-400">Loading rooms...</p>
           </div>
         ) : rooms.length === 0 ? (
