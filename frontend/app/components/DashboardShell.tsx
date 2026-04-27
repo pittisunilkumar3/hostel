@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { getCurrentUser, logout, isAuthenticated } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useState, useRef, useEffect, useCallback, startTransition } from "react";
@@ -153,7 +153,6 @@ export default function DashboardShell({
   hoverBg,
 }: DashboardShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [checked, setChecked] = useState(false);
@@ -162,48 +161,20 @@ export default function DashboardShell({
 
   /* ── Auth gate ── */
   useEffect(() => {
-    const checkAuth = async () => {
-      const u = getCurrentUser();
-      const authed = isAuthenticated();
-      if (!authed || !u) {
-        // Fetch dynamic login URL
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/settings/login-url-public`);
-          const data = await res.json();
-          let loginSlug = role;
-          if (data.success && data.data) {
-            if (role === "admin") loginSlug = data.data.admin_login_url || "admin";
-            else if (role === "owner") loginSlug = data.data.owner_login_url || "owner";
-            else loginSlug = data.data.customer_login_url || "user";
-          }
-          router.replace(`/login/${loginSlug}`);
-        } catch {
-          router.replace(`/login/${role}`);
-        }
-        return;
-      }
-      const expectedRole = role === "admin" ? "SUPER_ADMIN" : role === "owner" ? "OWNER" : "CUSTOMER";
-      if (u.role !== expectedRole) {
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/settings/login-url-public`);
-          const data = await res.json();
-          let loginSlug = role;
-          if (data.success && data.data) {
-            if (role === "admin") loginSlug = data.data.admin_login_url || "admin";
-            else if (role === "owner") loginSlug = data.data.owner_login_url || "owner";
-            else loginSlug = data.data.customer_login_url || "user";
-          }
-          router.replace(`/login/${loginSlug}`);
-        } catch {
-          router.replace(`/login/${role}`);
-        }
-        return;
-      }
-      setUser(u);
-      setChecked(true);
-    };
-    checkAuth();
-  }, [role, router]);
+    const u = getCurrentUser();
+    const authed = isAuthenticated();
+    if (!authed || !u) {
+      window.location.href = "/login";
+      return;
+    }
+    const expectedRole = role === "admin" ? "SUPER_ADMIN" : role === "owner" ? "OWNER" : "CUSTOMER";
+    if (u.role !== expectedRole) {
+      window.location.href = "/login";
+      return;
+    }
+    setUser(u);
+    setChecked(true);
+  }, [role]);
 
   const initials = user?.name
     ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
