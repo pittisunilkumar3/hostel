@@ -9,13 +9,6 @@ import { getSidebarItems } from "@/app/owner/sidebarItems";
 const sidebarItems = getSidebarItems();
 
 // ── Types ──
-interface Hostel {
-  id: number;
-  name: string;
-  city: string;
-  state: string;
-}
-
 interface Floor {
   id: number;
   hostel_id: number;
@@ -73,8 +66,7 @@ export default function FloorRoomManagement() {
   const [loading, setLoading] = useState(true);
 
   // ── State ──
-  const [hostels, setHostels] = useState<Hostel[]>([]);
-  const [selectedHostel, setSelectedHostel] = useState<number | null>(null);
+  const [hostelId, setHostelId] = useState<number | null>(null);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [activeTab, setActiveTab] = useState<"floors" | "rooms">("floors");
@@ -119,11 +111,11 @@ export default function FloorRoomManagement() {
 
   // ── Fetch when hostel changes ──
   useEffect(() => {
-    if (selectedHostel) {
+    if (hostelId) {
       fetchFloors();
       fetchRooms();
     }
-  }, [selectedHostel]);
+  }, [hostelId]);
 
   // Auto-hide messages
   useEffect(() => {
@@ -136,11 +128,8 @@ export default function FloorRoomManagement() {
   const fetchHostels = async () => {
     try {
       const res = await apiFetch("/api/hostels/owner/my-hostels");
-      if (res.success) {
-        setHostels(res.data || []);
-        if (res.data?.length > 0) {
-          setSelectedHostel(res.data[0].id);
-        }
+      if (res.success && res.data?.length > 0) {
+        setHostelId(res.data[0].id);
       }
     } catch (e) {
       console.error("Failed to fetch hostels", e);
@@ -150,10 +139,10 @@ export default function FloorRoomManagement() {
   };
 
   const fetchFloors = async () => {
-    if (!selectedHostel) return;
+    if (!hostelId) return;
     try {
       setFetching(true);
-      const res = await apiFetch(`/api/owner/floors?hostel_id=${selectedHostel}`);
+      const res = await apiFetch(`/api/owner/floors?hostel_id=${hostelId}`);
       if (res.success) setFloors(res.data || []);
     } catch (e) {
       console.error("Failed to fetch floors", e);
@@ -163,9 +152,9 @@ export default function FloorRoomManagement() {
   };
 
   const fetchRooms = async () => {
-    if (!selectedHostel) return;
+    if (!hostelId) return;
     try {
-      const res = await apiFetch(`/api/owner/rooms?hostel_id=${selectedHostel}`);
+      const res = await apiFetch(`/api/owner/rooms?hostel_id=${hostelId}`);
       if (res.success) setRooms(res.data || []);
     } catch (e) {
       console.error("Failed to fetch rooms", e);
@@ -174,14 +163,14 @@ export default function FloorRoomManagement() {
 
   // ── Floor CRUD ──
   const handleFloorSubmit = async () => {
-    if (!selectedHostel || floorForm.floor_number === "" || !floorForm.floor_name) {
+    if (!hostelId || floorForm.floor_number === "" || !floorForm.floor_name) {
       setMessage({ type: "error", text: "Please fill in all required fields" });
       return;
     }
 
     try {
       const payload = {
-        hostel_id: selectedHostel,
+        hostel_id: hostelId,
         floor_number: parseInt(floorForm.floor_number),
         floor_name: floorForm.floor_name,
         description: floorForm.description || null,
@@ -239,14 +228,14 @@ export default function FloorRoomManagement() {
 
   // ── Room CRUD ──
   const handleRoomSubmit = async () => {
-    if (!selectedHostel || !roomForm.floor_id || !roomForm.room_number || !roomForm.price_per_month) {
+    if (!hostelId || !roomForm.floor_id || !roomForm.room_number || !roomForm.price_per_month) {
       setMessage({ type: "error", text: "Please fill in all required fields" });
       return;
     }
 
     try {
       const payload = {
-        hostel_id: selectedHostel,
+        hostel_id: hostelId,
         floor_id: parseInt(roomForm.floor_id),
         room_number: roomForm.room_number,
         room_type: roomForm.room_type,
@@ -359,7 +348,7 @@ export default function FloorRoomManagement() {
   }
 
   // ── No hostels ──
-  if (hostels.length === 0) {
+  if (!loading && !hostelId) {
     return (
       <DashboardShell role="owner" title="Hostel Owner" items={sidebarItems} accentColor="text-emerald-300" accentBg="bg-gradient-to-b from-emerald-900 to-emerald-950" hoverBg="bg-white/10">
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
@@ -368,8 +357,8 @@ export default function FloorRoomManagement() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Hostels Found</h2>
-          <p className="text-gray-500 mb-6">You need to register a hostel before managing floors and rooms.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">No Hostel Found</h2>
+          <p className="text-gray-500 mb-6">You need to register and get approved before managing floors and rooms.</p>
           <button onClick={() => router.push("/owner/register-hostel")} className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-all">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -396,20 +385,6 @@ export default function FloorRoomManagement() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Floor & Room Management</h1>
         <p className="text-gray-500 mt-1">Organize your hostel with floors and rooms</p>
-      </div>
-
-      {/* Hostel Selector */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Select Hostel</label>
-        <select
-          value={selectedHostel || ""}
-          onChange={(e) => setSelectedHostel(parseInt(e.target.value))}
-          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 text-gray-900"
-        >
-          {hostels.map(h => (
-            <option key={h.id} value={h.id}>{h.name} - {h.city}, {h.state}</option>
-          ))}
-        </select>
       </div>
 
       {/* Stats Cards */}
