@@ -150,13 +150,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return errorResponse("Invalid room type. Must be: SINGLE, DOUBLE, TRIPLE, or DORMITORY", 400);
     }
 
+    // Get floor number for the legacy 'floor' column
+    const floorRows = await db.execute(
+      "SELECT floor_number FROM floors WHERE id = ?",
+      [parseInt(floor_id)]
+    );
+    const floorData = floorRows[0] as any[];
+    const floorNumber = floorData[0]?.floor_number || 0;
+
     // Insert room
     const [result] = await db.execute(
-      `INSERT INTO rooms (hostel_id, floor_id, room_number, type, capacity, price_per_month, amenities, furnishing, dimensions, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rooms (hostel_id, floor_id, floor, room_number, type, capacity, price_per_month, amenities, furnishing, dimensions, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         parseInt(hostel_id),
         parseInt(floor_id),
+        floorNumber,
         room_number,
         room_type,
         parseInt(capacity),
