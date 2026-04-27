@@ -10,399 +10,268 @@ import PublicFooter from "@/app/components/PublicFooter";
 export default function LandingPage() {
   const site = useSiteSettings();
   const name = site.companyName || "Hostel Management";
-  const [activeTab, setActiveTab] = useState(0);
-  const [loginUrls, setLoginUrls] = useState({ admin: "", owner: "", customer: "" });
+  const [loginUrl, setLoginUrl] = useState("/login/user");
+  const [registerUrl, setRegisterUrl] = useState("/register/customer");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState("1");
 
   useEffect(() => {
-    const fetchLoginUrls = async () => {
+    const fetchUrls = async () => {
       try {
         const res = await fetch(`${API_URL}/api/settings/login-url-public`);
         const data = await res.json();
         if (data.success && data.data) {
-          setLoginUrls({
-            admin: data.data.admin_login_url || "",
-            owner: data.data.owner_login_url || "",
-            customer: data.data.customer_login_url || "",
-          });
+          if (data.data.customer_login_url) setLoginUrl(`/login/${data.data.customer_login_url}`);
         }
-      } catch (e) {
-        console.error("Failed to fetch login URLs", e);
-      }
+      } catch {}
     };
-    fetchLoginUrls();
+    fetchUrls();
   }, []);
 
-  const tabs = [
-    {
-      id: "booking",
-      label: "Easy Booking",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      ),
-      title1: "Find Your Perfect Room",
-      desc1: "Browse through verified hostels with detailed room information, photos, and pricing. Filter by location, amenities, and budget to find your ideal accommodation.",
-      title2: "Instant Confirmation",
-      desc2: "Book your room with instant confirmation. Receive digital receipts and move-in instructions directly on your phone. No more waiting or uncertainty.",
-      image: (
-        <svg className="w-full h-auto max-w-md" viewBox="0 0 400 300" fill="none">
-          <rect x="50" y="40" width="300" height="220" rx="20" fill="#ECFDF5" stroke="#10B981" strokeWidth="2"/>
-          <rect x="70" y="70" width="120" height="80" rx="10" fill="#A7F3D0"/>
-          <rect x="210" y="70" width="120" height="80" rx="10" fill="#6EE7B7"/>
-          <circle cx="130" cy="110" r="20" fill="#34D399"/>
-          <path d="M120 110l10 10 20-20" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          <rect x="70" y="170" width="260" height="40" rx="8" fill="#10B981"/>
-          <text x="200" y="195" textAnchor="middle" fill="white" fontSize="14" fontWeight="600">Book Now</text>
-          <circle cx="320" cy="60" r="25" fill="#FCD34D"/>
-          <text x="320" y="65" textAnchor="middle" fill="#92400E" fontSize="12" fontWeight="bold">NEW</text>
-        </svg>
-      ),
-    },
-    {
-      id: "manage",
-      label: "Manage Property",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-        </svg>
-      ),
-      title1: "Complete Property Management",
-      desc1: "Manage multiple hostels from a single dashboard. Add floors, rooms, set pricing, and track occupancy in real-time. Everything you need at your fingertips.",
-      title2: "Automated Operations",
-      desc2: "Automate rent collection, payment reminders, and maintenance requests. Save time and reduce manual work with smart automation tools.",
-      image: (
-        <svg className="w-full h-auto max-w-md" viewBox="0 0 400 300" fill="none">
-          <rect x="40" y="30" width="320" height="240" rx="16" fill="#F0FDF4" stroke="#22C55E" strokeWidth="2"/>
-          <rect x="60" y="50" width="140" height="30" rx="6" fill="#BBF7D0"/>
-          <rect x="60" y="90" width="100" height="20" rx="4" fill="#86EFAC"/>
-          <rect x="60" y="120" width="120" height="20" rx="4" fill="#86EFAC"/>
-          <rect x="60" y="150" width="80" height="20" rx="4" fill="#86EFAC"/>
-          <rect x="220" y="50" width="120" height="120" rx="10" fill="#DCFCE7"/>
-          <circle cx="280" cy="100" r="30" fill="#22C55E"/>
-          <path d="M270 100l10 10 20-20" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          <rect x="60" y="190" width="280" height="60" rx="8" fill="#15803D"/>
-          <text x="200" y="225" textAnchor="middle" fill="white" fontSize="14" fontWeight="600">Dashboard</text>
-        </svg>
-      ),
-    },
-    {
-      id: "earn",
-      label: "Grow Revenue",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      title1: "Maximize Your Earnings",
-      desc1: "Use dynamic pricing tools and analytics to optimize your room rates. Track revenue trends and identify opportunities to increase your income.",
-      title2: "Secure Payments",
-      desc2: "Accept payments through multiple gateways with instant settlement. Built-in wallet system for easy refunds and transactions. Zero hidden fees.",
-      image: (
-        <svg className="w-full h-auto max-w-md" viewBox="0 0 400 300" fill="none">
-          <rect x="50" y="40" width="300" height="220" rx="16" fill="#ECFDF5" stroke="#10B981" strokeWidth="2"/>
-          <path d="M80 200 L140 160 L200 180 L260 120 L320 100" stroke="#10B981" strokeWidth="3" fill="none"/>
-          <path d="M80 200 L140 160 L200 180 L260 120 L320 100 L320 220 L80 220 Z" fill="#10B981" fillOpacity="0.2"/>
-          <circle cx="140" cy="160" r="6" fill="#10B981"/>
-          <circle cx="200" cy="180" r="6" fill="#10B981"/>
-          <circle cx="260" cy="120" r="6" fill="#10B981"/>
-          <circle cx="320" cy="100" r="6" fill="#10B981"/>
-          <rect x="80" y="60" width="100" height="40" rx="8" fill="#059669"/>
-          <text x="130" y="85" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold">₹4.2L</text>
-          <text x="130" y="65" textAnchor="middle" fill="#A7F3D0" fontSize="10">Monthly Revenue</text>
-          <rect x="220" y="60" width="100" height="40" rx="8" fill="#047857"/>
-          <text x="270" y="85" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold">85%</text>
-          <text x="270" y="65" textAnchor="middle" fill="#A7F3D0" fontSize="10">Occupancy Rate</text>
-        </svg>
-      ),
-    },
+  const popularCities = [
+    { name: "Mumbai", properties: "2,450+", image: "🏙️" },
+    { name: "Delhi", properties: "1,890+", image: "🏛️" },
+    { name: "Bangalore", properties: "1,650+", image: "🌆" },
+    { name: "Goa", properties: "980+", image: "🏖️" },
+    { name: "Jaipur", properties: "750+", image: "🏰" },
+    { name: "Pune", properties: "620+", image: "🏢" },
+    { name: "Hyderabad", properties: "580+", image: "🕌" },
+    { name: "Chennai", properties: "520+", image: "🌊" },
+  ];
+
+  const featuredHostels = [
+    { name: "Backpacker's Paradise", location: "Mumbai, Maharashtra", price: "₹499", rating: 4.8, reviews: 324, image: "🏨", tag: "SuperOYO" },
+    { name: "Urban Nest Hostel", location: "Delhi, NCR", price: "₹399", rating: 4.6, reviews: 256, image: "🏠", tag: "Premium" },
+    { name: "Beach Bunk Hostel", location: "Goa", price: "₹599", rating: 4.9, reviews: 412, image: "🏖️", tag: "Top Rated" },
+    { name: "Mountain View Stay", location: "Manali, HP", price: "₹449", rating: 4.7, reviews: 189, image: "⛰️", tag: "Trending" },
+    { name: "City Central Hostel", location: "Bangalore, KA", price: "₹349", rating: 4.5, reviews: 198, image: "🌆", tag: "Value" },
+    { name: "Heritage Hostel", location: "Jaipur, RJ", price: "₹549", rating: 4.8, reviews: 267, image: "🏰", tag: "Heritage" },
+  ];
+
+  const offers = [
+    { title: "Flat 60% OFF", subtitle: "On first booking", code: "WELCOME60", color: "from-red-500 to-orange-500" },
+    { title: "₹200 OFF", subtitle: "On hostels above ₹999", code: "SAVE200", color: "from-purple-500 to-pink-500" },
+    { title: "Weekend Special", subtitle: "Extra 30% OFF", code: "WEEKEND30", color: "from-emerald-500 to-teal-500" },
+  ];
+
+  const whyChooseUs = [
+    { icon: "💰", title: "Lowest Prices", desc: "Best prices guaranteed on all hostels" },
+    { icon: "✅", title: "Verified Properties", desc: "All hostels are verified & safe" },
+    { icon: "📞", title: "24/7 Support", desc: "Round the clock customer support" },
+    { icon: "🔄", title: "Free Cancellation", desc: "Cancel anytime, get full refund" },
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       <PublicHeader />
 
-      {/* ===== BANNER SECTION ===== */}
-      <section className="relative pt-20 lg:pt-24 pb-16 lg:pb-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50" />
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-emerald-100/50 to-transparent" />
-
+      {/* Hero Section with Search */}
+      <section className="relative bg-gradient-to-br from-emerald-700 via-teal-600 to-emerald-800 pt-4 pb-12 md:pt-6 md:pb-16">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-96 h-96 bg-emerald-300 rounded-full blur-3xl" />
+        </div>
+        
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="text-center lg:text-left py-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 border border-emerald-200 rounded-full mb-6">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="text-emerald-700 text-sm font-medium">India&apos;s Leading Hostel Platform</span>
+          <div className="text-center mb-8">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
+              Find & Book <span className="text-yellow-300">Hostels</span> Near You
+            </h1>
+            <p className="text-emerald-100 text-lg max-w-2xl mx-auto">
+              Discover affordable hostels across India. Book rooms, beds, and dorms at the best prices.
+            </p>
+          </div>
+
+          {/* Search Bar */}
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-2xl shadow-black/20 p-2 flex flex-col md:flex-row gap-2">
+              <div className="flex-1 relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by city, locality, or hostel name..."
+                  className="w-full pl-12 pr-4 py-4 text-gray-700 placeholder-gray-400 focus:outline-none text-sm rounded-xl"
+                />
               </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                Modern Hostel
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">
-                  Management
-                </span>
-                <span className="block text-3xl sm:text-4xl lg:text-5xl text-gray-700 mt-2">
-                  Made Simple
-                </span>
-              </h1>
-
-              <p className="text-lg lg:text-xl text-gray-600 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Comprehensive solution for hostel management with role-based access, payment processing, room booking, and seamless communication.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-10">
-                <Link href="/register">
-                  <button className="group px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-2xl hover:from-emerald-500 hover:to-teal-500 transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-3">
-                    Start Free Trial
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </button>
-                </Link>
-                <Link href="/pages/about-us">
-                  <button className="px-8 py-4 bg-white text-gray-700 font-semibold rounded-2xl border border-gray-200 hover:border-emerald-300 hover:text-emerald-600 transition-all flex items-center justify-center gap-3">
-                    Learn More
-                  </button>
-                </Link>
-              </div>
-
-              <div className="flex items-center gap-8 justify-center lg:justify-start">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-emerald-600">500+</div>
-                  <div className="text-sm text-gray-500">Active Hostels</div>
+              <div className="flex gap-2">
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    className="px-4 py-4 text-gray-700 focus:outline-none text-sm rounded-xl border border-gray-200 w-full md:w-40"
+                    placeholder="Check-in"
+                  />
                 </div>
-                <div className="w-px h-10 bg-gray-200" />
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-emerald-600">10K+</div>
-                  <div className="text-sm text-gray-500">Happy Residents</div>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={checkOut}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                    className="px-4 py-4 text-gray-700 focus:outline-none text-sm rounded-xl border border-gray-200 w-full md:w-40"
+                    placeholder="Check-out"
+                  />
                 </div>
-                <div className="w-px h-10 bg-gray-200" />
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-emerald-600">50+</div>
-                  <div className="text-sm text-gray-500">Cities</div>
-                </div>
+                <select
+                  value={guests}
+                  onChange={(e) => setGuests(e.target.value)}
+                  className="px-4 py-4 text-gray-700 focus:outline-none text-sm rounded-xl border border-gray-200 bg-white w-full md:w-32"
+                >
+                  <option value="1">1 Guest</option>
+                  <option value="2">2 Guests</option>
+                  <option value="3">3 Guests</option>
+                  <option value="4">4+ Guests</option>
+                </select>
+                <button className="px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg shadow-emerald-500/30 flex items-center gap-2 whitespace-nowrap">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  Search
+                </button>
               </div>
             </div>
 
-            <div className="hidden lg:block">
-              <div className="relative">
-                <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-3xl blur-2xl" />
-                <div className="relative bg-white rounded-3xl shadow-2xl border border-gray-100 p-8">
-                  {/* Dashboard Preview Illustration */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-3 h-3 bg-red-400 rounded-full" />
-                      <div className="w-3 h-3 bg-yellow-400 rounded-full" />
-                      <div className="w-3 h-3 bg-green-400 rounded-full" />
-                      <div className="ml-auto text-xs text-gray-400">Dashboard</div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="bg-white rounded-xl p-4 shadow-sm">
-                        <div className="text-2xl font-bold text-emerald-600">142</div>
-                        <div className="text-xs text-gray-500">Total Rooms</div>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 shadow-sm">
-                        <div className="text-2xl font-bold text-teal-600">89%</div>
-                        <div className="text-xs text-gray-500">Occupancy</div>
-                      </div>
-                      <div className="bg-white rounded-xl p-4 shadow-sm">
-                        <div className="text-2xl font-bold text-cyan-600">₹3.2L</div>
-                        <div className="text-xs text-gray-500">Revenue</div>
-                      </div>
-                    </div>
-                    <div className="bg-white rounded-xl p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-gray-700">Recent Bookings</span>
-                        <span className="text-xs text-emerald-600">View All</span>
-                      </div>
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex items-center gap-3 py-2 border-t border-gray-100">
-                          <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-700">Guest {i}</div>
-                            <div className="text-xs text-gray-400">Room {100 + i}</div>
-                          </div>
-                          <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs">Active</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Quick Links */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+              <span className="text-emerald-200 text-sm">Popular:</span>
+              {["Mumbai", "Delhi", "Goa", "Bangalore", "Jaipur"].map((city) => (
+                <button
+                  key={city}
+                  onClick={() => setSearchQuery(city)}
+                  className="px-3 py-1.5 bg-white/10 backdrop-blur-sm text-white rounded-full text-xs font-medium hover:bg-white/20 transition-all border border-white/20"
+                >
+                  {city}
+                </button>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ===== FEATURES SECTION ===== */}
-      <section className="py-20 bg-white">
+      {/* Stats Bar */}
+      <section className="bg-white border-b border-gray-100 py-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Our <span className="text-emerald-600">Features</span>
-            </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Everything you need to manage hostels efficiently
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: "🏢", title: "Multi-Property", desc: "Manage unlimited hostels from one dashboard" },
-              { icon: "👥", title: "Role-Based Access", desc: "Secure access for Admins, Owners & Customers" },
-              { icon: "💳", title: "Payments", desc: "Integrated wallet & multiple payment gateways" },
-              { icon: "📊", title: "Analytics", desc: "Real-time insights & revenue reports" },
-              { icon: "🔑", title: "Easy Booking", desc: "Instant booking with digital receipts" },
-              { icon: "💬", title: "Communication", desc: "Built-in messaging & notifications" },
-              { icon: "🔒", title: "Secure", desc: "Enterprise-grade data protection" },
-              { icon: "📱", title: "Mobile Ready", desc: "Access from any device, anywhere" },
-            ].map((feature, i) => (
-              <div key={i} className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 text-center hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 border border-emerald-100 group">
-                <div className="text-4xl mb-4">{feature.icon}</div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-emerald-600 transition-colors">{feature.title}</h3>
-                <p className="text-gray-500 text-sm">{feature.desc}</p>
+              { value: "10,000+", label: "Hostels Listed" },
+              { value: "50,000+", label: "Happy Customers" },
+              { value: "100+", label: "Cities Covered" },
+              { value: "4.8★", label: "Average Rating" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <div className="text-xl md:text-2xl font-bold text-emerald-600">{stat.value}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ===== SERVICES SECTION (TABS) ===== */}
-      <section className="py-20 bg-gray-50">
+      {/* Offers Carousel */}
+      <section className="py-8 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Our <span className="text-emerald-600">Services</span>
-            </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Choose a service to learn more about what we offer
-            </p>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900">Offers For You</h2>
+            <Link href="#" className="text-emerald-600 text-sm font-semibold hover:text-emerald-700 flex items-center gap-1">
+              View All <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {offers.map((offer, i) => (
+              <div key={i} className={`bg-gradient-to-r ${offer.color} rounded-xl p-5 text-white cursor-pointer hover:scale-[1.02] transition-transform`}>
+                <div className="text-2xl font-bold mb-1">{offer.title}</div>
+                <div className="text-white/80 text-sm mb-3">{offer.subtitle}</div>
+                <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                  <span className="text-xs font-medium">Use code:</span>
+                  <span className="text-sm font-bold">{offer.code}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-          <div className="flex flex-wrap justify-center gap-4 mb-12">
-            {tabs.map((tab, i) => (
+      {/* Popular Cities */}
+      <section className="py-10 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Explore Popular Cities</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-4">
+            {popularCities.map((city, i) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(i)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  activeTab === i
-                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/25"
-                    : "bg-white text-gray-600 hover:text-emerald-600 border border-gray-200 hover:border-emerald-200"
-                }`}
+                key={i}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-emerald-50 transition-all group"
               >
-                {tab.icon}
-                {tab.label}
+                <span className="text-3xl group-hover:scale-110 transition-transform">{city.image}</span>
+                <span className="text-sm font-semibold text-gray-900 group-hover:text-emerald-600">{city.name}</span>
+                <span className="text-xs text-gray-500">{city.properties} properties</span>
               </button>
             ))}
           </div>
-
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-            <div className="grid lg:grid-cols-2 gap-0">
-              <div className="p-8 lg:p-12">
-                <div className="mb-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{tabs[activeTab].title1}</h3>
-                  <p className="text-gray-600 leading-relaxed">{tabs[activeTab].desc1}</p>
-                </div>
-                <div className="mb-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{tabs[activeTab].title2}</h3>
-                  <p className="text-gray-600 leading-relaxed">{tabs[activeTab].desc2}</p>
-                </div>
-                <Link href="/register">
-                  <button className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg shadow-emerald-500/25 flex items-center gap-2">
-                    Get Started
-                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </button>
-                </Link>
-              </div>
-
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-8 lg:p-12 flex items-center justify-center border-l border-emerald-100">
-                {tabs[activeTab].image}
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* ===== WHY CHOOSE US ===== */}
-      <section className="py-20 bg-white">
+      {/* Featured Hostels */}
+      <section className="py-10 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose <span className="text-emerald-600">{name}</span>?
-            </h2>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Join hundreds of successful hostel owners who trust our platform
-            </p>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900">Featured Hostels</h2>
+              <p className="text-gray-500 text-sm mt-1">Handpicked hostels for your next stay</p>
+            </div>
+            <Link href={registerUrl} className="text-emerald-600 text-sm font-semibold hover:text-emerald-700 flex items-center gap-1">
+              View All <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </Link>
           </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { num: "01", title: "Easy Setup", desc: "Get started in minutes with our intuitive setup process" },
-              { num: "02", title: "24/7 Support", desc: "Round-the-clock support to help you whenever you need" },
-              { num: "03", title: "Secure Platform", desc: "Enterprise-grade security to protect your data" },
-              { num: "04", title: "Affordable", desc: "Competitive pricing with no hidden fees" },
-            ].map((item, i) => (
-              <div key={i} className="relative bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100 hover:shadow-xl hover:shadow-emerald-500/10 transition-all group">
-                <div className="absolute top-4 right-4 text-5xl font-bold text-emerald-100 group-hover:text-emerald-200 transition-colors">
-                  {item.num}
-                </div>
-                <div className="relative">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-emerald-600 transition-colors">{item.title}</h3>
-                  <p className="text-gray-500 text-sm">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== TESTIMONIALS ===== */}
-      <section className="py-20 bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 right-20 w-96 h-96 bg-emerald-500 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 left-20 w-80 h-80 bg-teal-500 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              What Our <span className="text-emerald-300">Partners</span> Say
-            </h2>
-            <p className="text-lg text-white/60 max-w-2xl mx-auto">
-              Real stories from hostel owners who transformed their business
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { name: "Rajesh Sharma", role: "Owner, Urban Stay Hostel", location: "Delhi", text: "This system increased our occupancy by 40% in just 3 months. The dashboard is incredibly easy to use.", rating: 5 },
-              { name: "Priya Patel", role: "Owner, Green Living PG", location: "Ahmedabad", text: "The automated booking system saved us countless hours. We can now focus on better services.", rating: 5 },
-              { name: "Arun Kumar", role: "Owner, Tech Hub Residency", location: "Bangalore", text: "Revenue increased by 60% after implementing this system. The analytics are a game-changer.", rating: 5 },
-            ].map((testimonial, i) => (
-              <div key={i} className="bg-white/10 backdrop-blur-sm rounded-2xl p-7 border border-white/10 hover:border-emerald-400/30 transition-all">
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, j) => (
-                    <svg key={j} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="text-white/80 text-sm leading-relaxed mb-6">&ldquo;{testimonial.text}&rdquo;</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {testimonial.name.split(" ").map((n) => n[0]).join("")}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {featuredHostels.map((hostel, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 group cursor-pointer">
+                <div className="relative h-48 bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
+                  <span className="text-6xl opacity-50">{hostel.image}</span>
+                  <div className="absolute top-3 left-3">
+                    <span className="px-2.5 py-1 bg-emerald-600 text-white text-xs font-bold rounded-md shadow-lg">
+                      {hostel.tag}
+                    </span>
                   </div>
-                  <div>
-                    <h4 className="text-white font-semibold text-sm">{testimonial.name}</h4>
-                    <p className="text-white/50 text-xs">{testimonial.role}, {testimonial.location}</p>
+                  <div className="absolute top-3 right-3">
+                    <button className="w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-all">
+                      <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="font-bold text-gray-900 group-hover:text-emerald-600 transition-colors">{hostel.name}</h3>
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /></svg>
+                        {hostel.location}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-md">
+                      <svg className="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                      <span className="text-xs font-bold text-emerald-700">{hostel.rating}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mb-3">
+                    <span>{hostel.reviews} reviews</span>
+                    <span>•</span>
+                    <span className="text-emerald-600 font-medium">Free cancellation</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <div>
+                      <span className="text-xs text-gray-400 line-through">₹{(parseInt(hostel.price.replace("₹", "")) * 1.5).toFixed(0)}</span>
+                      <span className="text-lg font-bold text-gray-900 ml-1">{hostel.price}</span>
+                      <span className="text-xs text-gray-500">/night</span>
+                    </div>
+                    <Link href={registerUrl}>
+                      <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition-all">
+                        Book Now
+                      </button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -411,35 +280,105 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===== CTA SECTION ===== */}
-      <section className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-12 lg:p-16 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`, backgroundSize: '20px 20px' }} />
-            <div className="relative text-center">
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                Ready to Transform Your Business?
+      {/* Why Choose Us */}
+      <section className="py-10 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 text-center mb-8">Why Book With {name}?</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {whyChooseUs.map((item, i) => (
+              <div key={i} className="text-center p-6 rounded-xl hover:bg-emerald-50 transition-all cursor-pointer group">
+                <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">{item.icon}</div>
+                <h3 className="font-bold text-gray-900 mb-1">{item.title}</h3>
+                <p className="text-sm text-gray-500">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Download App / CTA */}
+      <section className="py-12 bg-gradient-to-r from-emerald-700 to-teal-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="text-center md:text-left">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                Download Our App
               </h2>
-              <p className="text-emerald-100 text-lg mb-8 max-w-2xl mx-auto">
-                Join 500+ hostel owners who trust our platform. Start your free trial today.
+              <p className="text-emerald-100 mb-6 max-w-md">
+                Get exclusive app-only deals and manage your bookings on the go. Available on iOS & Android.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/register">
-                  <button className="group px-8 py-4 bg-white text-emerald-700 font-bold rounded-2xl hover:bg-emerald-50 transition-all shadow-2xl flex items-center justify-center gap-3">
+              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                <Link href={registerUrl}>
+                  <button className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold hover:bg-emerald-50 transition-all shadow-lg">
                     Get Started Free
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
                   </button>
                 </Link>
-                <Link href={`/login/${loginUrls.customer}`}>
-                  <button className="px-8 py-4 bg-white/10 text-white font-semibold rounded-2xl border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center gap-3">
+                <Link href={loginUrl}>
+                  <button className="px-8 py-3.5 bg-white/10 backdrop-blur-sm text-white rounded-xl font-bold border border-white/30 hover:bg-white/20 transition-all">
                     Sign In
                   </button>
                 </Link>
               </div>
             </div>
+            <div className="flex items-center gap-4">
+              <div className="w-32 h-40 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 flex items-center justify-center">
+                <span className="text-5xl">📱</span>
+              </div>
+              <div className="w-32 h-40 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 flex items-center justify-center">
+                <span className="text-5xl">💻</span>
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-10 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 text-center mb-8">What Our Customers Say</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { name: "Rahul Sharma", location: "Mumbai", rating: 5, text: "Best hostel booking experience! Found a great place in Goa at half the price. Highly recommended!" },
+              { name: "Priya Patel", location: "Delhi", rating: 5, text: "Clean rooms, friendly staff, and amazing locations. {name} made my backpacking trip so much easier." },
+              { name: "Amit Kumar", location: "Bangalore", rating: 4, text: "Great app for budget travelers. The filters help find exactly what you need. Will use again!" },
+            ].map((review, i) => (
+              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-1 mb-3">
+                  {Array.from({ length: review.rating }).map((_, j) => (
+                    <svg key={j} className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                  ))}
+                </div>
+                <p className="text-gray-600 text-sm mb-4 leading-relaxed">&ldquo;{review.text}&rdquo;</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    {review.name[0]}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm">{review.name}</div>
+                    <div className="text-xs text-gray-500">{review.location}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Newsletter */}
+      <section className="py-10 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">Stay Updated</h2>
+          <p className="text-gray-500 mb-6">Get exclusive deals and travel tips delivered to your inbox.</p>
+          <form className="flex gap-2 max-w-md mx-auto">
+            <input
+              type="email"
+              placeholder="Enter your email"
+              className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+            />
+            <button className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg shadow-emerald-500/25">
+              Subscribe
+            </button>
+          </form>
         </div>
       </section>
 
