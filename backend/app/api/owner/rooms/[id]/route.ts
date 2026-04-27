@@ -42,12 +42,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       } catch { return null; }
     };
 
+    const parseCustomPricing = (val: any) => {
+      try {
+        if (!val) return null;
+        if (typeof val === 'string') return JSON.parse(val);
+        if (typeof val === 'object') return val;
+        return null;
+      } catch { return null; }
+    };
+
     const room = {
       ...rooms[0],
       amenities: parseJson(rooms[0].amenities),
       furnishing: parseJson(rooms[0].furnishing),
       dimensions: parseDimensions(rooms[0].dimensions),
       images: parseJson(rooms[0].images),
+      custom_pricing: parseCustomPricing(rooms[0].custom_pricing),
       is_active: rooms[0].is_active === 1 || rooms[0].is_active === true,
     };
 
@@ -67,7 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const body = await req.json();
     const {
-      room_number, room_type, capacity, price_per_month,
+      room_number, room_type, capacity, pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing,
       amenities, furnishing, dimensions, description, status, is_active
     } = body;
 
@@ -117,7 +127,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     if (price_per_month !== undefined) {
       updates.push("price_per_month = ?");
-      values.push(parseFloat(price_per_month));
+      values.push(price_per_month ? parseFloat(price_per_month) : null);
+    }
+    if (pricing_type !== undefined) {
+      const validPricingTypes = ['hourly', 'daily', 'monthly', 'custom'];
+      if (!validPricingTypes.includes(pricing_type)) {
+        return errorResponse("Invalid pricing type", 400);
+      }
+      updates.push("pricing_type = ?");
+      values.push(pricing_type);
+    }
+    if (price_per_hour !== undefined) {
+      updates.push("price_per_hour = ?");
+      values.push(price_per_hour ? parseFloat(price_per_hour) : null);
+    }
+    if (price_per_day !== undefined) {
+      updates.push("price_per_day = ?");
+      values.push(price_per_day ? parseFloat(price_per_day) : null);
+    }
+    if (custom_pricing !== undefined) {
+      updates.push("custom_pricing = ?");
+      values.push(custom_pricing ? JSON.stringify(custom_pricing) : null);
     }
     if (amenities !== undefined) {
       updates.push("amenities = ?");

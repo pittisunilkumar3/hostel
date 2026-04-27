@@ -30,7 +30,11 @@ interface Room {
   type: string;
   capacity: number;
   current_occupancy: number;
-  price_per_month: number;
+  pricing_type: string;
+  price_per_month: number | null;
+  price_per_hour: number | null;
+  price_per_day: number | null;
+  custom_pricing: any;
   status: string;
   amenities: string[];
   furnishing: string[];
@@ -91,7 +95,11 @@ export default function FloorRoomManagement() {
     room_number: "",
     room_type: "SINGLE",
     capacity: "1",
+    pricing_type: "monthly",
     price_per_month: "",
+    price_per_hour: "",
+    price_per_day: "",
+    custom_pricing: { min_hours: "", max_hours: "", price_per_hour: "" },
     amenities: [] as string[],
     furnishing: [] as string[],
     dimensions: { length: "", width: "", area: "" },
@@ -228,8 +236,22 @@ export default function FloorRoomManagement() {
 
   // ── Room CRUD ──
   const handleRoomSubmit = async () => {
-    if (!hostelId || !roomForm.floor_id || !roomForm.room_number || !roomForm.price_per_month) {
+    if (!hostelId || !roomForm.floor_id || !roomForm.room_number) {
       setMessage({ type: "error", text: "Please fill in all required fields" });
+      return;
+    }
+
+    // Validate price based on pricing type
+    if (roomForm.pricing_type === "monthly" && !roomForm.price_per_month) {
+      setMessage({ type: "error", text: "Please enter price per month" });
+      return;
+    }
+    if (roomForm.pricing_type === "hourly" && !roomForm.price_per_hour) {
+      setMessage({ type: "error", text: "Please enter price per hour" });
+      return;
+    }
+    if (roomForm.pricing_type === "daily" && !roomForm.price_per_day) {
+      setMessage({ type: "error", text: "Please enter price per day" });
       return;
     }
 
@@ -240,7 +262,11 @@ export default function FloorRoomManagement() {
         room_number: roomForm.room_number,
         room_type: roomForm.room_type,
         capacity: parseInt(roomForm.capacity),
-        price_per_month: parseFloat(roomForm.price_per_month),
+        pricing_type: roomForm.pricing_type,
+        price_per_month: roomForm.price_per_month ? parseFloat(roomForm.price_per_month) : null,
+        price_per_hour: roomForm.price_per_hour ? parseFloat(roomForm.price_per_hour) : null,
+        price_per_day: roomForm.price_per_day ? parseFloat(roomForm.price_per_day) : null,
+        custom_pricing: roomForm.pricing_type === "custom" ? roomForm.custom_pricing : null,
         amenities: roomForm.amenities.length > 0 ? roomForm.amenities : null,
         furnishing: roomForm.furnishing.length > 0 ? roomForm.furnishing : null,
         dimensions: roomForm.dimensions.length ? {
@@ -289,7 +315,9 @@ export default function FloorRoomManagement() {
   const resetRoomForm = () => {
     setRoomForm({
       floor_id: "", room_number: "", room_type: "SINGLE", capacity: "1",
-      price_per_month: "", amenities: [], furnishing: [],
+      pricing_type: "monthly", price_per_month: "", price_per_hour: "", price_per_day: "",
+      custom_pricing: { min_hours: "", max_hours: "", price_per_hour: "" },
+      amenities: [], furnishing: [],
       dimensions: { length: "", width: "", area: "" }, description: ""
     });
     setEditingRoom(null);
@@ -302,7 +330,11 @@ export default function FloorRoomManagement() {
       room_number: room.room_number,
       room_type: room.type,
       capacity: room.capacity.toString(),
-      price_per_month: room.price_per_month.toString(),
+      pricing_type: room.pricing_type || "monthly",
+      price_per_month: room.price_per_month?.toString() || "",
+      price_per_hour: room.price_per_hour?.toString() || "",
+      price_per_day: room.price_per_day?.toString() || "",
+      custom_pricing: room.custom_pricing || { min_hours: "", max_hours: "", price_per_hour: "" },
       amenities: room.amenities || [],
       furnishing: room.furnishing || [],
       dimensions: room.dimensions
@@ -680,8 +712,16 @@ export default function FloorRoomManagement() {
 
                               {/* Price */}
                               <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-3 mb-3">
-                                <p className="text-xs text-gray-400 font-medium">Price per month</p>
-                                <p className="text-xl font-bold text-emerald-600">₹{room.price_per_month.toLocaleString()}</p>
+                                <p className="text-xs text-gray-400 font-medium">
+                                  {room.pricing_type === 'hourly' ? 'Price per hour' :
+                                   room.pricing_type === 'daily' ? 'Price per day' :
+                                   room.pricing_type === 'custom' ? 'Custom pricing' : 'Price per month'}
+                                </p>
+                                <p className="text-xl font-bold text-emerald-600">
+                                  ₹{(room.pricing_type === 'hourly' ? (room.price_per_hour || 0) :
+                                     room.pricing_type === 'daily' ? (room.price_per_day || 0) :
+                                     (room.price_per_month || 0)).toLocaleString()}
+                                </p>
                               </div>
 
                               {/* Occupancy Bar */}
@@ -926,17 +966,112 @@ export default function FloorRoomManagement() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Price per Month (₹) *</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={roomForm.price_per_month}
-                      onChange={(e) => setRoomForm({ ...roomForm, price_per_month: e.target.value })}
-                      placeholder="e.g., 5000"
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Pricing Type *</label>
+                    <select
+                      value={roomForm.pricing_type}
+                      onChange={(e) => setRoomForm({ ...roomForm, pricing_type: e.target.value })}
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                    />
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="daily">Daily</option>
+                      <option value="hourly">Hourly</option>
+                      <option value="custom">Custom</option>
+                    </select>
                   </div>
                 </div>
+                
+                {/* Price Fields Based on Pricing Type */}
+                <div className="mt-4">
+                  {roomForm.pricing_type === 'monthly' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Price per Month (₹) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={roomForm.price_per_month}
+                        onChange={(e) => setRoomForm({ ...roomForm, price_per_month: e.target.value })}
+                        placeholder="e.g., 5000"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      />
+                    </div>
+                  )}
+                  
+                  {roomForm.pricing_type === 'daily' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Price per Day (₹) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={roomForm.price_per_day}
+                        onChange={(e) => setRoomForm({ ...roomForm, price_per_day: e.target.value })}
+                        placeholder="e.g., 500"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      />
+                    </div>
+                  )}
+                  
+                  {roomForm.pricing_type === 'hourly' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Price per Hour (₹) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={roomForm.price_per_hour}
+                        onChange={(e) => setRoomForm({ ...roomForm, price_per_hour: e.target.value })}
+                        placeholder="e.g., 100"
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                      />
+                    </div>
+                  )}
+                  
+                  {roomForm.pricing_type === 'custom' && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Min Hours</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={roomForm.custom_pricing.min_hours}
+                          onChange={(e) => setRoomForm({ 
+                            ...roomForm, 
+                            custom_pricing: { ...roomForm.custom_pricing, min_hours: e.target.value }
+                          })}
+                          placeholder="e.g., 2"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Max Hours</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={roomForm.custom_pricing.max_hours}
+                          onChange={(e) => setRoomForm({ 
+                            ...roomForm, 
+                            custom_pricing: { ...roomForm.custom_pricing, max_hours: e.target.value }
+                          })}
+                          placeholder="e.g., 24"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Price per Hour (₹)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={roomForm.custom_pricing.price_per_hour}
+                          onChange={(e) => setRoomForm({ 
+                            ...roomForm, 
+                            custom_pricing: { ...roomForm.custom_pricing, price_per_hour: e.target.value }
+                          })}
+                          placeholder="e.g., 100"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
                 <div className="mt-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
                   <textarea

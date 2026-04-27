@@ -80,12 +80,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           return null;
         } catch { return null; }
       };
+      const parseCustomPricing = (val: any) => {
+        try {
+          if (!val) return null;
+          if (typeof val === 'string') return JSON.parse(val);
+          if (typeof val === 'object') return val;
+          return null;
+        } catch { return null; }
+      };
       return {
         ...room,
         amenities: parseJson(room.amenities),
         furnishing: parseJson(room.furnishing),
         dimensions: parseDimensions(room.dimensions),
         images: parseJson(room.images),
+        custom_pricing: parseCustomPricing(room.custom_pricing),
         is_active: room.is_active === 1 || room.is_active === true,
       };
     });
@@ -106,12 +115,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body = await req.json();
     const {
       hostel_id, floor_id, room_number, room_type, capacity,
-      price_per_month, amenities, furnishing, dimensions, description
+      pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing,
+      amenities, furnishing, dimensions, description
     } = body;
 
     // Validate required fields
-    if (!hostel_id || !floor_id || !room_number || !room_type || !capacity || !price_per_month) {
-      return errorResponse("hostel_id, floor_id, room_number, room_type, capacity, and price_per_month are required", 400);
+    if (!hostel_id || !floor_id || !room_number || !room_type || !capacity || !pricing_type) {
+      return errorResponse("hostel_id, floor_id, room_number, room_type, capacity, and pricing_type are required", 400);
+    }
+
+    // Validate price based on pricing type
+    if (pricing_type === 'monthly' && !price_per_month) {
+      return errorResponse("price_per_month is required for monthly pricing", 400);
+    }
+    if (pricing_type === 'hourly' && !price_per_hour) {
+      return errorResponse("price_per_hour is required for hourly pricing", 400);
+    }
+    if (pricing_type === 'daily' && !price_per_day) {
+      return errorResponse("price_per_day is required for daily pricing", 400);
+    }
+    if (pricing_type === 'custom' && !custom_pricing) {
+      return errorResponse("custom_pricing is required for custom pricing", 400);
     }
 
     // Verify hostel belongs to owner
@@ -126,7 +150,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Verify floor belongs to hostel
     const [floors] = await db.execute<RowDataPacket[]>(
-      "SELECT id FROM floors WHERE id = ? AND hostel_id = ?",
+      "SELECT id, floor_number FROM floors WHERE id = ? AND hostel_id = ?",
       [parseInt(floor_id), parseInt(hostel_id)]
     );
 
@@ -150,18 +174,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return errorResponse("Invalid room type. Must be: SINGLE, DOUBLE, TRIPLE, or DORMITORY", 400);
     }
 
-    // Get floor number for the legacy 'floor' column
-    const floorRows = await db.execute(
-      "SELECT floor_number FROM floors WHERE id = ?",
-      [parseInt(floor_id)]
-    );
-    const floorData = floorRows[0] as any[];
-    const floorNumber = floorData[0]?.floor_number || 0;
+    const floorNumber = floors[0].floor_number;
 
     // Insert room
     const [result] = await db.execute(
-      `INSERT INTO rooms (hostel_id, floor_id, floor, room_number, type, capacity, price_per_month, amenities, furnishing, dimensions, description, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      `INSERT INTO rooms (hostel_id, floor_id, floor, room_number, type, capacity, pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing, amenities, furnishing, dimensions, description, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         parseInt(hostel_id),
         parseInt(floor_id),
@@ -169,7 +187,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         room_number,
         room_type,
         parseInt(capacity),
-        parseFloat(price_per_month),
+        pricing_type,
+        price_per_month ? parseFloat(price_per_month) : null,
+        price_per_hour ? parseFloat(price_per_hour) : null,
+        price_per_day ? parseFloat(price_per_day) : null,
+        custom_pricing ? JSON.stringify(custom_pricing) : null,
         amenities ? JSON.stringify(amenities) : null,
         furnishing ? JSON.stringify(furnishing) : null,
         dimensions ? JSON.stringify(dimensions) : null,
