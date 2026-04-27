@@ -24,7 +24,7 @@ function buildItems() {
 
     // ─── HOSTEL MANAGEMENT ───
     { label: "Hostel Management", heading: true as const },
-    { label: "My Rooms", href: "/owner/rooms", icon: <RoomsIcon /> },
+    { label: "Floors & Rooms", href: "/owner/rooms", icon: <RoomsIcon /> },
     { label: "Bookings", href: "/owner/bookings", icon: <BookingsIcon /> },
     { label: "Customers", href: "/owner/customers", icon: <CustomersIcon /> },
 
