@@ -8,6 +8,7 @@ const LOGIN_URL_KEYS = [
   "admin_employee_login_url",
   "owner_login_url",
   "owner_employee_login_url",
+  "customer_login_url",
 ];
 
 // GET /api/settings/login-url
@@ -57,6 +58,7 @@ export async function PUT(request: NextRequest) {
       admin_employee: "admin_employee_login_url",
       owner: "owner_login_url",
       owner_employee: "owner_employee_login_url",
+      customer: "customer_login_url",
     };
 
     const key = validTypes[type];

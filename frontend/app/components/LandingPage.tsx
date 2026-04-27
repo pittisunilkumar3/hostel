@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useSiteSettings } from "@/lib/siteSettings";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { API_URL } from "@/lib/auth";
 import PublicHeader from "@/app/components/PublicHeader";
 import PublicFooter from "@/app/components/PublicFooter";
 
@@ -10,6 +11,26 @@ export default function LandingPage() {
   const site = useSiteSettings();
   const name = site.companyName || "Hostel Management";
   const [activeTab, setActiveTab] = useState(0);
+  const [loginUrls, setLoginUrls] = useState({ admin: "admin", owner: "owner", customer: "user" });
+
+  useEffect(() => {
+    const fetchLoginUrls = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/settings/login-url-public`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          setLoginUrls({
+            admin: data.data.admin_login_url || "admin",
+            owner: data.data.owner_login_url || "owner",
+            customer: data.data.customer_login_url || "user",
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch login URLs", e);
+      }
+    };
+    fetchLoginUrls();
+  }, []);
 
   const tabs = [
     {
@@ -411,7 +432,7 @@ export default function LandingPage() {
                     </svg>
                   </button>
                 </Link>
-                <Link href="/login">
+                <Link href={`/login/${loginUrls.customer}`}>
                   <button className="px-8 py-4 bg-white/10 text-white font-semibold rounded-2xl border border-white/20 hover:bg-white/20 transition-all flex items-center justify-center gap-3">
                     Sign In
                   </button>

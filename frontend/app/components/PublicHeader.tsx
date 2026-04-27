@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSiteSettings } from "@/lib/siteSettings";
 import { useEffect, useState } from "react";
+import { API_URL } from "@/lib/auth";
 
 export default function PublicHeader() {
   const site = useSiteSettings();
@@ -10,11 +11,25 @@ export default function PublicHeader() {
   const logo = site.companyLogo;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [loginUrl, setLoginUrl] = useState("/login/user");
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const fetchLoginUrl = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/settings/login-url-public`);
+        const data = await res.json();
+        if (data.success && data.data && data.data.customer_login_url) {
+          setLoginUrl(`/login/${data.data.customer_login_url}`);
+        }
+      } catch {}
+    };
+    fetchLoginUrl();
   }, []);
 
   const navLinks = [
@@ -67,7 +82,7 @@ export default function PublicHeader() {
 
           {/* Auth Buttons */}
           <div className="hidden lg:flex items-center gap-3">
-            <Link href="/login">
+            <Link href={loginUrl}>
               <button className="px-5 py-2.5 text-emerald-600 text-sm font-semibold rounded-xl border border-emerald-200 hover:bg-emerald-50 transition-all">
                 Sign In
               </button>

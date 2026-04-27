@@ -37,6 +37,7 @@ export default function LoginSetupPage() {
   // Panel Login URLs
   const [adminLoginUrl, setAdminLoginUrl] = useState("admin");
   const [ownerLoginUrl, setOwnerLoginUrl] = useState("owner");
+  const [customerLoginUrl, setCustomerLoginUrl] = useState("user");
 
   useEffect(() => { setUser(getCurrentUser()); Promise.all([fetchLoginSetup(), fetchSocialStatus(), fetchLoginUrls()]); }, []);
 
@@ -78,6 +79,7 @@ export default function LoginSetupPage() {
       if (res.success && res.data) {
         if (res.data.admin_login_url) setAdminLoginUrl(res.data.admin_login_url);
         if (res.data.owner_login_url) setOwnerLoginUrl(res.data.owner_login_url);
+        if (res.data.customer_login_url) setCustomerLoginUrl(res.data.customer_login_url);
       }
     } catch (e) { console.error(e); }
   };
@@ -394,6 +396,39 @@ export default function LoginSetupPage() {
             <p className="text-[11px] text-gray-400 mt-1.5">Full URL: <span className="font-mono text-gray-600">{baseUrl}/login/{ownerLoginUrl || "owner"}</span></p>
             <div className="flex justify-end mt-4">
               <button onClick={() => saveLoginUrl("owner", ownerLoginUrl)} disabled={saving === -50} className="px-6 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-purple-600/20">
+                {saving === -50 ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer Login URL */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Customer Login URL</h3>
+              <p className="text-xs text-gray-500">Custom URL for customer login page</p>
+            </div>
+          </div>
+          <div className="p-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Customer Login URL <span className="text-red-500">*</span></label>
+            <div className="flex items-center">
+              <span className="px-4 py-2.5 bg-gray-100 border border-r-0 border-gray-200 rounded-l-xl text-sm text-gray-500 font-mono whitespace-nowrap">{baseUrl}/login/</span>
+              <input
+                type="text"
+                value={customerLoginUrl}
+                onChange={(e) => setCustomerLoginUrl(e.target.value.replace(/[^a-zA-Z0-9\-_]/g, ""))}
+                placeholder="user"
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-r-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+              />
+            </div>
+            <p className="text-[11px] text-gray-400 mt-1.5">Full URL: <span className="font-mono text-gray-600">{baseUrl}/login/{customerLoginUrl || "user"}</span></p>
+            <div className="flex justify-end mt-4">
+              <button onClick={() => saveLoginUrl("customer", customerLoginUrl)} disabled={saving === -50} className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20">
                 {saving === -50 ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
                 Save
               </button>
