@@ -83,6 +83,8 @@ model Booking {
   status        BookingStatus  @default(PENDING)
   paymentStatus PaymentStatus  @default(PENDING) @map("payment_status")
   totalAmount   Float          @map("total_amount")
+  advanceAmount Float?         @map("advance_amount") @db.Float
+  advanceStatus String?        @map("advance_status") @db.VarChar(20)
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
@@ -278,6 +280,12 @@ model Hostel {
 
   owner  User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   zone   Zone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  advancePaymentEnabled    Boolean                   @default(false) @map("advance_payment_enabled")
+  advancePaymentAmount     Decimal?                  @map("advance_payment_amount") @db.Decimal(12, 2)
+  advancePaymentPeriod     Int?                      @map("advance_payment_period")
+  advancePaymentPeriodType String?                   @map("advance_payment_period_type") @db.VarChar(10)
+  advancePaymentDescription String?                  @map("advance_payment_description") @db.VarChar(500)
 
   @@index([ownerId])
   @@index([zoneId])

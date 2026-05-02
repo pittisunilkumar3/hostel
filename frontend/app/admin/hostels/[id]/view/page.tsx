@@ -41,6 +41,11 @@ interface HostelData {
   rating: number;
   submitted_at: string;
   created_at: string;
+  advance_payment_enabled?: number | boolean;
+  advance_payment_amount?: number;
+  advance_payment_period?: number;
+  advance_payment_period_type?: string;
+  advance_payment_description?: string;
 }
 
 interface Room {
@@ -64,6 +69,8 @@ interface Booking {
   status: string;
   payment_status: string;
   total_amount: number;
+  advance_amount?: number;
+  advance_status?: string;
 }
 
 interface Stats {
@@ -933,6 +940,31 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
             </div>
+
+            {/* Advance Deposit */}
+            {hostel.advance_payment_enabled && (
+              <div className="bg-amber-50 rounded-2xl border border-amber-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-amber-100 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2 6 6 0 006 6v2a6 6 0 00-6 6 2 2 0 002 2h10a2 2 0 002-2 6 6 0 00-6-6V9a6 6 0 006-6z" /></svg>
+                  <h3 className="text-base font-bold text-amber-900">Advance Deposit Active</h3>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="text-center p-3 bg-white rounded-xl">
+                      <p className="text-xl font-bold text-amber-700">{hostel.advance_payment_amount ? `₹${Number(hostel.advance_payment_amount).toLocaleString()}` : "N/A"}</p>
+                      <p className="text-xs text-amber-500 mt-1">Deposit Amount</p>
+                    </div>
+                    <div className="text-center p-3 bg-white rounded-xl">
+                      <p className="text-xl font-bold text-amber-700">{hostel.advance_payment_period || 1} {(hostel.advance_payment_period_type || "month") + ((hostel.advance_payment_period || 1) > 1 ? "s" : "")}</p>
+                      <p className="text-xs text-amber-500 mt-1">Period</p>
+                    </div>
+                    <div className="col-span-2 p-3 bg-white rounded-xl text-sm text-amber-800">
+                      {hostel.advance_payment_description || "Advance deposit required. Adjusted at checkout."}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Contact Info */}
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">

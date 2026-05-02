@@ -170,6 +170,11 @@ export const updatePaymentStatus = async (id: number, paymentStatus: string) => 
   return getBookingById(id);
 };
 
+export const updateAdvanceStatus = async (id: number, advanceStatus: string) => {
+  await db.execute("UPDATE bookings SET advance_status = ? WHERE id = ?", [advanceStatus, id]);
+  return getBookingById(id);
+};
+
 export const deleteBooking = async (id: number) => {
   const [rows] = await db.execute<RowDataPacket[]>(
     "SELECT room_id FROM bookings WHERE id = ?",

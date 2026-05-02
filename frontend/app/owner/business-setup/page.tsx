@@ -26,7 +26,7 @@ export default function OwnerBusinessSetup() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [user, setUser] = useState<any>(null);
   const [hostelStatus, setHostelStatus] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"basic" | "schedule" | "amenities">("basic");
+  const [activeTab, setActiveTab] = useState<"basic" | "schedule" | "amenities" | "advance">("basic");
 
   // Hostel state
   const [hostelName, setHostelName] = useState("");
@@ -45,6 +45,13 @@ export default function OwnerBusinessSetup() {
   const [minimumStay, setMinimumStay] = useState("1");
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
+
+  // Advance deposit state
+  const [advanceEnabled, setAdvanceEnabled] = useState(false);
+  const [advanceAmount, setAdvanceAmount] = useState("");
+  const [advancePeriod, setAdvancePeriod] = useState("1");
+  const [advancePeriodType, setAdvancePeriodType] = useState("month");
+  const [advanceDescription, setAdvanceDescription] = useState("");
 
   // Upload state
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -174,6 +181,12 @@ export default function OwnerBusinessSetup() {
         setMinimumStay(String(h.minimum_stay || 1));
         setSelectedAmenities(Array.isArray(h.amenities) ? h.amenities : []);
         setCustomFields(h.custom_fields || {});
+        // Advance deposit settings
+        setAdvanceEnabled(!!h.advance_payment_enabled);
+        setAdvanceAmount(h.advance_payment_amount ? String(h.advance_payment_amount) : "");
+        setAdvancePeriod(h.advance_payment_period ? String(h.advance_payment_period) : "1");
+        setAdvancePeriodType(h.advance_payment_period_type || "month");
+        setAdvanceDescription(h.advance_payment_description || "");
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -233,6 +246,12 @@ export default function OwnerBusinessSetup() {
           minimum_stay: minimumStay,
           amenities: selectedAmenities,
           custom_fields: customFields,
+          // Advance deposit settings
+          advance_payment_enabled: advanceEnabled,
+          advance_payment_amount: advanceEnabled && advanceAmount ? parseFloat(advanceAmount) : null,
+          advance_payment_period: advanceEnabled && advancePeriod ? parseInt(advancePeriod) : null,
+          advance_payment_period_type: advanceEnabled ? advancePeriodType : null,
+          advance_payment_description: advanceEnabled && advanceDescription ? advanceDescription : null,
         }),
       });
 
@@ -326,6 +345,7 @@ export default function OwnerBusinessSetup() {
           { id: "basic" as const, label: "Basic Setup", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
           { id: "schedule" as const, label: "Schedule & Timing", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
           { id: "amenities" as const, label: "Amenities", icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" },
+          { id: "advance" as const, label: "Advance Deposit", icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2 6 6 0 006 6v2a6 6 0 00-6 6 2 2 0 002 2h10a2 2 0 002-2 6 6 0 00-6-6V9a6 6 0 006-6z" },
         ].map((tab) => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === tab.id ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" : "text-gray-600 hover:bg-gray-50"}`}>
@@ -627,7 +647,87 @@ export default function OwnerBusinessSetup() {
         </div>
       )}
 
-      {/* Google Maps Script — only inject if not already loaded */}
+      {activeTab === "advance" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Advance Deposit</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Require guests to pay an advance deposit at booking. Adjusted against final bill at checkout.</p>
+                </div>
+                <button onClick={() => setAdvanceEnabled(!advanceEnabled)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${advanceEnabled ? "bg-emerald-600" : "bg-gray-300"}`}>
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${advanceEnabled ? "translate-x-6" : "translate-x-1"}`} />
+                </button>
+              </div>
+            </div>
+
+            {advanceEnabled ? (
+              <div className="p-6 space-y-5">
+                <div className="flex items-start gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <svg className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <div className="text-sm text-emerald-800">
+                    <p className="font-semibold mb-1">How Advance Deposit Works</p>
+                    <p className="text-emerald-700 text-xs leading-relaxed">Guests pay the deposit at booking. It is <strong>adjusted against their total bill</strong> at checkout.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Deposit Amount <span className="text-red-500">*</span></label>
+                    <input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} placeholder="e.g. 5000" min="0" step="100" className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30" />
+                    <p className="text-xs text-gray-400 mt-1">Fixed amount guests pay upfront</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Period</label>
+                      <input type="number" value={advancePeriod} onChange={e => setAdvancePeriod(e.target.value)} min="1" max="12" className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
+                      <select value={advancePeriodType} onChange={e => setAdvancePeriodType(e.target.value)} className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 bg-white">
+                        <option value="day">Day(s)</option>
+                        <option value="week">Week(s)</option>
+                        <option value="month">Month(s)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Display Description <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <textarea value={advanceDescription} onChange={e => setAdvanceDescription(e.target.value)} rows={2} placeholder="e.g. 2 months advance required. Adjusted at checkout." className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none" />
+                </div>
+
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <p className="text-xs font-semibold text-amber-700 mb-2">Guest preview:</p>
+                  <div className="bg-white rounded-lg p-3 border border-amber-100 text-sm text-gray-700">
+                    <span className="font-semibold text-emerald-700">{advanceAmount ? `₹${Number(advanceAmount).toLocaleString()}` : "₹0"}</span> advance deposit required{advancePeriod ? ` for ${advancePeriod} ${advancePeriodType}${parseInt(advancePeriod || "1") > 1 ? "s" : ""}` : ""}<br />
+                    <span className="text-xs text-gray-400">Adjusted against your total bill at checkout</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-10 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2 6 6 0 006 6v2a6 6 0 00-6 6 2 2 0 002 2h10a2 2 0 002-2 6 6 0 00-6-6V9a6 6 0 006-6z" /></svg>
+                </div>
+                <h4 className="font-semibold text-gray-900 mb-1">Advance Deposit Disabled</h4>
+                <p className="text-sm text-gray-500">Turn on the toggle above to require advance payment from guests.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <button onClick={handleSave} disabled={saving}
+              className="px-8 py-3 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-all">
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Google Maps Script */}
       {mapApiKey && !mapReady && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=places`}

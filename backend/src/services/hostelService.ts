@@ -176,6 +176,7 @@ export const updateHostel = async (id: number, data: any) => {
     "total_rooms", "total_beds", "min_stay_days", "check_in_time", "check_out_time",
     "business_model", "commission_rate", "commission_on_delivery",
     "status", "rejection_reason",
+    "advance_payment_enabled", "advance_payment_amount", "advance_payment_period", "advance_payment_period_type", "advance_payment_description",
   ];
 
   for (const field of allowedFields) {

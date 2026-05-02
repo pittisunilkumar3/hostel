@@ -107,6 +107,13 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
   const [commissionRate, setCommissionRate] = useState("12");
   const [commissionOnDelivery, setCommissionOnDelivery] = useState("0");
 
+  // ── Advance Deposit ──
+  const [advanceEnabled, setAdvanceEnabled] = useState(false);
+  const [advanceAmount, setAdvanceAmount] = useState("");
+  const [advancePeriod, setAdvancePeriod] = useState("1");
+  const [advancePeriodType, setAdvancePeriodType] = useState("month");
+  const [advanceDescription, setAdvanceDescription] = useState("");
+
   // ── Amenities (mirrors create form) ──
   const [amenities, setAmenities] = useState<string[]>([]);
   const amenityOptions = [
@@ -165,6 +172,13 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
           setBusinessModel(h.business_model || "commission");
           setCommissionRate(h.commission_rate?.toString() || "12");
           setCommissionOnDelivery(h.commission_on_delivery?.toString() || "0");
+
+          // Advance deposit
+          setAdvanceEnabled(!!h.advance_payment_enabled);
+          setAdvanceAmount(h.advance_payment_amount ? String(h.advance_payment_amount) : "");
+          setAdvancePeriod(h.advance_payment_period ? String(h.advance_payment_period) : "1");
+          setAdvancePeriodType(h.advance_payment_period_type || "month");
+          setAdvanceDescription(h.advance_payment_description || "");
 
           // Parse amenities (stored as JSON string in DB)
           if (h.amenities) {
@@ -334,6 +348,12 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
         business_model: businessModel,
         commission_rate: parseFloat(commissionRate) || 12,
         commission_on_delivery: parseFloat(commissionOnDelivery) || 0,
+        // Advance deposit
+        advance_payment_enabled: advanceEnabled,
+        advance_payment_amount: advanceEnabled && advanceAmount ? parseFloat(advanceAmount) : null,
+        advance_payment_period: advanceEnabled && advancePeriod ? parseInt(advancePeriod) : null,
+        advance_payment_period_type: advanceEnabled ? advancePeriodType : null,
+        advance_payment_description: advanceEnabled && advanceDescription ? advanceDescription : null,
         status,
       };
 
@@ -677,6 +697,45 @@ export default function EditHostelPage({ params }: { params: Promise<{ id: strin
             <p className="text-[10px] text-amber-600 mt-3">
               * This commission rate applies only to this specific hostel. Owner will see this rate in their Business Plan page.
             </p>
+          </div>
+
+          {/* Advance Deposit */}
+          <div className="mt-6 bg-gray-50 rounded-xl p-5 border border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h4 className="text-sm font-bold text-gray-900">Advance Deposit Settings</h4>
+                <p className="text-xs text-gray-500">Require advance payment from guests at booking</p>
+              </div>
+              <button onClick={() => setAdvanceEnabled(!advanceEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${advanceEnabled ? "bg-emerald-600" : "bg-gray-300"}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${advanceEnabled ? "translate-x-5" : "translate-x-1"}`} />
+              </button>
+            </div>
+            {advanceEnabled && (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Amount</label>
+                    <input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} placeholder="5000" min="0" step="100" className="w-full px-3 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Period</label>
+                    <input type="number" value={advancePeriod} onChange={e => setAdvancePeriod(e.target.value)} min="1" max="12" className="w-full px-3 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Period Type</label>
+                    <select value={advancePeriodType} onChange={e => setAdvancePeriodType(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                      <option value="day">Day(s)</option>
+                      <option value="week">Week(s)</option>
+                      <option value="month">Month(s)</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Description (optional)</label>
+                  <input type="text" value={advanceDescription} onChange={e => setAdvanceDescription(e.target.value)} placeholder="e.g. 2 months advance required" className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Amenities — mirrors create form */}

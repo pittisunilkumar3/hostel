@@ -13,6 +13,7 @@ interface Booking {
   guest_name: string; guest_phone: string;
   check_in: string; check_out: string; status: string; payment_status: string;
   total_amount: number; unit_price: number; sub_total: number; tax_amount: number;
+  advance_amount?: number; advance_status?: string;
   hostel_name: string; hostel_address: string; hostel_phone: string; hostel_logo: string;
   room_number: string; room_type: string; pricing_type: string;
   price_per_hour: number; price_per_day: number; price_per_month: number;
@@ -379,6 +380,17 @@ export default function UserProfilePage() {
                                   <div><span className="text-gray-400 block text-xs">Sub Total</span><span className="font-medium">{fc(b.sub_total)}</span></div>
                                   <div><span className="text-gray-400 block text-xs">Tax</span><span className="font-medium">{fc(b.tax_amount)}</span></div>
                                   <div><span className="text-gray-400 block text-xs">Total Paid</span><span className="font-bold text-emerald-700">{fc(b.total_amount)}</span></div>
+                                  {b.advance_amount > 0 && (
+                                    <div><span className="text-gray-400 block text-xs">Advance Deposit</span><span className="font-bold text-amber-700">{fc(b.advance_amount)}</span>
+                                      <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                        b.advance_status === 'PAID' ? 'bg-green-100 text-green-700' :
+                                        b.advance_status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
+                                        b.advance_status === 'REFUNDED' ? 'bg-blue-100 text-blue-700' :
+                                        b.advance_status === 'ADJUSTED' ? 'bg-purple-100 text-purple-700' :
+                                        'bg-gray-100 text-gray-600'
+                                      }`}>{b.advance_status || 'UNPAID'}</span>
+                                    </div>
+                                  )}
                                 </div>
                                 {b.special_requests && (
                                   <div className="mt-3 text-sm"><span className="text-gray-400">Special Requests:</span> {b.special_requests}</div>

@@ -50,6 +50,11 @@ interface Hostel {
   total_reviews: number;
   rooms: Room[];
   reviews: any[];
+  advance_payment_enabled?: boolean;
+  advance_payment_amount?: number;
+  advance_payment_period?: number;
+  advance_payment_period_type?: string;
+  advance_payment_description?: string;
 }
 
 export default function HostelDetailPage() {
@@ -411,6 +416,14 @@ export default function HostelDetailPage() {
                           >
                             {room.available > 0 ? "Book Now" : "Fully Booked"}
                           </button>
+                          {hostel.advance_payment_enabled && hostel.advance_payment_amount > 0 && (
+                            <div className="mt-2 p-2 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-800 text-center">
+                              <span className="font-semibold">{fc(hostel.advance_payment_amount)}</span> advance deposit required
+                              {hostel.advance_payment_period && (
+                                <> for {hostel.advance_payment_period} {hostel.advance_payment_period_type}{(hostel.advance_payment_period || 0) > 1 ? "s" : ""}</>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -511,6 +524,9 @@ export default function HostelDetailPage() {
                   <div className="flex justify-between"><span className="text-gray-500">Type</span><span className="font-semibold capitalize">{bookingSuccess.booking_type}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-semibold">{bookingSuccess.duration} {bookingSuccess.booking_type === "hourly" ? "hour(s)" : bookingSuccess.booking_type === "daily" ? "day(s)" : "month(s)"}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-bold text-emerald-700">{fc(bookingSuccess.total_amount)}</span></div>
+                  {bookingSuccess.advance_payment && (
+                    <div className="flex justify-between border-t pt-2 mt-1"><span className="text-amber-600">Advance Deposit</span><span className="font-bold text-amber-700">{fc(bookingSuccess.advance_payment.amount)}</span></div>
+                  )}
                   <div className="flex justify-between"><span className="text-gray-500">Status</span><span className="font-semibold text-yellow-600">Pending Confirmation</span></div>
                 </div>
                 <div className="flex gap-3">
@@ -626,6 +642,17 @@ export default function HostelDetailPage() {
                     <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span className="font-semibold">{fc(calculateTotal())}</span></div>
                     <div className="flex justify-between"><span className="text-gray-600">Taxes</span><span className="font-semibold">Calculated at checkout</span></div>
                     <div className="border-t border-emerald-200 pt-2 flex justify-between"><span className="font-bold text-gray-800">Estimated Total</span><span className="font-bold text-emerald-700 text-lg">{fc(calculateTotal())}</span></div>
+                    {hostel?.advance_payment_enabled && hostel?.advance_payment_amount > 0 && (
+                      <div className="border-t border-amber-200 pt-2 mt-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-amber-700 font-medium">Advance Deposit Required</span>
+                          <span className="font-bold text-amber-700">{fc(hostel.advance_payment_amount)}</span>
+                        </div>
+                        {hostel.advance_payment_period && (
+                          <p className="text-xs text-amber-600 mt-1">Covers {hostel.advance_payment_period} {hostel.advance_payment_period_type}{(hostel.advance_payment_period || 0) > 1 ? "s" : ""} • Adjusted at checkout</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

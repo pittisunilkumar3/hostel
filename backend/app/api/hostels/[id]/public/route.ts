@@ -16,6 +16,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
               h.zone_id, h.latitude, h.longitude, h.logo, h.cover_photo,
               h.total_rooms, h.total_beds, h.amenities, h.check_in_time, h.check_out_time,
               h.min_stay_days, h.tags,
+              h.advance_payment_enabled, h.advance_payment_amount, h.advance_payment_period,
+              h.advance_payment_period_type, h.advance_payment_description,
               z.name as zone_name, z.display_name as zone_display_name
        FROM hostels h
        LEFT JOIN zones z ON h.zone_id = z.id
