@@ -5,6 +5,7 @@ import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import Link from "next/link";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -17,6 +18,7 @@ interface TaxConfig {
 
 export default function TaxSettingsPage() {
   const [configs, setConfigs] = useState<TaxConfig[]>([]);
+  const { fc, symbol } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -174,7 +176,7 @@ export default function TaxSettingsPage() {
                       <span className="font-semibold text-gray-900">Tax Excluded</span>
                     </div>
                     <p className="text-sm text-gray-500 ml-8">
-                      Tax is added on top of the room price. Customer sees: Room ₹10,000 + Tax ₹1,800 = ₹11,800
+                      Tax is added on top of the room price. Customer sees: Room {symbol}10,000 + Tax {symbol}1,800 = {symbol}11,800
                     </p>
                   </button>
                   <button
@@ -195,7 +197,7 @@ export default function TaxSettingsPage() {
                       <span className="font-semibold text-gray-900">Tax Included</span>
                     </div>
                     <p className="text-sm text-gray-500 ml-8">
-                      Tax is already included in the room price. Customer sees: Room ₹10,000 (incl. ₹1,525 tax)
+                      Tax is already included in the room price. Customer sees: Room {symbol}10,000 (incl. {symbol}1,525 tax)
                     </p>
                   </button>
                 </div>
@@ -272,7 +274,7 @@ export default function TaxSettingsPage() {
                       <span className="font-semibold text-gray-900">Itemized</span>
                     </div>
                     <p className="text-sm text-gray-500 ml-8">
-                      Show each tax separately: CGST ₹900, SGST ₹900
+                      Show each tax separately: CGST {symbol}900, SGST {symbol}900
                     </p>
                   </button>
                   <button
@@ -293,7 +295,7 @@ export default function TaxSettingsPage() {
                       <span className="font-semibold text-gray-900">Combined</span>
                     </div>
                     <p className="text-sm text-gray-500 ml-8">
-                      Show total tax: Tax ₹1,800 (18%)
+                      Show total tax: Tax {symbol}1,800 (18%)
                     </p>
                   </button>
                 </div>
@@ -319,8 +321,8 @@ export default function TaxSettingsPage() {
                     </span>
                     <p className="text-sm text-gray-500 mt-1">
                       {applyOnDiscount
-                        ? "If room is ₹10,000 with ₹1,000 discount, tax is on ₹9,000"
-                        : "If room is ₹10,000 with ₹1,000 discount, tax is on ₹10,000"}
+                        ? "If room is {symbol}10,000 with {symbol}1,000 discount, tax is on {symbol}9,000"
+                        : "If room is {symbol}10,000 with {symbol}1,000 discount, tax is on {symbol}10,000"}
                     </p>
                   </div>
                   <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${applyOnDiscount ? "bg-green-500" : "bg-gray-300"}`}>
@@ -342,7 +344,7 @@ export default function TaxSettingsPage() {
             <div className="bg-white rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Room Price (per month)</span>
-                <span className="font-medium">₹10,000</span>
+                <span className="font-medium">{symbol}10,000</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Duration</span>
@@ -350,21 +352,21 @@ export default function TaxSettingsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Base Amount</span>
-                <span className="font-medium">₹30,000</span>
+                <span className="font-medium">{symbol}30,000</span>
               </div>
               <div className="border-t border-gray-200 my-2"></div>
               <div className="flex justify-between text-purple-700">
                 <span>CGST (9%)</span>
-                <span className="font-medium">₹2,700</span>
+                <span className="font-medium">{symbol}2,700</span>
               </div>
               <div className="flex justify-between text-purple-700">
                 <span>SGST (9%)</span>
-                <span className="font-medium">₹2,700</span>
+                <span className="font-medium">{symbol}2,700</span>
               </div>
               <div className="border-t border-gray-200 my-2"></div>
               <div className="flex justify-between text-lg font-bold text-gray-900">
                 <span>Total</span>
-                <span>₹35,400</span>
+                <span>{symbol}35,400</span>
               </div>
               <p className="text-xs text-gray-400 mt-2">
                 * Based on current settings: Tax {taxInclusive ? "Included" : "Excluded"}, {taxDisplay} display

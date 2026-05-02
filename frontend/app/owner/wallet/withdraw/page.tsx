@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/owner/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -102,8 +103,7 @@ export default function OwnerWithdrawPage() {
     } catch { /* ignore */ }
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  const { fc: formatCurrency, fc, symbol } = useCurrency();
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -195,7 +195,7 @@ export default function OwnerWithdrawPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{symbol}</span>
                   <input
                     type="number"
                     min={1}

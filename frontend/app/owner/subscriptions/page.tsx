@@ -5,6 +5,7 @@ import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/owner/sidebarItems";
 import { useRouter } from "next/navigation";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -154,8 +155,7 @@ export default function OwnerSubscriptions() {
     }
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  const { fc: formatCurrency } = useCurrency();
 
   const formatDate = (d: string) => {
     if (!d) return "—";

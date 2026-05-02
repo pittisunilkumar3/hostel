@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -88,7 +89,7 @@ export default function WalletBonusPage() {
   };
 
   const formatDate = (dateStr: string) => dateStr ? new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-";
-  const formatCurrency = (amount: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  const { fc: formatCurrency, fc, symbol } = useCurrency();
 
   return (
     <DashboardShell role="admin" title="Super Admin" items={sidebarItems} accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10">
@@ -122,15 +123,15 @@ export default function WalletBonusPage() {
               <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. 10% Bonus" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bonus Amount (₹) <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{`Bonus Amount (${symbol})`} <span className="text-red-500">*</span></label>
               <input type="number" min={1} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="e.g. 100" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Min Add Amount (₹) <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{`Min Add Amount (${symbol})`} <span className="text-red-500">*</span></label>
               <input type="number" min={1} value={form.min_add_amount} onChange={(e) => setForm({ ...form, min_add_amount: e.target.value })} placeholder="e.g. 500" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max Bonus (₹)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{`Max Bonus (${symbol})`}</label>
               <input type="number" min={1} value={form.max_bonus} onChange={(e) => setForm({ ...form, max_bonus: e.target.value })} placeholder="Optional" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
             </div>
             <div>

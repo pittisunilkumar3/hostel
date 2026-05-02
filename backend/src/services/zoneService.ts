@@ -4,6 +4,7 @@ interface ZoneRow extends RowDataPacket {
   id: number;
   name: string;
   display_name: string | null;
+  image: string | null;
   coordinates: string | null;
   status: number;
   is_default: number;
@@ -22,6 +23,7 @@ export interface ZoneData {
   id?: number;
   name: string;
   displayName?: string | null;
+  image?: string | null;
   coordinates?: string | null;
   status?: boolean;
   isDefault?: boolean;
@@ -37,7 +39,7 @@ export interface ZoneData {
 export const getAllZones = async (search?: string) => {
   let query = `
     SELECT z.*,
-      (SELECT COUNT(*) FROM hostels h WHERE h.zone_id = z.id) AS hostels_count
+      (SELECT COUNT(*) FROM hostels h WHERE h.zone_id = z.id AND h.status = 'APPROVED') AS hostels_count
     FROM zones z
   `;
   const params: any[] = [];
@@ -91,6 +93,7 @@ export const updateZone = async (id: number, data: Partial<ZoneData>) => {
 
   if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
   if (data.displayName !== undefined) { fields.push("display_name = ?"); values.push(data.displayName || null); }
+  if (data.image !== undefined) { fields.push("image = ?"); values.push(data.image || null); }
   if (data.coordinates !== undefined) { fields.push("coordinates = ?"); values.push(data.coordinates); }
   if (data.status !== undefined) { fields.push("status = ?"); values.push(data.status ? 1 : 0); }
   if (data.isDefault !== undefined) { fields.push("is_default = ?"); values.push(data.isDefault ? 1 : 0); }

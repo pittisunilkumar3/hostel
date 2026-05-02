@@ -70,21 +70,38 @@ export const createBooking = async (data: BookingInput) => {
   };
 };
 
-export const getAllBookings = async (page: number, limit: number) => {
+export const getAllBookings = async (page: number, limit: number, filters?: { hostelId?: string; status?: string }) => {
   const skip = (page - 1) * limit;
+
+  const conditions: string[] = [];
+  const values: any[] = [];
+
+  if (filters?.hostelId) {
+    conditions.push("b.hostel_id = ?");
+    values.push(parseInt(filters.hostelId));
+  }
+  if (filters?.status) {
+    conditions.push("b.status = ?");
+    values.push(filters.status);
+  }
+
+  const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
 
   const [bookings] = await db.execute<BookingRow[]>(
     `SELECT b.*, u.name as student_name, u.email as student_email,
-            r.room_number, r.type as room_type
+            r.room_number, r.type as room_type, h.name as hostel_name
      FROM bookings b
      JOIN users u ON b.student_id = u.id
      JOIN rooms r ON b.room_id = r.id
+     LEFT JOIN hostels h ON b.hostel_id = h.id
+     ${where}
      ORDER BY b.created_at DESC LIMIT ? OFFSET ?`,
-    [limit, skip]
+    [...values, limit, skip]
   );
 
   const [countRows] = await db.execute<RowDataPacket[]>(
-    "SELECT COUNT(*) as total FROM bookings"
+    `SELECT COUNT(*) as total FROM bookings b ${where}`,
+    values
   );
 
   const total = (countRows[0] as any).total;

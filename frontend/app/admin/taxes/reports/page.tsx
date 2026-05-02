@@ -5,6 +5,7 @@ import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import Link from "next/link";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -68,9 +69,7 @@ export default function TaxReportsPage() {
     setTimeout(fetchReport, 100);
   };
 
-  const formatCurrency = (amount: number) => {
-    return `₹${Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const { fc: formatCurrency } = useCurrency();
 
   return (
     <DashboardShell

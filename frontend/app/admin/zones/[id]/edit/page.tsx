@@ -18,11 +18,13 @@ export default function EditZonePage() {
 
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [zoneImage, setZoneImage] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [coordinates, setCoordinates] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [mapReady, setMapReady] = useState(false);
+  const [mapReady, setMapReady] = useState(typeof window !== 'undefined' && !!(window as any).google?.maps);
   const [mapApiKey, setMapApiKey] = useState("");
   const [zoneData, setZoneData] = useState<any>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -45,6 +47,7 @@ export default function EditZonePage() {
           setZoneData(z);
           setName(z.name);
           setDisplayName(z.display_name || "");
+          setZoneImage(z.image || "");
           if (z.coordinates) {
             try {
               const coords = JSON.parse(z.coordinates);
@@ -171,10 +174,10 @@ export default function EditZonePage() {
 
   // Also handle case where google maps script was already loaded (client-side nav)
   useEffect(() => {
-    if (window.google && dataLoaded && !initCalledRef.current && mapApiKey) {
+    if (window.google?.maps && dataLoaded && !initCalledRef.current && !mapReady) {
       setMapReady(true);
     }
-  }, [dataLoaded, mapApiKey]);
+  }, [dataLoaded, mapApiKey, mapReady]);
 
   // Cleanup map on unmount
   useEffect(() => {
@@ -211,6 +214,7 @@ export default function EditZonePage() {
         body: JSON.stringify({
           name: name.trim(),
           displayName: displayName.trim() || null,
+          image: zoneImage || null,
           coordinates: JSON.stringify(coordsArray),
         }),
       });
@@ -259,6 +263,36 @@ export default function EditZonePage() {
                   <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={255}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone Image</label>
+                  <div className="flex items-center gap-3">
+                    {zoneImage ? (
+                      <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <img src={zoneImage} alt="Zone" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => setZoneImage("")} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                      </div>
+                    ) : null}
+                    <label className={`px-3 py-2 border border-gray-300 rounded text-xs font-medium cursor-pointer hover:bg-gray-50 ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}>
+                      {uploading ? "Uploading..." : zoneImage ? "Change Image" : "Upload Image"}
+                      <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploading(true);
+                        try {
+                          const fd = new FormData();
+                          fd.append("file", f);
+                          const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/zones/upload`, { method: "POST", body: fd });
+                          const d = await r.json();
+                          if (d.success) setZoneImage(d.data.url);
+                          else setError(d.message || "Upload failed");
+                        } catch { setError("Upload failed"); }
+                        finally { setUploading(false); }
+                        e.target.value = "";
+                      }} />
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Recommended: 600×400px, max 2MB</p>
+                </div>
                 {error && <div className="px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>}
                 {coordinates && (
                   <div className="px-3 py-2 bg-green-50 border border-green-200 rounded">
@@ -292,8 +326,8 @@ export default function EditZonePage() {
         </form>
       )}
 
-      {/* Google Maps Script */}
-      {mapApiKey && (
+      {/* Google Maps Script — only inject if not already loaded */}
+      {mapApiKey && !mapReady && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=drawing,places`}
           onLoad={() => setMapReady(true)}

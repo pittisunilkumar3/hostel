@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
+import { useCurrency } from "@/lib/useCurrency";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 
 const sidebarItems = getSidebarItems();
@@ -62,8 +63,7 @@ export default function AdminSubscribers() {
     }
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  const { fc: formatCurrency } = useCurrency();
 
   const formatDate = (d: string) => {
     if (!d) return "—";

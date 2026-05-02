@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -19,6 +20,7 @@ interface WalletSettings {
 }
 
 export default function AdminWalletSettingsPage() {
+  const { fc, symbol } = useCurrency();
   const [settings, setSettings] = useState<WalletSettings>({
     wallet_status: "1",
     wallet_add_refund: "1",
@@ -145,7 +147,7 @@ export default function AdminWalletSettingsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Add Fund Amount</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{symbol}</span>
                 <input
                   type="number"
                   min={0}
@@ -159,7 +161,7 @@ export default function AdminWalletSettingsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Owner Withdraw Amount</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{symbol}</span>
                 <input
                   type="number"
                   min={0}
@@ -207,7 +209,7 @@ export default function AdminWalletSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Exchange Rate (Points per ₹1)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Exchange Rate (Points per {symbol}1)</label>
               <input
                 type="number"
                 min={1}
@@ -215,7 +217,7 @@ export default function AdminWalletSettingsPage() {
                 onChange={(e) => handleChange("loyalty_point_exchange_rate", e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30"
               />
-              <p className="text-xs text-gray-500 mt-1">How many points equal ₹1 when converting</p>
+              <p className="text-xs text-gray-500 mt-1">How many points equal {symbol}1 when converting</p>
             </div>
 
             <div>
@@ -234,9 +236,9 @@ export default function AdminWalletSettingsPage() {
             <div className="p-4 bg-purple-50 rounded-xl">
               <h4 className="text-sm font-medium text-purple-900 mb-2">Example Calculation</h4>
               <p className="text-xs text-purple-700">
-                If a customer makes a booking of ₹1,000:
-                <br />• Points earned: ₹1,000 × {settings.loyalty_point_item_purchase_point}% = {Math.floor(1000 * parseFloat(settings.loyalty_point_item_purchase_point || "5") / 100)} points
-                <br />• Points value: {Math.floor(1000 * parseFloat(settings.loyalty_point_item_purchase_point || "5") / 100)} ÷ {settings.loyalty_point_exchange_rate} = ₹{(Math.floor(1000 * parseFloat(settings.loyalty_point_item_purchase_point || "5") / 100) / parseFloat(settings.loyalty_point_exchange_rate || "10")).toFixed(2)}
+                If a customer makes a booking of {symbol}1,000:
+                <br />• Points earned: {symbol}1,000 × {settings.loyalty_point_item_purchase_point}% = {Math.floor(1000 * parseFloat(settings.loyalty_point_item_purchase_point || "5") / 100)} points
+                <br />• Points value: {Math.floor(1000 * parseFloat(settings.loyalty_point_item_purchase_point || "5") / 100)} ÷ {settings.loyalty_point_exchange_rate} = {fc(Math.floor(1000 * parseFloat(settings.loyalty_point_item_purchase_point || "5") / 100) / parseFloat(settings.loyalty_point_exchange_rate || "10"))}
               </p>
             </div>
           </div>

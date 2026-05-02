@@ -114,6 +114,8 @@ export const getHostels = async (params: GetHostelsParams) => {
 export const getHostelById = async (id: number) => {
   const [rows] = await db.execute<HostelRow[]>(
     `SELECT h.*, u.name as owner_name, u.email as owner_email, u.phone as owner_phone,
+            SUBSTRING_INDEX(u.name, ' ', 1) as owner_f_name,
+            CASE WHEN LOCATE(' ', u.name) > 0 THEN TRIM(SUBSTRING(u.name, LOCATE(' ', u.name) + 1)) ELSE '' END as owner_l_name,
             z.name as zone_name
      FROM hostels h
      LEFT JOIN users u ON h.owner_id = u.id
@@ -201,13 +203,61 @@ export const updateHostel = async (id: number, data: any) => {
     values.push(JSON.stringify(data.custom_fields));
   }
 
-  if (fields.length === 0) return getHostelById(id);
+  if (fields.length === 0 && !data.owner && !data.general) return getHostelById(id);
 
-  values.push(id);
-  await db.execute(
-    `UPDATE hostels SET ${fields.join(", ")} WHERE id = ?`,
-    values
-  );
+  if (fields.length > 0) {
+    values.push(id);
+    await db.execute(
+      `UPDATE hostels SET ${fields.join(", ")} WHERE id = ?`,
+      values
+    );
+  }
+
+  // Update general settings if provided
+  if (data.general) {
+    const g = data.general;
+    const genFields: string[] = [];
+    const genValues: any[] = [];
+    if (g.total_rooms !== undefined) { genFields.push("total_rooms = ?"); genValues.push(g.total_rooms); }
+    if (g.total_beds !== undefined) { genFields.push("total_beds = ?"); genValues.push(g.total_beds); }
+    if (g.minimum_stay !== undefined) { genFields.push("min_stay_days = ?"); genValues.push(g.minimum_stay); }
+    if (g.check_in_time !== undefined) { genFields.push("check_in_time = ?"); genValues.push(g.check_in_time); }
+    if (g.check_out_time !== undefined) { genFields.push("check_out_time = ?"); genValues.push(g.check_out_time); }
+    if (genFields.length > 0) {
+      genValues.push(id);
+      await db.execute(`UPDATE hostels SET ${genFields.join(", ")} WHERE id = ?`, genValues);
+    }
+  }
+
+  // Update owner info if provided
+  if (data.owner) {
+    const o = data.owner;
+    // Get owner_id from hostel
+    const [hostelRows] = await db.execute<RowDataPacket[]>("SELECT owner_id FROM hostels WHERE id = ?", [id]);
+    if (hostelRows.length > 0) {
+      const ownerId = (hostelRows[0] as any).owner_id;
+      if (ownerId) {
+        const ownerFields: string[] = [];
+        const ownerValues: any[] = [];
+        if (o.f_name !== undefined) {
+          const fullName = o.l_name ? `${o.f_name} ${o.l_name}` : o.f_name;
+          ownerFields.push("name = ?");
+          ownerValues.push(fullName.trim());
+        }
+        if (o.phone !== undefined) { ownerFields.push("phone = ?"); ownerValues.push(o.phone); }
+        if (o.email !== undefined) { ownerFields.push("email = ?"); ownerValues.push(o.email); }
+        if (o.password) {
+          const bcrypt = require("bcryptjs");
+          ownerFields.push("password = ?");
+          ownerValues.push(await bcrypt.hash(o.password, 10));
+        }
+        if (ownerFields.length > 0) {
+          ownerValues.push(ownerId);
+          await db.execute(`UPDATE users SET ${ownerFields.join(", ")} WHERE id = ?`, ownerValues);
+        }
+      }
+    }
+  }
 
   return getHostelById(id);
 };

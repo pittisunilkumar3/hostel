@@ -5,6 +5,7 @@ import Link from "next/link";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -134,9 +135,7 @@ export default function CustomerListPage() {
     return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
-  };
+  const { fc: formatCurrency } = useCurrency();
 
   const statCards = [
     { label: "Total Customers", value: stats.total, bg: "bg-blue-50", icon: "👥", color: "text-blue-600" },

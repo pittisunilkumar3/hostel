@@ -20,18 +20,23 @@ interface Conversation {
   user_phone: string;
   user_avatar: string | null;
   user_role?: string;
+  owner_name?: string;
+  hostel_name?: string;
+  conversation_type?: string;
 }
 
 interface ConvMessage {
   id: number;
   conversation_id: number;
   sender_id: number;
-  sender_type: "user" | "admin";
+  sender_type: "user" | "admin" | "owner";
   message: string;
   is_read: number;
   created_at: string;
   sender_name: string;
 }
+
+type TabType = "customer" | "owner";
 
 export default function ConversationsPage() {
   const [loading, setLoading] = useState(true);
@@ -45,11 +50,15 @@ export default function ConversationsPage() {
   const [convSearch, setConvSearch] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>("customer");
 
   useEffect(() => {
     setUser(getCurrentUser());
-    fetchConversations();
   }, []);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [activeTab]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,7 +66,7 @@ export default function ConversationsPage() {
 
   const fetchConversations = async (search = "") => {
     try {
-      const params = new URLSearchParams({ limit: "50" });
+      const params = new URLSearchParams({ limit: "50", type: activeTab });
       if (search) params.set("search", search);
       const res = await apiFetch(`/api/conversations?${params}`);
       if (res.success) {
@@ -87,6 +96,19 @@ export default function ConversationsPage() {
     setSelectedConv(conv);
     await fetchConvMessages(conv.id);
     fetchConversations(convSearch);
+  };
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setSelectedConv(null);
+    setConvMessages([]);
+    setConvSearch("");
+    setLoading(true);
+  };
+
+  const handleSearch = (val: string) => {
+    setConvSearch(val);
+    fetchConversations(val);
   };
 
   const sendMessage = async () => {
@@ -145,7 +167,7 @@ export default function ConversationsPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Conversations</h1>
-            <p className="text-gray-500 text-sm">Chat with users and hostel owners in real-time</p>
+            <p className="text-gray-500 text-sm">Chat with customers and hostel owners in real-time</p>
           </div>
         </div>
       </div>
@@ -157,45 +179,60 @@ export default function ConversationsPage() {
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden" style={{ height: "calc(100vh - 250px)", minHeight: "500px" }}>
         <div className="flex h-full">
           {/* Conversations List */}
-          <div className={`w-full lg:w-80 border-r border-gray-100 flex flex-col shrink-0 ${selectedConv ? "hidden lg:flex" : "flex"}`}>
+          <div className={`w-full lg:w-96 border-r border-gray-100 flex flex-col shrink-0 ${selectedConv ? "hidden lg:flex" : "flex"}`}>
+            {/* Tabs */}
+            <div className="border-b border-gray-100 px-3 pt-3">
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                <button onClick={() => handleTabChange("customer")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${activeTab === "customer" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  Customers
+                </button>
+                <button onClick={() => handleTabChange("owner")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-semibold transition-all ${activeTab === "owner" ? "bg-white text-emerald-700 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                  Hostel Owners
+                </button>
+              </div>
+            </div>
+
+            {/* Search */}
             <div className="p-3 border-b border-gray-50">
               <div className="relative">
                 <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                <input type="text" placeholder="Search by name..." value={convSearch} onChange={e => { setConvSearch(e.target.value); fetchConversations(e.target.value); }} className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20" />
+                <input type="text" placeholder="Search by name, email, phone..." value={convSearch} onChange={e => handleSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20" />
               </div>
             </div>
+
+            {/* Conversation List */}
             <div className="flex-1 overflow-y-auto">
               {conversations.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <svg className="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                  <p className="text-sm">No conversations yet</p>
+                  <p className="text-sm">No {activeTab === "customer" ? "customer" : "hostel owner"} conversations yet</p>
                 </div>
-              ) : conversations.map(conv => (
-                <button key={conv.id} onClick={() => selectConversation(conv)} className={`w-full flex items-center gap-3 p-3.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 ${selectedConv?.id === conv.id ? "bg-orange-50 border-l-2 border-l-orange-500" : ""}`}>
-                  <div className="relative">
+              ) : conversations.map(conv => {
+                const isOwnerUser = conv.user_role === "OWNER";
+                return (
+                  <button key={conv.id} onClick={() => selectConversation(conv)} className={`w-full flex items-center gap-3 p-3.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 ${selectedConv?.id === conv.id ? "bg-orange-50 border-l-2 border-l-orange-500" : ""}`}>
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                      conv.user_role === "OWNER" ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                      isOwnerUser ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
                     }`}>
                       {getInitials(conv.user_name || "U")}
                     </div>
-                    {conv.user_role === "OWNER" && (
-                      <span className="absolute -bottom-1 -right-1 px-1 py-0.5 bg-emerald-500 text-white text-[8px] font-bold rounded-full">
-                        Owner
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{conv.user_name || "Unknown"}</p>
-                      <span className="text-[10px] text-gray-400 shrink-0 ml-1">{formatDate(conv.updated_at)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{conv.user_name || "Unknown"}</p>
+                        <span className="text-[10px] text-gray-400 shrink-0 ml-1">{formatDate(conv.updated_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <p className="text-xs text-gray-500 truncate">{conv.last_message || "No messages"}</p>
+                        {(conv.unread_count || 0) > 0 && <span className="ml-1 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full shrink-0">{conv.unread_count}</span>}
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <p className="text-xs text-gray-500 truncate">{conv.last_message || "No messages yet"}</p>
-                      {(conv.unread_count || 0) > 0 && <span className="ml-1 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full shrink-0">{conv.unread_count}</span>}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -208,10 +245,21 @@ export default function ConversationsPage() {
                   <button onClick={() => setSelectedConv(null)} className="lg:hidden text-gray-500 hover:text-gray-700">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                   </button>
-                  <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-600">{getInitials(selectedConv.user_name || "U")}</div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{selectedConv.user_name}</p>
-                    <p className="text-[11px] text-gray-400">{selectedConv.user_email}</p>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    selectedConv.user_role === "OWNER" ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                  }`}>
+                    {getInitials(selectedConv.user_name || "U")}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{selectedConv.user_name}</p>
+                      {selectedConv.user_role === "OWNER" ? (
+                        <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-semibold rounded">Hostel Owner</span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-semibold rounded">Customer</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-400">{selectedConv.user_email}{selectedConv.user_phone ? ` • ${selectedConv.user_phone}` : ""}</p>
                   </div>
                 </div>
 
@@ -219,14 +267,20 @@ export default function ConversationsPage() {
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30">
                   {convMessages.length === 0 ? (
                     <div className="text-center py-16 text-gray-400"><p className="text-sm">No messages yet. Start the conversation!</p></div>
-                  ) : convMessages.map(m => (
-                    <div key={m.id} className={`flex ${m.sender_type === "admin" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${m.sender_type === "admin" ? "bg-orange-600 text-white rounded-br-md" : "bg-white border border-gray-200 text-gray-800 rounded-bl-md"}`}>
-                        <p className="text-sm leading-relaxed">{m.message}</p>
-                        <p className={`text-[10px] mt-1 ${m.sender_type === "admin" ? "text-orange-200" : "text-gray-400"}`}>{formatDateTime(m.created_at)}</p>
+                  ) : convMessages.map(m => {
+                    const isAdmin = m.sender_type === "admin";
+                    return (
+                      <div key={m.id} className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isAdmin ? "bg-orange-600 text-white rounded-br-md" : "bg-white border border-gray-200 text-gray-800 rounded-bl-md"}`}>
+                          {!isAdmin && m.sender_name && (
+                            <p className="text-[10px] font-semibold mb-0.5 text-gray-400">{m.sender_name}</p>
+                          )}
+                          <p className="text-sm leading-relaxed">{m.message}</p>
+                          <p className={`text-[10px] mt-1 ${isAdmin ? "text-orange-200" : "text-gray-400"}`}>{formatDateTime(m.created_at)}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div ref={chatEndRef} />
                 </div>
 

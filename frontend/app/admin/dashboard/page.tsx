@@ -5,6 +5,7 @@ import DashboardShell from "@/app/components/DashboardShell";
 import StatCard from "@/app/components/StatCard";
 import { getCurrentUser, apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -18,6 +19,7 @@ interface RecentUser {
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<RecentUser[]>([]);
+  const { fc, symbol } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   useEffect(() => { setUser(getCurrentUser()); }, []);
@@ -65,7 +67,7 @@ export default function AdminDashboard() {
         <StatCard title="Total Users" value={users.length > 0 ? "3+" : "—"} change="+12%" subtitle="vs last month" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197" /></svg>} color="text-violet-600" bgColor="bg-violet-50" />
         <StatCard title="Total Rooms" value="4" change="+2" subtitle="newly added" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" /></svg>} color="text-sky-600" bgColor="bg-sky-50" />
         <StatCard title="Active Bookings" value="—" subtitle="current month" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} color="text-emerald-600" bgColor="bg-emerald-50" />
-        <StatCard title="Revenue" value="₹15,000" change="+8%" subtitle="this month" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} color="text-amber-600" bgColor="bg-amber-50" />
+        <StatCard title="Revenue" value={fc(15000)} change="+8%" subtitle="this month" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} color="text-amber-600" bgColor="bg-amber-50" />
       </div>
 
       {/* Recent Users */}

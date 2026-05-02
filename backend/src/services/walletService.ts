@@ -1,5 +1,6 @@
 import db, { RowDataPacket, ResultSetHeader } from "../config/database";
 import { v4 as uuidv4 } from "uuid";
+import { formatAmount } from "../utils/currency";
 
 // ============================================================
 // CUSTOMER WALLET - Matches reference CustomerLogic
@@ -423,7 +424,7 @@ export async function walletPaymentSuccess(
     "add_fund",
     paymentMethod,
     "wallet_payment",
-    `Added ₹${paymentAmount} to wallet via ${paymentMethod}`
+    `Added ${await formatAmount(paymentAmount)} to wallet via ${paymentMethod}`
   );
 }
 
@@ -540,7 +541,7 @@ export async function createWithdrawRequest(
   const minWithdraw = minAmount.length > 0 ? parseFloat(minAmount[0].value) : 100;
 
   if (amount < minWithdraw) {
-    return { error: `Minimum withdrawal amount is ₹${minWithdraw}` };
+    return { error: `Minimum withdrawal amount is ${await formatAmount(minWithdraw)}` };
   }
 
   // Check balance

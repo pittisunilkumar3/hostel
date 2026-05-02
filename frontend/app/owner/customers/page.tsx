@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { getSidebarItems } from "@/app/owner/sidebarItems";
 import { apiFetch } from "@/lib/auth";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -22,6 +23,7 @@ interface Customer {
 
 export default function OwnerCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const { fc, symbol } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({ total: 0, active: 0, newThisMonth: 0 });
@@ -153,7 +155,7 @@ export default function OwnerCustomersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="font-semibold text-gray-900">₹{parseFloat(customer.total_spent || "0").toLocaleString()}</span>
+                      <span className="font-semibold text-gray-900">{fc(parseFloat(customer.total_spent || "0"))}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-600">

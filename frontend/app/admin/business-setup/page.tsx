@@ -5,6 +5,7 @@ import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import { API_URL } from "@/lib/auth";
+import { useCurrency } from "@/lib/useCurrency";
 import Script from "next/script";
 
 const sidebarItems = getSidebarItems();
@@ -19,6 +20,7 @@ export default function BusinessSetup() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"business" | "payment">("business");
+  const { symbol } = useCurrency();
 
   // Business state
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -60,7 +62,7 @@ export default function BusinessSetup() {
 
   // Map state
   const [mapApiKey, setMapApiKey] = useState("");
-  const [mapReady, setMapReady] = useState(false);
+  const [mapReady, setMapReady] = useState(typeof window !== 'undefined' && !!(window as any).google?.maps);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -136,10 +138,10 @@ export default function BusinessSetup() {
 
   // Handle google already loaded
   useEffect(() => {
-    if (window.google && !mapInitDone.current && mapApiKey) {
+    if (window.google?.maps && !mapInitDone.current && !mapReady) {
       setMapReady(true);
     }
-  }, [mapApiKey]);
+  }, [mapApiKey, mapReady]);
 
   // Update marker when lat/lng inputs change
   useEffect(() => {
@@ -690,7 +692,7 @@ export default function BusinessSetup() {
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Additional charge name <span className="text-red-500">*</span></label><input type="text" value={additionalChargeName} onChange={(e) => setAdditionalChargeName(e.target.value)} placeholder="Service Charge" className={ic} /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Charge amount (₹) <span className="text-red-500">*</span></label><input type="number" value={additionalChargeAmount} onChange={(e) => setAdditionalChargeAmount(e.target.value)} placeholder="50" className={ic} /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">{`Charge amount (${symbol})`} <span className="text-red-500">*</span></label><input type="number" value={additionalChargeAmount} onChange={(e) => setAdditionalChargeAmount(e.target.value)} placeholder="50" className={ic} /></div>
                   </div>
                 </>
               )}
@@ -731,8 +733,8 @@ export default function BusinessSetup() {
         </div>
       )}
 
-      {/* Google Maps Script */}
-      {mapApiKey && (
+      {/* Google Maps Script — only inject if not already loaded */}
+      {mapApiKey && !mapReady && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=places`}
           onLoad={() => setMapReady(true)}

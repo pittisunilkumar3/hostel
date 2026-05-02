@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/owner/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -67,6 +68,7 @@ const furnishingOptions = [
 export default function FloorRoomManagement() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const { fc, symbol } = useCurrency();
   const [loading, setLoading] = useState(true);
 
   // ── State ──
@@ -735,9 +737,9 @@ export default function FloorRoomManagement() {
                                    room.pricing_type === 'custom' ? 'Custom pricing' : 'Price per month'}
                                 </p>
                                 <p className="text-xl font-bold text-emerald-600">
-                                  ₹{(room.pricing_type === 'hourly' ? (room.price_per_hour || 0) :
+                                  {fc(room.pricing_type === 'hourly' ? (room.price_per_hour || 0) :
                                      room.pricing_type === 'daily' ? (room.price_per_day || 0) :
-                                     (room.price_per_month || 0)).toLocaleString()}
+                                     (room.price_per_month || 0))}
                                 </p>
                               </div>
 
@@ -1032,7 +1034,7 @@ export default function FloorRoomManagement() {
                 <div className="mt-4">
                   {roomForm.pricing_type === 'monthly' && (
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Price per Month (₹) *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{`Price per Month (${symbol})`} *</label>
                       <input
                         type="number"
                         min="0"
@@ -1046,7 +1048,7 @@ export default function FloorRoomManagement() {
                   
                   {roomForm.pricing_type === 'daily' && (
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Price per Day (₹) *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{`Price per Day (${symbol})`} *</label>
                       <input
                         type="number"
                         min="0"
@@ -1060,7 +1062,7 @@ export default function FloorRoomManagement() {
                   
                   {roomForm.pricing_type === 'hourly' && (
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Price per Hour (₹) *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{`Price per Hour (${symbol})`} *</label>
                       <input
                         type="number"
                         min="0"
@@ -1103,7 +1105,7 @@ export default function FloorRoomManagement() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Price per Hour (₹)</label>
+                        <label className="block text-xs text-gray-500 mb-1">{`Price per Hour (${symbol})`}</label>
                         <input
                           type="number"
                           min="0"

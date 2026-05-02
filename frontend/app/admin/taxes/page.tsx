@@ -5,6 +5,7 @@ import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import Link from "next/link";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -20,6 +21,7 @@ interface Tax {
 
 export default function TaxRatesPage() {
   const [taxes, setTaxes] = useState<Tax[]>([]);
+  const { fc, symbol } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -180,7 +182,7 @@ export default function TaxRatesPage() {
                     </td>
                     <td className="py-3.5 px-6">
                       <span className="font-semibold text-purple-600">
-                        {tax.type === "percentage" ? `${tax.rate}%` : `₹${tax.rate}`}
+                        {tax.type === "percentage" ? `${tax.rate}%` : `${fc(tax.rate)}`}
                       </span>
                     </td>
                     <td className="py-3.5 px-6">
@@ -245,7 +247,7 @@ export default function TaxRatesPage() {
         </h3>
         <ul className="text-sm text-purple-700 space-y-1.5">
           <li>• <strong>Percentage Tax</strong>: Calculated as % of booking amount (e.g., GST 18%)</li>
-          <li>• <strong>Fixed Tax</strong>: Flat amount added per booking (e.g., ₹100 service charge)</li>
+          <li>• <strong>Fixed Tax</strong>: Flat amount added per booking (e.g., {symbol}100 service charge)</li>
           <li>• <strong>Priority</strong>: Higher priority taxes are calculated first</li>
           <li>• <strong>Toggle</strong>: Enable/disable taxes without deleting them</li>
           <li>• Taxes are automatically applied to new bookings based on configuration</li>

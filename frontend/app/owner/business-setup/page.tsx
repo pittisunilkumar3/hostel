@@ -52,7 +52,7 @@ export default function OwnerBusinessSetup() {
 
   // Map state
   const [mapApiKey, setMapApiKey] = useState("");
-  const [mapReady, setMapReady] = useState(false);
+  const [mapReady, setMapReady] = useState(typeof window !== 'undefined' && !!(window as any).google?.maps);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -130,10 +130,10 @@ export default function OwnerBusinessSetup() {
   }, [mapReady, initMap]);
 
   useEffect(() => {
-    if (window.google && !mapInitDone.current && mapApiKey) {
+    if (window.google?.maps && !mapInitDone.current && !mapReady) {
       setMapReady(true);
     }
-  }, [mapApiKey]);
+  }, [mapApiKey, mapReady]);
 
   useEffect(() => {
     if (!mapInstanceRef.current || !markerRef.current || !window.google) return;
@@ -627,8 +627,8 @@ export default function OwnerBusinessSetup() {
         </div>
       )}
 
-      {/* Google Maps Script */}
-      {mapApiKey && (
+      {/* Google Maps Script — only inject if not already loaded */}
+      {mapApiKey && !mapReady && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=places`}
           onLoad={() => setMapReady(true)}

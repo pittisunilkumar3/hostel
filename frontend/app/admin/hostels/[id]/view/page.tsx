@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import { useRouter } from "next/navigation";
 import LeafletMap from "@/app/components/LeafletMap";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -85,7 +86,7 @@ interface ConvMessage {
   id: number;
   conversation_id: number;
   sender_id: number;
-  sender_type: "user" | "admin";
+  sender_type: "user" | "admin" | "owner";
   message: string;
   is_read: number;
   created_at: string;
@@ -613,31 +614,33 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
         }
 
         // Fetch rooms
+        let fetchedRooms: any[] = [];
         try {
           const roomsRes = await apiFetch(`/api/rooms?hostel_id=${id}&limit=100`);
-          if (roomsRes.success) setRooms(roomsRes.data?.rooms || roomsRes.data || []);
+          if (roomsRes.success) { fetchedRooms = roomsRes.data?.rooms || roomsRes.data || []; setRooms(fetchedRooms); }
         } catch { /* ignore */ }
 
         // Fetch bookings
+        let fetchedBookings: any[] = [];
         try {
           const bookingsRes = await apiFetch(`/api/bookings?hostel_id=${id}&limit=20`);
-          if (bookingsRes.success) setBookings(bookingsRes.data?.bookings || bookingsRes.data || []);
+          if (bookingsRes.success) { fetchedBookings = bookingsRes.data?.bookings || bookingsRes.data || []; setBookings(fetchedBookings); }
         } catch { /* ignore */ }
 
-        // Calculate stats
+        // Calculate stats using fetched data directly (not stale state)
         if (hostelRes.success) {
           const h = hostelRes.data;
           setStats({
-            total_rooms: h.total_rooms || 0,
-            available_rooms: rooms.filter(r => r.status === "AVAILABLE").length,
-            occupied_rooms: rooms.filter(r => r.status === "OCCUPIED").length,
-            total_beds: h.total_beds || 0,
-            occupied_beds: rooms.reduce((sum, r) => sum + r.current_occupancy, 0),
-            total_bookings: bookings.length,
-            active_bookings: bookings.filter(b => b.status === "CONFIRMED").length,
-            total_revenue: bookings.reduce((sum, b) => sum + (b.total_amount || 0), 0),
-            pending_payments: bookings.filter(b => b.payment_status === "PENDING").length,
-            occupancy_rate: h.total_beds > 0 ? Math.round((rooms.reduce((sum, r) => sum + r.current_occupancy, 0) / h.total_beds) * 100) : 0,
+            total_rooms: fetchedRooms.length || h.total_rooms || 0,
+            available_rooms: fetchedRooms.filter(r => r.status === "AVAILABLE").length,
+            occupied_rooms: fetchedRooms.filter(r => r.status === "OCCUPIED").length,
+            total_beds: h.total_beds || fetchedRooms.reduce((sum: number, r: any) => sum + (r.capacity || 0), 0),
+            occupied_beds: fetchedRooms.reduce((sum: number, r: any) => sum + (r.current_occupancy || 0), 0),
+            total_bookings: fetchedBookings.length,
+            active_bookings: fetchedBookings.filter((b: any) => b.status === "CONFIRMED" || b.status === "PENDING").length,
+            total_revenue: fetchedBookings.reduce((sum: number, b: any) => sum + (b.total_amount || 0), 0),
+            pending_payments: fetchedBookings.filter((b: any) => b.payment_status === "PENDING").length,
+            occupancy_rate: (h.total_beds || 0) > 0 ? Math.round((fetchedRooms.reduce((sum: number, r: any) => sum + (r.current_occupancy || 0), 0) / (h.total_beds || 1)) * 100) : 0,
           });
         }
       } catch (e) {
@@ -669,9 +672,7 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
     return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
-  };
+  const { fc: formatCurrency, fc, symbol } = useCurrency();
 
   const getStatusBadge = (status: string | number) => {
     const s = String(status).toUpperCase();
@@ -1342,7 +1343,7 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                 {/* Left: Overall Score */}
                 <div className="text-center md:text-left md:min-w-[160px]">
                   <h1 className="text-5xl font-bold text-gray-900">
-                    {reviewStats?.avg_rating?.toFixed(1) || "0.0"}<span className="text-2xl text-gray-400 font-normal">/5</span>
+                    {reviewStats?.avg_rating || "0.0"}<span className="text-2xl text-gray-400 font-normal">/5</span>
                   </h1>
                   <div className="flex items-center justify-center md:justify-start gap-1 mt-2">
                     {[1, 2, 3, 4, 5].map((star) => {
@@ -1606,14 +1607,14 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Min Purchase (₹)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">{`Min Purchase (${symbol})`}</label>
                       <input type="number" min="0" step="0.01"
                         value={discountForm.min_purchase}
                         onChange={e => setDiscountForm({ ...discountForm, min_purchase: e.target.value })}
                         className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Max Discount (₹)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">{`Max Discount (${symbol})`}</label>
                       <input type="number" min="0" step="0.01"
                         value={discountForm.max_discount}
                         onChange={e => setDiscountForm({ ...discountForm, max_discount: e.target.value })}
@@ -1732,10 +1733,13 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                     {convMessages.length === 0 ? (
                       <div className="text-center py-16 text-gray-400"><p className="text-sm">No messages yet</p></div>
                     ) : convMessages.map(m => (
-                      <div key={m.id} className={`flex ${m.sender_type === "admin" ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${m.sender_type === "admin" ? "bg-purple-600 text-white rounded-br-md" : "bg-white border border-gray-200 text-gray-800 rounded-bl-md"}`}>
+                      <div key={m.id} className={`flex ${m.sender_type === "user" ? "justify-start" : "justify-end"}`}>
+                        <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${m.sender_type === "user" ? "bg-white border border-gray-200 text-gray-800 rounded-bl-md" : m.sender_type === "owner" ? "bg-blue-600 text-white rounded-br-md" : "bg-purple-600 text-white rounded-br-md"}`}>
+                          {m.sender_type !== "admin" && m.sender_name && (
+                            <p className={`text-[10px] font-semibold mb-0.5 ${m.sender_type === "owner" ? "text-blue-200" : "text-gray-400"}`}>{m.sender_name}</p>
+                          )}
                           <p className="text-sm leading-relaxed">{m.message}</p>
-                          <p className={`text-[10px] mt-1 ${m.sender_type === "admin" ? "text-purple-200" : "text-gray-400"}`}>{new Date(m.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+                          <p className={`text-[10px] mt-1 ${m.sender_type === "user" ? "text-gray-400" : "text-white/60"}`}>{new Date(m.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
                         </div>
                       </div>
                     ))}
@@ -2022,7 +2026,7 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                           </div>
                           <div className="p-3 bg-gray-50 rounded-xl">
                             <p className="text-xs text-gray-400">Amount Paid</p>
-                            <p className="text-sm font-bold text-gray-900">₹{hostelSubData.active_subscription.amount_paid}</p>
+                            <p className="text-sm font-bold text-gray-900">{fc(hostelSubData.active_subscription.amount_paid)}</p>
                           </div>
                           <div className="p-3 bg-gray-50 rounded-xl">
                             <p className="text-xs text-gray-400">Start Date</p>
@@ -2140,10 +2144,10 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                                 </div>
                                 <h4 className="font-bold text-gray-900 mb-1">{plan.name}</h4>
                                 <div className="flex items-baseline gap-2">
-                                  <span className="text-lg font-bold text-gray-900">₹{plan.amount - (plan.amount * (plan.discount_percent || 0) / 100)}</span>
+                                  <span className="text-lg font-bold text-gray-900">{fc(plan.amount - (plan.amount * (plan.discount_percent || 0) / 100))}</span>
                                   {plan.discount_percent > 0 && (
                                     <>
-                                      <span className="text-sm text-gray-400 line-through">₹{plan.amount}</span>
+                                      <span className="text-sm text-gray-400 line-through">{fc(plan.amount)}</span>
                                       <span className="text-xs text-emerald-600 font-bold">{plan.discount_percent}% OFF</span>
                                     </>
                                   )}
@@ -2202,7 +2206,7 @@ export default function ViewHostelPage({ params }: { params: Promise<{ id: strin
                                   <p className="text-sm font-semibold text-gray-900">{sub.plan_name}</p>
                                   <p className="text-xs text-gray-400">{sub.plan_type}</p>
                                 </td>
-                                <td className="px-6 py-3 text-sm font-bold text-gray-900">₹{sub.amount_paid}</td>
+                                <td className="px-6 py-3 text-sm font-bold text-gray-900">{fc(sub.amount_paid)}</td>
                                 <td className="px-6 py-3">
                                   <p className="text-xs text-gray-600">{new Date(sub.start_date).toLocaleDateString()} - {new Date(sub.end_date).toLocaleDateString()}</p>
                                 </td>

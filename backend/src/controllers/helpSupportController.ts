@@ -128,11 +128,12 @@ export async function getConversationsController(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
+    const type = searchParams.get("type") || undefined; // "all" | "customer" | "owner"
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
 
     const { getConversations } = await import("../services/helpSupportService");
-    const result = await getConversations(search, page, limit);
+    const result = await getConversations(search, page, limit, type);
     return successResponse(result, "Conversations fetched");
   } catch (error: any) {
     return errorResponse(error.message, 500);

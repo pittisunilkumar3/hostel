@@ -247,6 +247,7 @@ export default function CreateHostelPage() {
 
   return (
     <DashboardShell role="admin" title="Super Admin" items={sidebarItems} accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10">
+      {/* Google Maps Script */}
       {mapApiKey && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=places&callback=initHostelMap`}

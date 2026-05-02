@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -26,6 +27,7 @@ const emptyForm = { title: "", cashback_type: "percentage", cashback_amount: "",
 
 export default function CashbackPage() {
   const [user, setUser] = useState<any>(null);
+  const { fc, symbol } = useCurrency();
   const [cashbacks, setCashbacks] = useState<Cashback[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -209,10 +211,10 @@ export default function CashbackPage() {
                       <td className="px-5 py-3 text-center text-gray-500">{(pagination.page - 1) * 25 + idx + 1}</td>
                       <td className="px-5 py-3 font-medium text-gray-900">{c.title}</td>
                       <td className="px-5 py-3 text-gray-700 font-medium">
-                        {c.cashback_type === "percentage" ? `${c.cashback_amount}%` : `₹${c.cashback_amount}`}
-                        {c.max_discount > 0 && <p className="text-[10px] text-gray-400">Max: ₹{c.max_discount}</p>}
+                        {c.cashback_type === "percentage" ? `${c.cashback_amount}%` : `${fc(c.cashback_amount)}`}
+                        {c.max_discount > 0 && <p className="text-[10px] text-gray-400">Max: {fc(c.max_discount)}</p>}
                       </td>
-                      <td className="px-5 py-3 text-gray-600">₹{c.min_purchase}</td>
+                      <td className="px-5 py-3 text-gray-600">{fc(c.min_purchase)}</td>
                       <td className="px-5 py-3 text-xs text-gray-600">
                         {c.start_date?.split("T")[0]} — {c.end_date?.split("T")[0]}
                       </td>

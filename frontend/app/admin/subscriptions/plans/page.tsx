@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -174,8 +175,7 @@ export default function AdminSubscriptionPlans() {
     }
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  const { fc: formatCurrency, fc, symbol } = useCurrency();
 
   const formatDate = (d: string) => {
     if (!d) return "—";
@@ -280,7 +280,7 @@ export default function AdminSubscriptionPlans() {
 
             {/* Amount */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Amount (₹) <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{`Amount (${symbol})`} <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 value={form.amount}

@@ -123,31 +123,46 @@ export const getContactMessageStats = async () => {
 
 // ===================== CONVERSATIONS =====================
 
-export const getConversations = async (search?: string, page = 1, limit = 20) => {
-  // Admin should only see:
-  // 1. Customer to admin conversations (owner_id IS NULL AND hostel_id IS NULL)
-  // 2. Owner to admin conversations (owner_id IS NULL AND hostel_id IS NULL)
-  // Admin should NOT see customer-to-owner conversations
-  let baseWhere = " WHERE c.status = 1 AND c.owner_id IS NULL AND c.hostel_id IS NULL";
+export const getConversations = async (search?: string, page = 1, limit = 20, type?: string) => {
+  // Admin sees ALL conversations:
+  // 1. Customer to admin (owner_id IS NULL, hostel_id IS NULL)
+  // 2. Owner to admin (owner_id IS NULL, hostel_id IS NULL)
+  // 3. Customer to owner (owner_id IS NOT NULL, hostel_id IS NOT NULL)
+  // type filter: "all" | "customer" | "owner"
+  let baseWhere = " WHERE c.status = 1";
   const params: any[] = [];
 
-  if (search) {
-    baseWhere += " AND (u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)";
-    const term = `%${search}%`;
-    params.push(term, term, term);
+  if (type === "customer") {
+    baseWhere += " AND u.role = 'CUSTOMER'";
+  } else if (type === "owner") {
+    baseWhere += " AND u.role = 'OWNER'";
   }
 
-  // Count total with a clean query
-  const countQuery = `SELECT COUNT(*) as total FROM conversations c LEFT JOIN users u ON c.user_id = u.id${baseWhere}`;
+  if (search) {
+    baseWhere += " AND (u.name LIKE ? OR u.email LIKE ? OR u.phone LIKE ? OR o.name LIKE ? OR h.name LIKE ?)";
+    const term = `%${search}%`;
+    params.push(term, term, term, term, term);
+  }
+
+  // Count total
+  const countQuery = `SELECT COUNT(*) as total FROM conversations c LEFT JOIN users u ON c.user_id = u.id LEFT JOIN users o ON c.owner_id = u.id LEFT JOIN hostels h ON c.hostel_id = h.id${baseWhere}`;
   const [countRows] = await db.execute<RowDataPacket[]>(countQuery, params);
   const total = countRows[0]?.total || 0;
 
-  // Main query
+  // Main query — include owner/hostel info and conversation type
   const mainQuery = `
     SELECT c.*, u.name as user_name, u.email as user_email, u.phone as user_phone, u.avatar as user_avatar,
-           u.role as user_role
+           u.role as user_role,
+           o.name as owner_name,
+           h.name as hostel_name,
+           CASE
+             WHEN c.owner_id IS NULL AND c.hostel_id IS NULL THEN 'admin'
+             ELSE 'owner'
+           END as conversation_type
     FROM conversations c
     LEFT JOIN users u ON c.user_id = u.id
+    LEFT JOIN users o ON c.owner_id = o.id
+    LEFT JOIN hostels h ON c.hostel_id = h.id
     ${baseWhere}
     ORDER BY c.updated_at DESC LIMIT ? OFFSET ?
   `;

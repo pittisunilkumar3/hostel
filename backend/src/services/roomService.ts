@@ -32,16 +32,25 @@ export const createRoom = async (data: RoomInput) => {
   return { id: result.insertId, ...data };
 };
 
-export const getAllRooms = async (page: number, limit: number) => {
+export const getAllRooms = async (page: number, limit: number, filters?: { hostelId?: number }) => {
   const skip = (page - 1) * limit;
 
+  const conditions: string[] = [];
+  const values: any[] = [];
+  if (filters?.hostelId) {
+    conditions.push("hostel_id = ?");
+    values.push(filters.hostelId);
+  }
+  const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
+
   const [rooms] = await db.execute<RoomRow[]>(
-    "SELECT * FROM rooms ORDER BY room_number ASC LIMIT ? OFFSET ?",
-    [limit, skip]
+    `SELECT * FROM rooms ${where} ORDER BY room_number ASC LIMIT ? OFFSET ?`,
+    [...values, limit, skip]
   );
 
   const [countRows] = await db.execute<RowDataPacket[]>(
-    "SELECT COUNT(*) as total FROM rooms"
+    `SELECT COUNT(*) as total FROM rooms ${where}`,
+    values
   );
 
   const total = (countRows[0] as any).total;

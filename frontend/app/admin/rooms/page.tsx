@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -54,6 +55,7 @@ interface Floor {
 export default function AdminRoomsPage() {
   // ── State ──
   const [rooms, setRooms] = useState<Room[]>([]);
+  const { fc, symbol } = useCurrency();
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,9 +255,9 @@ export default function AdminRoomsPage() {
   };
 
   const getPrice = (room: Room) => {
-    if (room.pricing_type === "hourly") return `₹${(room.price_per_hour || 0).toLocaleString()}/hr`;
-    if (room.pricing_type === "daily") return `₹${(room.price_per_day || 0).toLocaleString()}/day`;
-    return `₹${(room.price_per_month || 0).toLocaleString()}/mo`;
+    if (room.pricing_type === "hourly") return `${fc(room.price_per_hour || 0)}/hr`;
+    if (room.pricing_type === "daily") return `${fc(room.price_per_day || 0)}/day`;
+    return `${fc(room.price_per_month || 0)}/mo`;
   };
 
   return (

@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -15,6 +16,7 @@ export default function EditTaxPage() {
   const taxId = params.id as string;
 
   const [loading, setLoading] = useState(true);
+  const { fc, symbol } = useCurrency();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -187,7 +189,7 @@ export default function EditTaxPage() {
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all pr-12"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
-                    {type === "percentage" ? "%" : "₹"}
+                    {type === "percentage" ? "%" : symbol}
                   </span>
                 </div>
               </div>
@@ -216,7 +218,7 @@ export default function EditTaxPage() {
                         : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                     }`}
                   >
-                    Fixed (₹)
+                    {`Fixed (${symbol})`}
                   </button>
                 </div>
               </div>
@@ -278,14 +280,14 @@ export default function EditTaxPage() {
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                 <p className="text-sm font-medium text-gray-700 mb-2">Preview:</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-600">For a booking of ₹10,000</span>
+                  <span className="text-gray-600">For a booking of {symbol}10,000</span>
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                   <span className="font-semibold text-purple-600">
                     {type === "percentage"
-                      ? `₹${(10000 * parseFloat(rate) / 100).toFixed(2)} tax`
-                      : `₹${parseFloat(rate).toFixed(2)} tax`}
+                      ? `${fc(10000 * parseFloat(rate) / 100)} tax`
+                      : `${fc(parseFloat(rate))} tax`}
                   </span>
                 </div>
               </div>

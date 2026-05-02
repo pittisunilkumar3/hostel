@@ -5,6 +5,7 @@ import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 import { useRouter, useParams } from "next/navigation";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -14,6 +15,7 @@ export default function ZoneSettingsPage() {
   const zoneId = params.id as string;
 
   const [zone, setZone] = useState<any>(null);
+  const { fc, symbol } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -128,7 +130,7 @@ export default function ZoneSettingsPage() {
               {/* Minimum Service Charge */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Minimum Service Charge (₹)
+                  {`Minimum Service Charge (${symbol})`}
                   <span className="text-gray-400 ml-1" title="Set the minimum service charge for each booking in this zone">ℹ️</span>
                 </label>
                 <input type="number" value={minCharge} onChange={(e) => setMinCharge(e.target.value)}
@@ -139,7 +141,7 @@ export default function ZoneSettingsPage() {
               {/* Per KM Service Charge */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Service Charge Per KM (₹)
+                  {`Service Charge Per KM (${symbol})`}
                   <span className="text-gray-400 ml-1" title="Set a service charge for each kilometer in this zone">ℹ️</span>
                 </label>
                 <input type="number" value={perKmCharge} onChange={(e) => setPerKmCharge(e.target.value)}
@@ -150,7 +152,7 @@ export default function ZoneSettingsPage() {
               {/* Maximum Service Charge */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Maximum Service Charge (₹)
+                  {`Maximum Service Charge (${symbol})`}
                   <span className="text-gray-400 ml-1" title="Set the maximum cap for total service charge. Leave empty for no limit.">ℹ️</span>
                 </label>
                 <input type="number" value={maxCharge} onChange={(e) => setMaxCharge(e.target.value)}

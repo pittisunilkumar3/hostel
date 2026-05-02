@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLoginSetup } from "@/lib/loginSetup";
+import { useCurrency } from "@/lib/useCurrency";
 
 export default function HostelRegister() {
+  const { fc, symbol } = useCurrency();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -262,7 +264,7 @@ export default function HostelRegister() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <input type="number" value={form.totalRooms} onChange={(e) => update("totalRooms", e.target.value)} placeholder="Total Rooms" className={ic} />
-                <input type="number" value={form.pricePerMonth} onChange={(e) => update("pricePerMonth", e.target.value)} placeholder="Price/Month (₹)" className={ic} />
+                <input type="number" value={form.pricePerMonth} onChange={(e) => update("pricePerMonth", e.target.value)} placeholder={`Price/Month (${symbol})`} className={ic} />
               </div>
               <textarea value={form.amenities} onChange={(e) => update("amenities", e.target.value)} placeholder="Amenities (WiFi, Meals, Laundry...)" rows={2} className={ic + " resize-none"} />
               <textarea value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Brief description about your hostel" rows={2} className={ic + " resize-none"} />

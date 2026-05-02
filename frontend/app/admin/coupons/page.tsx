@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch, getCurrentUser } from "@/lib/auth";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 
 const sidebarItems = getSidebarItems();
 
@@ -28,6 +29,7 @@ const emptyForm = { title: "", code: "", coupon_type: "default", discount_type: 
 
 export default function CouponsPage() {
   const [user, setUser] = useState<any>(null);
+  const { fc, symbol } = useCurrency();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -233,8 +235,8 @@ export default function CouponsPage() {
                         <span className="px-3 py-1 bg-gray-100 text-gray-800 text-xs font-mono font-bold rounded-lg">{c.code}</span>
                       </td>
                       <td className="px-5 py-3 text-gray-700 font-medium">
-                        {c.discount_type === "percent" ? `${c.discount}%` : `₹${c.discount}`}
-                        {c.max_discount > 0 && <p className="text-[10px] text-gray-400">Max: ₹{c.max_discount}</p>}
+                        {c.discount_type === "percent" ? `${c.discount}%` : `${fc(c.discount)}`}
+                        {c.max_discount > 0 && <p className="text-[10px] text-gray-400">Max: {fc(c.max_discount)}</p>}
                       </td>
                       <td className="px-5 py-3 text-xs text-gray-600">
                         {c.start_date?.split("T")[0]} — {c.expire_date?.split("T")[0]}

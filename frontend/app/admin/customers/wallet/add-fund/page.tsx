@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import DashboardShell from "@/app/components/DashboardShell";
 import { apiFetch } from "@/lib/auth";
+import { useCurrency } from "@/lib/useCurrency";
 import { getSidebarItems } from "@/app/admin/sidebarItems";
 
 const sidebarItems = getSidebarItems();
@@ -73,7 +74,7 @@ export default function WalletAddFundPage() {
         }),
       });
       if (res.success) {
-        setMessage({ type: "success", text: `₹${amount} added to ${selectedCustomer.name}'s wallet` });
+        setMessage({ type: "success", text: `${fc(parseFloat(amount))} added to ${selectedCustomer.name}'s wallet` });
         setSelectedCustomer(null);
         setAmount("");
         setNote("");
@@ -89,7 +90,7 @@ export default function WalletAddFundPage() {
   };
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  const formatCurrency = (amount: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  const { fc: formatCurrency, fc, symbol } = useCurrency();
 
   return (
     <DashboardShell role="admin" title="Super Admin" items={sidebarItems} accentColor="text-purple-300" accentBg="bg-gradient-to-b from-purple-900 to-purple-950" hoverBg="bg-white/10">
@@ -161,7 +162,7 @@ export default function WalletAddFundPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{symbol}</span>
                   <input
                     type="number"
                     min={1}

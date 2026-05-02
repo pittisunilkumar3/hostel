@@ -7,6 +7,7 @@ import { getCurrentUser, apiFetch } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 import { getSidebarItems } from "@/app/owner/sidebarItems";
+import { useCurrency } from "@/lib/useCurrency";
 const sidebarItems = getSidebarItems();
 
 interface Room {
@@ -44,6 +45,7 @@ interface SubscriptionStatusData {
 export default function OwnerDashboard() {
   const router = useRouter();
   const [hostelStatus, setHostelStatus] = useState<HostelStatus>("loading");
+  const { fc, symbol } = useCurrency();
   const [hostelData, setHostelData] = useState<any>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -545,7 +547,7 @@ export default function OwnerDashboard() {
                   </div>
 
                   <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-lg font-bold text-emerald-600">₹{room.price_per_month}<span className="text-[10px] text-gray-400 font-normal">/mo</span></span>
+                    <span className="text-lg font-bold text-emerald-600">{fc(room.price_per_month || 0)}<span className="text-[10px] text-gray-400 font-normal">/mo</span></span>
                     <button className="text-[10px] text-gray-400 hover:text-emerald-600 font-semibold transition-colors flex items-center gap-0.5">
                       Details
                       <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>

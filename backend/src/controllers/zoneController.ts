@@ -56,6 +56,7 @@ export async function handleCreateZone(req: NextRequest) {
     const zone = await createZone({
       name: name.trim(),
       displayName: displayName?.trim() || null,
+      image: body.image || null,
       coordinates: coordinates || null,
     });
 
@@ -92,6 +93,7 @@ export async function handleUpdateZone(req: NextRequest, id: number) {
     const zone = await updateZone(id, {
       name: body.name?.trim(),
       displayName: body.displayName?.trim() || null,
+      image: body.image !== undefined ? body.image : undefined,
       coordinates: body.coordinates,
     });
     if (!zone) return errorResponse("Zone not found", 404);

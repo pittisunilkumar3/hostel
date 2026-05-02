@@ -228,6 +228,7 @@ model Zone {
   id                            Int      @id @default(autoincrement())
   name                          String   @unique @db.VarChar(191)
   displayName                   String?  @map("display_name") @db.VarChar(255)
+  image                         String?  @db.VarChar(500)
   coordinates                   String?  @db.Text
   status                        Boolean  @default(true)
   isDefault                     Boolean  @default(false) @map("is_default")

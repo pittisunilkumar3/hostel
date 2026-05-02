@@ -7,6 +7,7 @@ import {
   isPushNotificationEnabled,
 } from "../services/pushNotificationService";
 import { sendTemplatedEmail } from "../services/emailTemplateService";
+import { formatAmount } from "../utils/currency";
 import db, { RowDataPacket } from "../config/database";
 
 // POST /api/bookings
@@ -120,7 +121,10 @@ export async function createBookingController(request: NextRequest) {
 export async function getBookingsController(request: NextRequest) {
   try {
     const { page, limit } = getPaginationParams(request);
-    const result = await bookingService.getAllBookings(page, limit);
+    const { searchParams } = new URL(request.url);
+    const hostelId = searchParams.get("hostel_id") || "";
+    const status = searchParams.get("status") || "";
+    const result = await bookingService.getAllBookings(page, limit, { hostelId, status });
     return successResponse(result, "Bookings fetched successfully");
   } catch (error: any) {
     return errorResponse(error.message, 500);
@@ -240,11 +244,12 @@ export async function updatePaymentStatusController(id: number, request: NextReq
       const totalAmount = (bookingData as any).total_amount;
 
       if (paymentStatus === "PAID") {
+        const currencyAmount = await formatAmount(totalAmount);
         // Notify admins
         if (await isPushNotificationEnabled("payment_received", "ADMIN")) {
           await sendPushNotificationByRole("SUPER_ADMIN", {
             title: "Payment Received",
-            body: `Payment of ₹${totalAmount} received for Room ${roomNumber}`,
+            body: `Payment of ${currencyAmount} received for Room ${roomNumber}`,
             data: { type: "payment_received", bookingId: String(id) },
           }, "payment_received");
         }
@@ -253,7 +258,7 @@ export async function updatePaymentStatusController(id: number, request: NextReq
         if (await isPushNotificationEnabled("owner_payment_received", "OWNER")) {
           await sendPushNotificationByRole("OWNER", {
             title: "Payment Received",
-            body: `Payment of ₹${totalAmount} received for Room ${roomNumber}`,
+            body: `Payment of ${currencyAmount} received for Room ${roomNumber}`,
             data: { type: "payment_received", bookingId: String(id) },
           }, "payment_received");
         }
@@ -262,7 +267,7 @@ export async function updatePaymentStatusController(id: number, request: NextReq
         if (await isPushNotificationEnabled("customer_payment_success", "CUSTOMER")) {
           await sendPushNotification(studentId, {
             title: "Payment Successful",
-            body: `Your payment of ₹${totalAmount} for Room ${roomNumber} was successful!`,
+            body: `Your payment of ${currencyAmount} for Room ${roomNumber} was successful!`,
             data: { type: "payment_success", bookingId: String(id) },
           }, "payment_success");
         }

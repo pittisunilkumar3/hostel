@@ -15,6 +15,7 @@ interface Zone {
   id: number;
   name: string;
   display_name: string | null;
+  image: string | null;
   status: number;
   is_default: number;
   hostels_count: number;
@@ -35,12 +36,14 @@ export default function ZonesPage() {
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [coordinates, setCoordinates] = useState<string>("");
+  const [zoneImage, setZoneImage] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
   // Map state
   const [mapApiKey, setMapApiKey] = useState("");
-  const [mapReady, setMapReady] = useState(false);
+  const [mapReady, setMapReady] = useState(typeof window !== 'undefined' && !!(window as any).google?.maps);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const drawingManagerRef = useRef<any>(null);
@@ -162,10 +165,17 @@ export default function ZonesPage() {
     }
   }, [mapReady, initMap]);
 
-  // Handle google already loaded (client-side navigation back to this page)
+  // If Google Maps was already loaded from a previous page visit, mark as ready immediately
   useEffect(() => {
-    if (window.google && !mapInitDone.current && mapApiKey) {
+    if (window.google?.maps && !mapInitDone.current && !mapReady) {
       setMapReady(true);
+    }
+  }, [mapApiKey, mapReady]);
+
+  // Also fetch the API key (needed if not already loaded)
+  useEffect(() => {
+    if (!window.google?.maps && !mapApiKey) {
+      // need to fetch key to load the script
     }
   }, [mapApiKey]);
 
@@ -175,6 +185,8 @@ export default function ZonesPage() {
     setFormError("");
     if (!name.trim()) { setFormError("Zone name is required"); return; }
     if (!coordinates) { setFormError("Please draw a zone area on the map"); return; }
+
+    let imageUrl = zoneImage || null;
 
     setSaving(true);
     try {
@@ -187,13 +199,14 @@ export default function ZonesPage() {
 
       const res = await apiFetch("/api/zones", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim(), displayName: displayName.trim() || null, coordinates: JSON.stringify(coordsArray) }),
+        body: JSON.stringify({ name: name.trim(), displayName: displayName.trim() || null, image: imageUrl, coordinates: JSON.stringify(coordsArray) }),
       });
 
       if (res.success) {
         // Reset form
         setName("");
         setDisplayName("");
+        setZoneImage("");
         setCoordinates("");
         setFormError("");
 
@@ -222,7 +235,7 @@ export default function ZonesPage() {
   };
 
   const handleReset = () => {
-    setName(""); setDisplayName(""); setCoordinates(""); setFormError("");
+    setName(""); setDisplayName(""); setZoneImage(""); setCoordinates(""); setFormError("");
     if (lastPolygonRef.current) {
       lastPolygonRef.current.setEditable(false);
       lastPolygonRef.current.setMap(null);
@@ -308,6 +321,36 @@ export default function ZonesPage() {
                     placeholder="Write a new display zone name" maxLength={255}
                     className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400" />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Zone Image</label>
+                  <div className="flex items-center gap-3">
+                    {zoneImage ? (
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                        <img src={zoneImage} alt="Zone" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => setZoneImage("")} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                      </div>
+                    ) : null}
+                    <label className={`px-3 py-2 border border-gray-300 rounded text-xs font-medium cursor-pointer hover:bg-gray-50 ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}>
+                      {uploading ? "Uploading..." : zoneImage ? "Change Image" : "Upload Image"}
+                      <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploading(true);
+                        try {
+                          const fd = new FormData();
+                          fd.append("file", f);
+                          const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/zones/upload`, { method: "POST", body: fd });
+                          const d = await r.json();
+                          if (d.success) setZoneImage(d.data.url);
+                          else setFormError(d.message || "Upload failed");
+                        } catch { setFormError("Upload failed"); }
+                        finally { setUploading(false); }
+                        e.target.value = "";
+                      }} />
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Recommended: 600×400px, max 2MB</p>
+                </div>
               </div>
 
               {formError && <p className="mt-2 text-xs text-red-600">{formError}</p>}
@@ -388,6 +431,7 @@ export default function ZonesPage() {
                   <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Zone ID</th>
                   <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5 pl-8">Name</th>
                   <th className="text-left text-xs font-semibold text-gray-500 px-4 py-2.5 pl-8">Display Name</th>
+                  <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Image</th>
                   <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Hostels</th>
                   <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Default Status</th>
                   <th className="text-center text-xs font-semibold text-gray-500 px-4 py-2.5">Status</th>
@@ -401,6 +445,13 @@ export default function ZonesPage() {
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">{zone.id}</td>
                     <td className="px-4 py-3 pl-8 text-sm text-gray-800">{zone.name}</td>
                     <td className="px-4 py-3 pl-8 text-sm text-gray-600">{zone.display_name || "—"}</td>
+                    <td className="px-4 py-3 text-center">
+                      {zone.image ? (
+                        <img src={zone.image} alt={zone.name} className="w-10 h-10 rounded-lg object-cover mx-auto border border-gray-200" />
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 text-center">{zone.hostels_count || 0}</td>
                     <td className="px-4 py-3 text-center">
                       {zone.is_default ? (
@@ -476,8 +527,8 @@ export default function ZonesPage() {
         </div>
       )}
 
-      {/* Google Maps Script */}
-      {mapApiKey && (
+      {/* Google Maps Script — only inject if not already loaded */}
+      {mapApiKey && !mapReady && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${mapApiKey}&libraries=drawing,places`}
           onLoad={() => setMapReady(true)}

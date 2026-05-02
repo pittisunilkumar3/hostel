@@ -23,7 +23,11 @@ export async function createRoomController(request: NextRequest) {
 export async function getRoomsController(request: NextRequest) {
   try {
     const { page, limit } = getPaginationParams(request);
-    const result = await roomService.getAllRooms(page, limit);
+    const { searchParams } = new URL(request.url);
+    const hostelId = searchParams.get("hostel_id");
+    const filters: { hostelId?: number } = {};
+    if (hostelId) filters.hostelId = parseInt(hostelId);
+    const result = await roomService.getAllRooms(page, limit, filters);
     return successResponse(result, "Rooms fetched successfully");
   } catch (error: any) {
     return errorResponse(error.message, 500);
