@@ -155,10 +155,10 @@ export default function LandingPage() {
               Discover hostels near you
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 leading-tight">
-              Find & Book<br /><span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">Hostels</span> Near You
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3 leading-tight">
+              Find & Book <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">Hostels</span> Near You
             </h1>
-            <p className="text-slate-400 text-lg mb-10 max-w-md mx-auto">Set your location to discover the best stays, deals, and experiences around you</p>
+            <p className="text-slate-400 text-base mb-8 max-w-md mx-auto">Set your location to discover the best hostels and deals around you</p>
 
             <div className="bg-white/[0.07] backdrop-blur-xl rounded-3xl p-8 border border-white/10 shadow-2xl">
               <button onClick={handleFindMyLocation} disabled={locating}
@@ -173,15 +173,13 @@ export default function LandingPage() {
               {mapApiKey ? (
                 <div className="rounded-2xl overflow-hidden border border-white/10 mb-4">
                   <div className="relative" style={{ height: "260px" }}>
-                    <input id="loc-map-search" type="text" placeholder="🔍 Search area..." className="absolute top-3 left-3 z-10 w-56 px-3 py-2 bg-white/95 border-0 rounded-xl text-sm shadow-lg focus:outline-none" />
+                    <input id="loc-map-search" type="text" placeholder="Search area..." className="absolute top-3 left-3 z-10 w-56 px-3 py-2 bg-white/95 border-0 rounded-xl text-sm shadow-lg focus:outline-none" />
                     <div ref={mapContainerRef} className="w-full h-full bg-slate-800" />
                   </div>
-                  {mapCoords && (
-                    <div className="flex items-center justify-between p-3 bg-white/5">
-                      <p className="text-xs text-slate-400 truncate max-w-[65%]">{selectedAddress || `${mapCoords.lat.toFixed(4)}, ${mapCoords.lng.toFixed(4)}`}</p>
-                      <button onClick={confirmMapLocation} className="px-5 py-2 bg-white text-slate-900 rounded-xl text-sm font-semibold hover:bg-slate-100 transition-all">Confirm</button>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between p-3 bg-white/5">
+                    <p className="text-xs text-slate-400 truncate max-w-[60%]">{mapCoords ? (selectedAddress || `${mapCoords.lat.toFixed(4)}, ${mapCoords.lng.toFixed(4)}`) : "Drag the marker to set location"}</p>
+                    <button onClick={confirmMapLocation} disabled={!mapCoords} className="px-5 py-2 bg-white text-slate-900 rounded-xl text-sm font-semibold hover:bg-slate-100 transition-all disabled:opacity-40">Set Location</button>
+                  </div>
                 </div>
               ) : (
                 <div className="h-40 bg-white/5 rounded-2xl flex items-center justify-center text-slate-500 text-sm mb-4">Loading map…</div>
@@ -219,17 +217,15 @@ export default function LandingPage() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-24 md:pt-24 md:pb-32">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-300 text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-300 text-xs font-medium mb-6">
               <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
               {publicHostels.length > 0 ? `${publicHostels.length}+ hostels available` : "Find your perfect stay"}
             </div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-5 leading-[1.1] tracking-tight">
-              Find & Book<br />
-              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">Hostels</span>{" "}
-              Near You
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4 leading-tight">
+              Find & Book <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">Hostels</span> Near You
             </h1>
-            <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto">
-              Discover affordable hostels across India. Book rooms, beds & dorms at the best prices.
+            <p className="text-slate-400 text-base max-w-2xl mx-auto">
+              Discover affordable hostels across India. Book rooms, beds, and dorms at the best prices.
             </p>
           </div>
 
@@ -307,7 +303,7 @@ export default function LandingPage() {
       <section className="py-10 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
-            <div><h2 className="text-2xl font-extrabold text-gray-900">Offers For You</h2><p className="text-gray-500 text-sm mt-1">Exclusive deals on hostels and stays</p></div>
+            <div><h2 className="text-xl font-bold text-gray-900">Offers For You</h2></div>
           </div>
           {ads.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -341,8 +337,8 @@ export default function LandingPage() {
       <section className="py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">Explore Popular Cities</h2>
-            <p className="text-gray-500 mt-2">Browse hostels in top destinations across India</p>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900">Explore Popular Cities</h2>
+            <p className="text-gray-500 text-sm mt-1">Browse hostels in top destinations</p>
           </div>
           {zones.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -367,7 +363,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900">
                 {detectedZone ? `Hostels in ${detectedZone.display_name}` : searchQuery ? `Results for "${searchQuery}"` : "Featured Hostels"}
               </h2>
               <p className="text-gray-500 text-sm mt-1">{searchLoading ? "Searching…" : `${publicHostels.length} hostel${publicHostels.length !== 1 ? "s" : ""} found`}</p>
@@ -416,7 +412,7 @@ export default function LandingPage() {
       {/* ══════════════ WHY CHOOSE US ══════════════ */}
       <section className="py-14 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-10"><h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">Why Book With {name}?</h2><p className="text-gray-500 mt-2">Trusted by thousands of travelers across India</p></div>
+          <div className="text-center mb-8"><h2 className="text-xl md:text-2xl font-bold text-gray-900">Why Book With {name}?</h2><p className="text-gray-500 text-sm mt-1">Trusted by thousands of travelers</p></div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[{ i: "💰", t: "Lowest Prices", d: "Best prices guaranteed" }, { i: "✅", t: "Verified Properties", d: "All hostels verified & safe" }, { i: "📞", t: "24/7 Support", d: "Round the clock help" }, { i: "🔄", t: "Free Cancellation", d: "Cancel anytime, full refund" }].map((x, j) => (
               <div key={j} className="bg-white rounded-2xl p-6 text-center hover:shadow-lg hover:-translate-y-1 transition-all group border border-gray-100">
@@ -434,8 +430,8 @@ export default function LandingPage() {
         <div className="absolute top-0 left-1/3 w-96 h-96 bg-emerald-600/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-0 right-1/3 w-80 h-80 bg-teal-600/10 rounded-full blur-[100px]" />
         <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4">Ready to Find Your Perfect Stay?</h2>
-          <p className="text-slate-400 text-lg mb-8 max-w-xl mx-auto">Join thousands of travelers who trust {name} for affordable, safe, and verified hostel bookings.</p>
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-3">Ready to Find Your Perfect Stay?</h2>
+          <p className="text-slate-400 text-sm mb-6 max-w-xl mx-auto">Join thousands of travelers who trust {name} for affordable, safe, and verified hostel bookings.</p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link href={registerUrl} className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/30">Get Started Free</Link>
             <Link href={loginUrl} className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-2xl font-bold border border-white/20 hover:bg-white/20 transition-all">Sign In</Link>
@@ -446,7 +442,7 @@ export default function LandingPage() {
       {/* ══════════════ TESTIMONIALS ══════════════ */}
       <section className="py-14 bg-white">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-10"><h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">What Our Guests Say</h2></div>
+          <div className="text-center mb-8"><h2 className="text-xl md:text-2xl font-bold text-gray-900">What Our Customers Say</h2></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[{ n: "Rahul Sharma", l: "Mumbai", r: 5, t: "Best hostel booking experience! Found a great place in Goa at half the price." }, { n: "Priya Patel", l: "Delhi", r: 5, t: `Clean rooms, friendly staff, and amazing locations. ${name} made my trip so much easier.` }, { n: "Amit Kumar", l: "Bangalore", r: 4, t: "Great for budget travelers. The filters help find exactly what you need!" }].map((x, i) => (
               <div key={i} className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
@@ -462,8 +458,8 @@ export default function LandingPage() {
       {/* ══════════════ NEWSLETTER ══════════════ */}
       <section className="py-14 bg-gray-50">
         <div className="max-w-xl mx-auto px-4 text-center">
-          <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Stay Updated</h2>
-          <p className="text-gray-500 text-sm mb-6">Get exclusive deals and travel tips in your inbox</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Stay Updated</h2>
+          <p className="text-gray-500 text-sm mb-5">Get exclusive deals and travel tips delivered to your inbox.</p>
           <div className="flex gap-2">
             <input type="email" placeholder="Enter your email" className="flex-1 px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400" />
             <button className="px-7 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-bold text-sm hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg shadow-emerald-600/25 whitespace-nowrap">Subscribe</button>
