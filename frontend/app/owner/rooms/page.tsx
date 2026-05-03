@@ -46,6 +46,11 @@ interface Room {
   floor_name: string;
   floor_number: number;
   hostel_name: string;
+  advance_payment_enabled?: number | boolean;
+  advance_payment_amount?: number | string;
+  advance_payment_period?: number;
+  advance_payment_period_type?: string;
+  advance_payment_description?: string;
 }
 
 const floorAmenities = [
@@ -105,7 +110,12 @@ export default function FloorRoomManagement() {
     amenities: [] as string[],
     furnishing: [] as string[],
     dimensions: { length: "", width: "", area: "" },
-    description: ""
+    description: "",
+    advance_payment_enabled: false,
+    advance_payment_amount: "",
+    advance_payment_period: "",
+    advance_payment_period_type: "month",
+    advance_payment_description: ""
   });
 
   // ── Init ──
@@ -276,7 +286,12 @@ export default function FloorRoomManagement() {
           width: parseFloat(roomForm.dimensions.width),
           area: parseFloat(roomForm.dimensions.area) || (parseFloat(roomForm.dimensions.length) * parseFloat(roomForm.dimensions.width))
         } : null,
-        description: roomForm.description || null
+        description: roomForm.description || null,
+        advance_payment_enabled: roomForm.advance_payment_enabled,
+        advance_payment_amount: roomForm.advance_payment_enabled && roomForm.advance_payment_amount ? parseFloat(roomForm.advance_payment_amount) : null,
+        advance_payment_period: roomForm.advance_payment_enabled && roomForm.advance_payment_period ? parseInt(roomForm.advance_payment_period) : null,
+        advance_payment_period_type: roomForm.advance_payment_enabled ? roomForm.advance_payment_period_type : null,
+        advance_payment_description: roomForm.advance_payment_enabled && roomForm.advance_payment_description ? roomForm.advance_payment_description : null,
       };
 
       const res = editingRoom
@@ -320,7 +335,8 @@ export default function FloorRoomManagement() {
       pricing_type: "monthly", price_per_month: "", price_per_hour: "", price_per_day: "",
       custom_pricing: { min_hours: "", max_hours: "", price_per_hour: "" },
       amenities: [], furnishing: [],
-      dimensions: { length: "", width: "", area: "" }, description: ""
+      dimensions: { length: "", width: "", area: "" }, description: "",
+      advance_payment_enabled: false, advance_payment_amount: "", advance_payment_period: "", advance_payment_period_type: "month", advance_payment_description: ""
     });
     setEditingRoom(null);
   };
@@ -342,7 +358,12 @@ export default function FloorRoomManagement() {
       dimensions: room.dimensions
         ? { length: room.dimensions.length.toString(), width: room.dimensions.width.toString(), area: room.dimensions.area.toString() }
         : { length: "", width: "", area: "" },
-      description: room.description || ""
+      description: room.description || "",
+      advance_payment_enabled: !!room.advance_payment_enabled,
+      advance_payment_amount: room.advance_payment_amount ? String(room.advance_payment_amount) : "",
+      advance_payment_period: room.advance_payment_period ? String(room.advance_payment_period) : "",
+      advance_payment_period_type: room.advance_payment_period_type || "month",
+      advance_payment_description: room.advance_payment_description || "",
     });
     setShowRoomDialog(true);
   };
@@ -1245,6 +1266,47 @@ export default function FloorRoomManagement() {
                     </label>
                   ))}
                 </div>
+              </div>
+
+              {/* Advance Deposit Settings */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-800">Advance Deposit</h4>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Require guests to pay a deposit for this specific room</p>
+                  </div>
+                  <button onClick={() => setRoomForm({ ...roomForm, advance_payment_enabled: !roomForm.advance_payment_enabled })} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${roomForm.advance_payment_enabled ? "bg-emerald-600" : "bg-gray-300"}`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${roomForm.advance_payment_enabled ? "translate-x-5" : "translate-x-1"}`} />
+                  </button>
+                </div>
+                {roomForm.advance_payment_enabled && (
+                  <div className="space-y-3 mt-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Amount *</label>
+                        <input type="number" value={roomForm.advance_payment_amount} onChange={e => setRoomForm({ ...roomForm, advance_payment_amount: e.target.value })} placeholder="e.g. 3000" min="0" step="100" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Period</label>
+                          <input type="number" value={roomForm.advance_payment_period} onChange={e => setRoomForm({ ...roomForm, advance_payment_period: e.target.value })} min="1" max="12" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                          <select value={roomForm.advance_payment_period_type} onChange={e => setRoomForm({ ...roomForm, advance_payment_period_type: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+                            <option value="day">Day(s)</option>
+                            <option value="week">Week(s)</option>
+                            <option value="month">Month(s)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Description (optional)</label>
+                      <input type="text" value={roomForm.advance_payment_description} onChange={e => setRoomForm({ ...roomForm, advance_payment_description: e.target.value })} placeholder="e.g. 1 month advance required" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">

@@ -33,7 +33,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const [roomRows] = await db.execute<RowDataPacket[]>(
       `SELECT id, room_number, floor, type, capacity, current_occupancy,
               status, pricing_type, price_per_month, price_per_day, price_per_hour,
-              amenities, furnishing, dimensions, description, images
+              amenities, furnishing, dimensions, description, images,
+              advance_payment_enabled, advance_payment_amount, advance_payment_period,
+              advance_payment_period_type, advance_payment_description
        FROM rooms
        WHERE hostel_id = ? AND is_active = 1
        ORDER BY floor ASC, room_number ASC`,

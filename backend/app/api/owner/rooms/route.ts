@@ -116,7 +116,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const {
       hostel_id, floor_id, room_number, room_type, capacity,
       pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing,
-      amenities, furnishing, dimensions, description
+      amenities, furnishing, dimensions, description,
+      advance_payment_enabled, advance_payment_amount, advance_payment_period,
+      advance_payment_period_type, advance_payment_description
     } = body;
 
     // Validate required fields
@@ -178,8 +180,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Insert room
     const [result] = await db.execute(
-      `INSERT INTO rooms (hostel_id, floor_id, floor, room_number, type, capacity, pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing, amenities, furnishing, dimensions, description, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      `INSERT INTO rooms (hostel_id, floor_id, floor, room_number, type, capacity, pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing, amenities, furnishing, dimensions, description, advance_payment_enabled, advance_payment_amount, advance_payment_period, advance_payment_period_type, advance_payment_description, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         parseInt(hostel_id),
         parseInt(floor_id),
@@ -196,6 +198,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         furnishing ? JSON.stringify(furnishing) : null,
         dimensions ? JSON.stringify(dimensions) : null,
         description || null,
+        advance_payment_enabled ? 1 : 0,
+        advance_payment_amount ? parseFloat(advance_payment_amount) : null,
+        advance_payment_period ? parseInt(advance_payment_period) : null,
+        advance_payment_period_type || 'month',
+        advance_payment_description || null,
       ]
     );
 

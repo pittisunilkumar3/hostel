@@ -89,15 +89,27 @@ export async function POST(request: NextRequest) {
       finalAmount = taxResult.total_amount;
     } catch {}
 
-    // Calculate advance deposit if enabled
+    // Calculate advance deposit — ROOM level takes priority, then hostel fallback
     let advanceAmount = 0;
     let advanceDescription = "";
-    if (hostel?.advance_payment_enabled && hostel.advance_payment_amount > 0) {
+    let advancePeriod = 0;
+    let advancePeriodType = "month";
+
+    // Check room-level advance first
+    const roomAdvanceEnabled = room.advance_payment_enabled;
+    const roomAdvanceAmount = Number(room.advance_payment_amount) || 0;
+
+    if (roomAdvanceEnabled && roomAdvanceAmount > 0) {
+      advanceAmount = roomAdvanceAmount;
+      advancePeriod = room.advance_payment_period || 1;
+      advancePeriodType = room.advance_payment_period_type || "month";
+      advanceDescription = room.advance_payment_description || `Advance deposit of ${advanceAmount} for ${advancePeriod} ${advancePeriodType}${advancePeriod > 1 ? 's' : ''}`;
+    } else if (hostel?.advance_payment_enabled && Number(hostel.advance_payment_amount) > 0) {
+      // Fallback to hostel-level
       advanceAmount = Number(hostel.advance_payment_amount);
-      const period = hostel.advance_payment_period || 1;
-      const periodType = hostel.advance_payment_period_type || "month";
-      advanceDescription = hostel.advance_payment_description ||
-        `Advance deposit of ${advanceAmount} for ${period} ${periodType}${period > 1 ? 's' : ''}`;
+      advancePeriod = hostel.advance_payment_period || 1;
+      advancePeriodType = hostel.advance_payment_period_type || "month";
+      advanceDescription = hostel.advance_payment_description || `Advance deposit of ${advanceAmount} for ${advancePeriod} ${advancePeriodType}${advancePeriod > 1 ? 's' : ''}`;
     }
 
     // Create booking

@@ -78,7 +78,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const {
       room_number, room_type, capacity, pricing_type, price_per_month, price_per_hour, price_per_day, custom_pricing,
-      amenities, furnishing, dimensions, description, status, is_active, current_occupancy
+      amenities, furnishing, dimensions, description, status, is_active, current_occupancy,
+      advance_payment_enabled, advance_payment_amount, advance_payment_period,
+      advance_payment_period_type, advance_payment_description
     } = body;
 
     // Verify room belongs to owner's hostel
@@ -189,6 +191,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
       updates.push("current_occupancy = ?");
       values.push(newOccupancy);
+    }
+
+    // Advance deposit settings
+    if (advance_payment_enabled !== undefined) {
+      updates.push("advance_payment_enabled = ?");
+      values.push(advance_payment_enabled ? 1 : 0);
+    }
+    if (advance_payment_amount !== undefined) {
+      updates.push("advance_payment_amount = ?");
+      values.push(advance_payment_amount ? parseFloat(advance_payment_amount) : null);
+    }
+    if (advance_payment_period !== undefined) {
+      updates.push("advance_payment_period = ?");
+      values.push(advance_payment_period ? parseInt(advance_payment_period) : null);
+    }
+    if (advance_payment_period_type !== undefined) {
+      updates.push("advance_payment_period_type = ?");
+      values.push(advance_payment_period_type || 'month');
+    }
+    if (advance_payment_description !== undefined) {
+      updates.push("advance_payment_description = ?");
+      values.push(advance_payment_description || null);
     }
 
     if (updates.length === 0) {

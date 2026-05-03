@@ -26,6 +26,11 @@ interface Room {
   dimensions: any;
   description: string;
   images: string[];
+  advance_payment_enabled?: number | boolean;
+  advance_payment_amount?: number | string;
+  advance_payment_period?: number;
+  advance_payment_period_type?: string;
+  advance_payment_description?: string;
 }
 
 interface Hostel {
@@ -98,12 +103,12 @@ export default function HostelDetailPage() {
   // Filter state
   const [filterType, setFilterType] = useState<string>("all");
 
-  // Advance payment helpers (MySQL returns strings for DECIMAL)
-  const advEnabled = !!(hostel?.advance_payment_enabled);
-  const advAmount = Number(hostel?.advance_payment_amount) || 0;
-  const advPeriod = Number(hostel?.advance_payment_period) || 0;
-  const advPeriodType = hostel?.advance_payment_period_type || "month";
-  const advDescription = hostel?.advance_payment_description || "";
+  // Advance payment helpers — per ROOM (MySQL returns strings for DECIMAL)
+  const advEnabled = !!(selectedRoom?.advance_payment_enabled);
+  const advAmount = Number(selectedRoom?.advance_payment_amount) || 0;
+  const advPeriod = Number(selectedRoom?.advance_payment_period) || 0;
+  const advPeriodType = selectedRoom?.advance_payment_period_type || "month";
+  const advDescription = selectedRoom?.advance_payment_description || "";
 
   // Fetch taxes on mount
   useEffect(() => {
@@ -450,21 +455,7 @@ export default function HostelDetailPage() {
           ))}
         </div>
 
-        {/* ── Advance Deposit Banner ── */}
-        {advEnabled && advAmount > 0 && (
-          <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2 6 6 0 006 6v2a6 6 0 00-6 6 2 2 0 002 2h10a2 2 0 002-2 6 6 0 00-6-6V9a6 6 0 006-6z" /></svg>
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-amber-900">
-                Advance Deposit: <span className="text-amber-700">{fc(advAmount)}</span>
-                {advPeriod > 0 && <span className="font-normal text-amber-700"> for {advPeriod} {advPeriodType}{advPeriod > 1 ? "s" : ""}</span>}
-              </h4>
-              <p className="text-xs text-amber-700 mt-0.5">{advDescription || "Advance deposit required at booking. Adjusted against your final bill at checkout."}</p>
-            </div>
-          </div>
-        )}
+        {/* ── Advance deposit is per-room, shown on each room card ── */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* ══════════ MAIN ══════════ */}
@@ -580,10 +571,10 @@ export default function HostelDetailPage() {
 
                           {/* Bottom bar */}
                           <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                            {advEnabled && advAmount > 0 && (
+                            {room.advance_payment_enabled && Number(room.advance_payment_amount) > 0 && (
                               <div className="flex items-center gap-1.5 text-xs text-amber-700">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                <span className="font-medium">{fc(advAmount)} deposit</span>
+                                <span className="font-medium">{fc(Number(room.advance_payment_amount))} deposit</span>
                               </div>
                             )}
                             <div className="flex-1" />
@@ -677,38 +668,11 @@ export default function HostelDetailPage() {
               </div>
             </div>
 
-            {advEnabled && advAmount > 0 && (
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2 6 6 0 006 6v2a6 6 0 00-6 6 2 2 0 002 2h10a2 2 0 002-2 6 6 0 00-6-6V9a6 6 0 006-6z" /></svg>
-                  </div>
-                  <h3 className="text-sm font-bold text-amber-900">Advance Deposit</h3>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-amber-700">Amount</span>
-                    <span className="font-bold text-amber-900">{fc(advAmount)}</span>
-                  </div>
-                  {advPeriod > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-amber-700">Covers</span>
-                      <span className="font-medium text-amber-900">{advPeriod} {advPeriodType}{advPeriod > 1 ? "s" : ""}</span>
-                    </div>
-                  )}
-                  <p className="text-[11px] text-amber-600 mt-2 leading-relaxed">
-                    {advDescription || "Required at booking. Adjusted against your final bill at checkout."}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════
-           BOOKING MODAL
-          ══════════════════════════════════════════ */}
+      {/* BOOKING MODAL */}
       {bookingModal && selectedRoom && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={() => setBookingModal(false)}>
           <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -840,20 +804,9 @@ export default function HostelDetailPage() {
                     )}
                   </div>
 
-                  {/* ── Step 3: Guests ── */}
+                  {/* ── Step 3: Your Details ── */}
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">3. Guests</label>
-                    <select value={guests} onChange={e => setGuests(parseInt(e.target.value))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 bg-gray-50">
-                      {[...Array(Math.min(selectedRoom.available, 10))].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>{i + 1} Guest{i > 0 ? "s" : ""}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* ── Step 4: Your Details ── */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">4. Your Details</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">3. Your Details</label>
                     <div className="space-y-2.5">
                       <div className="relative">
                         <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -875,7 +828,7 @@ export default function HostelDetailPage() {
 
                   {/* ── Special Requests ── */}
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">5. Special Requests <span className="text-gray-300 normal-case">(optional)</span></label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">4. Special Requests <span className="text-gray-300 normal-case">(optional)</span></label>
                     <textarea value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} rows={2} placeholder="Any special requirements..."
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 resize-none bg-gray-50" />
                   </div>
