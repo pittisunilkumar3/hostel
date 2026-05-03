@@ -55,6 +55,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         minimum_stay: hostel.min_stay_days,
         check_in_time: hostel.check_in_time,
         check_out_time: hostel.check_out_time,
+        notice_period_days: hostel.notice_period_days,
         amenities,
         custom_fields: customFields,
         status: hostel.status,
@@ -133,6 +134,9 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     if (body.total_rooms !== undefined) { fields.push("total_rooms = ?"); values.push(parseInt(body.total_rooms) || 0); }
     if (body.total_beds !== undefined) { fields.push("total_beds = ?"); values.push(parseInt(body.total_beds) || 0); }
 
+    // Notice period
+    if (body.notice_period_days !== undefined) { fields.push("notice_period_days = ?"); values.push(parseInt(body.notice_period_days) || 30); }
+
     // Advance deposit settings
     if (body.advance_payment_enabled !== undefined) {
       fields.push("advance_payment_enabled = ?");
@@ -201,6 +205,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
         advance_payment_period: updated.advance_payment_period,
         advance_payment_period_type: updated.advance_payment_period_type,
         advance_payment_description: updated.advance_payment_description,
+        notice_period_days: updated.notice_period_days,
       },
     }, "Business settings updated successfully");
   } catch (e: any) {

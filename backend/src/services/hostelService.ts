@@ -177,6 +177,7 @@ export const updateHostel = async (id: number, data: any) => {
     "business_model", "commission_rate", "commission_on_delivery",
     "status", "rejection_reason",
     "advance_payment_enabled", "advance_payment_amount", "advance_payment_period", "advance_payment_period_type", "advance_payment_description",
+    "notice_period_days",
   ];
 
   for (const field of allowedFields) {

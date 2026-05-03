@@ -43,6 +43,7 @@ export default function OwnerBusinessSetup() {
   const [checkInTime, setCheckInTime] = useState("14:00");
   const [checkOutTime, setCheckOutTime] = useState("11:00");
   const [minimumStay, setMinimumStay] = useState("1");
+  const [noticePeriodDays, setNoticePeriodDays] = useState("30");
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
 
@@ -179,6 +180,7 @@ export default function OwnerBusinessSetup() {
         setCheckInTime(h.check_in_time || "14:00");
         setCheckOutTime(h.check_out_time || "11:00");
         setMinimumStay(String(h.minimum_stay || 1));
+        setNoticePeriodDays(String(h.notice_period_days || 30));
         setSelectedAmenities(Array.isArray(h.amenities) ? h.amenities : []);
         setCustomFields(h.custom_fields || {});
         // Advance deposit settings
@@ -244,6 +246,7 @@ export default function OwnerBusinessSetup() {
           check_in_time: checkInTime,
           check_out_time: checkOutTime,
           minimum_stay: minimumStay,
+          notice_period_days: parseInt(noticePeriodDays) || 30,
           amenities: selectedAmenities,
           custom_fields: customFields,
           // Advance deposit settings
@@ -549,6 +552,11 @@ export default function OwnerBusinessSetup() {
               <div className="max-w-xs">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Stay (days)</label>
                 <input type="number" min="1" max="365" value={minimumStay} onChange={(e) => setMinimumStay(e.target.value)} className={ic} />
+              </div>
+              <div className="max-w-xs mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notice Period (days)</label>
+                <input type="number" min="1" max="365" value={noticePeriodDays} onChange={(e) => setNoticePeriodDays(e.target.value)} className={ic} />
+                <p className="text-xs text-gray-400 mt-1">How many days notice a guest must give before vacating. Default: 30 days.</p>
               </div>
             </div>
           </div>

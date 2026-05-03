@@ -19,6 +19,8 @@ interface Booking {
   price_per_hour: number; price_per_day: number; price_per_month: number;
   zone_name: string;
   special_requests: string;
+  billing_start_date?: string; next_bill_date?: string; billing_cycle?: number;
+  notice_status?: string; notice_given_at?: string; notice_vacate_date?: string;
 }
 interface Conversation { id: number; chat_type: string; hostel_name: string; owner_name: string; last_message: string; unread_count: number; updated_at: string; hostel_id: number; owner_id: number; }
 interface ChatMessage { id: number; sender_id: number; sender_type: string; message: string; is_read: number; created_at: string; sender_name: string; }
@@ -395,6 +397,58 @@ export default function UserProfilePage() {
                                 {b.special_requests && (
                                   <div className="mt-3 text-sm"><span className="text-gray-400">Special Requests:</span> {b.special_requests}</div>
                                 )}
+
+                                {/* Billing Cycle Info */}
+                                {(b.status === 'CONFIRMED' || b.status === 'PENDING') && b.next_bill_date && (
+                                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-blue-700 font-medium">Billing Cycle #{b.billing_cycle || 1}</span>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${new Date(b.next_bill_date) < new Date() ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                        {new Date(b.next_bill_date) < new Date() ? 'Bill Overdue' : `Next bill: ${new Date(b.next_bill_date).toLocaleDateString()}`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Notice Status */}
+                                {b.notice_status && b.notice_status !== 'NONE' && (
+                                  <div className={`mt-2 p-3 rounded-lg border ${b.notice_status === 'PENDING' ? 'bg-yellow-50 border-yellow-200' : b.notice_status === 'APPROVED' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className={`font-medium ${b.notice_status === 'PENDING' ? 'text-yellow-700' : b.notice_status === 'APPROVED' ? 'text-green-700' : 'text-red-700'}`}>
+                                        Notice: {b.notice_status}
+                                      </span>
+                                      {b.notice_vacate_date && (
+                                        <span className="text-gray-500 text-xs">Vacate by: {new Date(b.notice_vacate_date).toLocaleDateString()}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Give Notice Button */}
+                                {(b.status === 'CONFIRMED' || b.status === 'PENDING') && (!b.notice_status || b.notice_status === 'NONE') && (
+                                  <button
+                                    onClick={async () => {
+                                      if (!confirm('Are you sure you want to give notice to vacate? This will notify the hostel owner.')) return;
+                                      try {
+                                        const token = localStorage.getItem('token');
+                                        const res = await fetch(`${API_URL}/api/bookings/notice/give`, {
+                                          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                          body: JSON.stringify({ booking_id: b.id })
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                          alert(data.data.message);
+                                          fetchBookings(bookingFilter);
+                                        } else { alert(data.message || 'Failed'); }
+                                      } catch { alert('Network error'); }
+                                    }}
+                                    className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-medium hover:bg-amber-100 transition"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                                    Give Notice to Vacate
+                                  </button>
+                                )}
+
                                 <div className="mt-3 text-xs text-gray-400">Booked on {new Date(b.check_in).toLocaleString()}</div>
                                 {b.hostel_phone && (
                                   <a href={`tel:${b.hostel_phone}`} className="inline-flex items-center gap-1.5 mt-3 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-100">

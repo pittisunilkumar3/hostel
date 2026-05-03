@@ -117,13 +117,23 @@ export async function POST(request: NextRequest) {
       `INSERT INTO bookings (student_id, hostel_id, booking_type, duration, guests, room_id,
         check_in, check_out, total_amount, unit_price, sub_total, tax_amount,
         guest_name, guest_phone, guest_email, special_requests,
-        advance_amount, advance_status, status, payment_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID', 'PENDING', 'PENDING')`,
+        advance_amount, advance_status, status, payment_status,
+        billing_start_date, next_bill_date, billing_cycle)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNPAID', 'PENDING', 'PENDING', ?, ?, 1)`,
       [
         userId, hostel_id, bt, dur, guests || 1, room_id,
         check_in, check_out || null, finalAmount, unitPrice, subTotal, taxAmount,
         guest_name, guest_phone, guest_email || null, special_requests || null,
         advanceAmount,
+        // Billing dates
+        check_in ? new Date(check_in).toISOString().slice(0, 10) : null,
+        (() => {
+          const d = check_in ? new Date(check_in) : new Date();
+          if (bt === 'monthly') { d.setMonth(d.getMonth() + dur); }
+          else if (bt === 'daily') { d.setDate(d.getDate() + dur); }
+          else { d.setHours(d.getHours() + dur); }
+          return d.toISOString().slice(0, 10);
+        })(),
       ]
     );
 
