@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 import { getSidebarItems } from "@/app/owner/sidebarItems";
 import { useCurrency } from "@/lib/useCurrency";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const sidebarItems = getSidebarItems();
 
 interface Room {
@@ -48,6 +49,7 @@ export default function OwnerDashboard() {
   const { fc, symbol } = useCurrency();
   const [hostelData, setHostelData] = useState<any>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [bookingStats, setBookingStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -94,6 +96,7 @@ export default function OwnerDashboard() {
         } else if (data.status === "approved" || data.status === 1) {
           setHostelStatus("approved");
           fetchRooms();
+          fetchBookingStats();
         } else {
           setHostelStatus("pending");
         }
@@ -114,6 +117,17 @@ export default function OwnerDashboard() {
       const res = await apiFetch("/api/rooms?page=1&limit=10");
       if (res.success) setRooms(res.data?.rooms || []);
     } catch (e) { console.error(e); }
+  };
+
+  const fetchBookingStats = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/owner/bookings?limit=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) setBookingStats(data.data.stats);
+    } catch {}
   };
 
   // Check subscription status for popup
@@ -443,11 +457,17 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <StatCard title="Total Rooms" value={rooms.length} subtitle="all rooms" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" /></svg>} color="text-emerald-600" bgColor="bg-emerald-50" />
         <StatCard title="Available" value={available} subtitle="ready to book" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} color="text-green-600" bgColor="bg-green-50" />
         <StatCard title="Occupied" value={occupied} subtitle="currently filled" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197" /></svg>} color="text-sky-600" bgColor="bg-sky-50" />
         <StatCard title="Total Capacity" value={`${totalCapacity} beds`} subtitle="across all rooms" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} color="text-amber-600" bgColor="bg-amber-50" />
+        {bookingStats && (
+          <StatCard title="Active Bookings" value={bookingStats.confirmed} subtitle={`${bookingStats.pending} pending`} icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>} color="text-blue-600" bgColor="bg-blue-50" />
+        )}
+        {bookingStats && Number(bookingStats.pending_notices) > 0 && (
+          <StatCard title="Pending Notices" value={bookingStats.pending_notices} subtitle="needs action" icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>} color="text-amber-600" bgColor="bg-amber-50" />
+        )}
       </div>
 
       {/* Business Management Quick Links */}
@@ -456,12 +476,13 @@ export default function OwnerDashboard() {
           <h3 className="font-bold text-gray-900">Business Management</h3>
           <p className="text-xs text-gray-400 mt-0.5">Configure your hostel settings, schedule, and business plan</p>
         </div>
-        <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
           {[
             { label: "Basic Setup", href: "/owner/business-setup", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", color: "emerald" },
             { label: "Schedule", href: "/owner/business-setup/schedule", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", color: "blue" },
             { label: "Amenities", href: "/owner/business-setup/amenities", icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z", color: "violet" },
             { label: "Business Plan", href: "/owner/business-plan", icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z", color: "amber" },
+            { label: "Bookings", href: "/owner/bookings", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01", color: "sky" },
           ].map((item) => (
             <a key={item.label} href={item.href}
               className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all group">
