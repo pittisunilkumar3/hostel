@@ -163,6 +163,73 @@ export default function HostelDetailPage() {
     ? getDistance(userLocation.lat, userLocation.lng, hostel.latitude, hostel.longitude).toFixed(1)
     : null;
 
+  // ─── Auto-calculate duration from dates ───
+
+  const calcDurationFromDates = () => {
+    if (!checkIn || !checkOut) return duration;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return duration;
+
+    if (bookingType === "hourly") {
+      const hours = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60)));
+      return hours;
+    } else if (bookingType === "daily") {
+      const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+      return days;
+    } else {
+      // monthly: count calendar months, minimum 1
+      let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+      if (end.getDate() > start.getDate()) months += 1;
+      return Math.max(1, months);
+    }
+  };
+
+  // Effective duration (auto from dates if both set, otherwise manual)
+  const effectiveDuration = (checkIn && checkOut) ? calcDurationFromDates() : duration;
+
+  const handleCheckInChange = (val: string) => {
+    setCheckIn(val);
+  };
+
+  const handleCheckOutChange = (val: string) => {
+    setCheckOut(val);
+    if (val && checkIn) {
+      const start = new Date(checkIn);
+      const end = new Date(val);
+      if (end > start) {
+        if (bookingType === "hourly") {
+          setDuration(Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60))));
+        } else if (bookingType === "daily") {
+          setDuration(Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))));
+        } else {
+          let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+          if (end.getDate() > start.getDate()) months += 1;
+          setDuration(Math.max(1, months));
+        }
+      }
+    }
+  };
+
+  const handleCheckInChangeAuto = (val: string) => {
+    setCheckIn(val);
+    if (val && checkOut) {
+      const start = new Date(val);
+      const end = new Date(checkOut);
+      if (end > start) {
+        if (bookingType === "hourly") {
+          setDuration(Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60))));
+        } else if (bookingType === "daily") {
+          setDuration(Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))));
+        } else {
+          let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+          if (end.getDate() > start.getDate()) months += 1;
+          setDuration(Math.max(1, months));
+        }
+      }
+    }
+  };
+
   // ─── Price calculations with tax ───
 
   const getUnitPrice = () => {
@@ -173,7 +240,7 @@ export default function HostelDetailPage() {
     return price || 0;
   };
 
-  const getSubtotal = () => getUnitPrice() * duration;
+  const getSubtotal = () => getUnitPrice() * effectiveDuration;
 
   const getTaxBreakdown = () => {
     const sub = getSubtotal();
@@ -210,8 +277,12 @@ export default function HostelDetailPage() {
     setGuests(1);
     setBookingSuccess(null);
     setBookingError("");
-    const today = new Date().toISOString().slice(0, 16);
-    setCheckIn(today);
+    // Default check-in = today, check-out = calculated based on type
+    const today = new Date();
+    const ci = bookingType === "hourly" || defaultType === "hourly"
+      ? today.toISOString().slice(0, 16)
+      : today.toISOString().slice(0, 10);
+    setCheckIn(ci);
     setCheckOut("");
     setBookingModal(true);
   };
@@ -232,7 +303,7 @@ export default function HostelDetailPage() {
           hostel_id: hostel.id,
           room_id: selectedRoom.id,
           booking_type: bookingType,
-          duration,
+          duration: effectiveDuration,
           guests,
           check_in: checkIn,
           check_out: checkOut || null,
@@ -725,41 +796,53 @@ export default function HostelDetailPage() {
                     </div>
                   </div>
 
-                  {/* ── Step 2: Duration ── */}
+                  {/* ── Step 2: Dates (auto-calculates duration) ── */}
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">
-                      2. Duration — {bookingType === "hourly" ? "Hours" : bookingType === "daily" ? "Days" : "Months"}
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <button onClick={() => setDuration(Math.max(1, duration - 1))} className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 text-lg font-bold text-gray-600 transition">−</button>
-                      <div className="flex-1 text-center">
-                        <span className="text-3xl font-bold text-gray-800">{duration}</span>
-                        <span className="text-sm text-gray-400 ml-1">{bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}{duration > 1 ? "s" : ""}</span>
-                      </div>
-                      <button onClick={() => setDuration(duration + 1)} className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 text-lg font-bold text-gray-600 transition">+</button>
-                    </div>
-                  </div>
-
-                  {/* ── Step 3: Dates ── */}
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">3. Dates</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">2. Select Dates</label>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Check-in</label>
-                        <input type={bookingType === "hourly" ? "datetime-local" : "date"} value={checkIn} onChange={e => setCheckIn(e.target.value)}
+                        <label className="text-xs text-gray-500 mb-1 block">Check-in *</label>
+                        <input type={bookingType === "hourly" ? "datetime-local" : "date"} value={checkIn} onChange={e => handleCheckInChangeAuto(e.target.value)}
+                          min={bookingType !== "hourly" ? new Date().toISOString().slice(0, 10) : undefined}
                           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 bg-gray-50" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Check-out</label>
-                        <input type={bookingType === "hourly" ? "datetime-local" : "date"} value={checkOut} onChange={e => setCheckOut(e.target.value)}
+                        <label className="text-xs text-gray-500 mb-1 block">Check-out *</label>
+                        <input type={bookingType === "hourly" ? "datetime-local" : "date"} value={checkOut} onChange={e => handleCheckOutChange(e.target.value)}
+                          min={checkIn || (bookingType !== "hourly" ? new Date().toISOString().slice(0, 10) : undefined)}
                           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 bg-gray-50" />
                       </div>
                     </div>
                   </div>
 
-                  {/* ── Step 4: Guests ── */}
+                  {/* ── Auto-calculated Duration ── */}
+                  <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Duration</span>
+                        <div className="flex items-center gap-3 mt-1">
+                          <button onClick={() => setDuration(Math.max(1, effectiveDuration - 1))} className="w-8 h-8 bg-white rounded-lg flex items-center justify-center hover:bg-emerald-100 text-sm font-bold text-emerald-600 transition shadow-sm">−</button>
+                          <span className="text-2xl font-bold text-emerald-800 min-w-[60px] text-center">{effectiveDuration}</span>
+                          <button onClick={() => setDuration(effectiveDuration + 1)} className="w-8 h-8 bg-white rounded-lg flex items-center justify-center hover:bg-emerald-100 text-sm font-bold text-emerald-600 transition shadow-sm">+</button>
+                          <span className="text-sm text-emerald-600">{bookingType === "hourly" ? `hour${effectiveDuration > 1 ? "s" : ""}` : bookingType === "daily" ? `day${effectiveDuration > 1 ? "s" : ""}` : `month${effectiveDuration > 1 ? "s" : ""}`}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-emerald-600">Total</span>
+                        <div className="text-lg font-bold text-emerald-800">{fc(getSubtotal())}</div>
+                      </div>
+                    </div>
+                    {checkIn && checkOut && (
+                      <p className="text-[10px] text-emerald-600 mt-2 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        {fc(getUnitPrice())} × {effectiveDuration} {bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}{effectiveDuration > 1 ? "s" : ""} (before tax)
+                      </p>
+                    )}
+                  </div>
+
+                  {/* ── Step 3: Guests ── */}
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">4. Guests</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">3. Guests</label>
                     <select value={guests} onChange={e => setGuests(parseInt(e.target.value))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 bg-gray-50">
                       {[...Array(Math.min(selectedRoom.available, 10))].map((_, i) => (
@@ -768,9 +851,9 @@ export default function HostelDetailPage() {
                     </select>
                   </div>
 
-                  {/* ── Step 5: Your Details ── */}
+                  {/* ── Step 4: Your Details ── */}
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">5. Your Details</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">4. Your Details</label>
                     <div className="space-y-2.5">
                       <div className="relative">
                         <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -792,7 +875,7 @@ export default function HostelDetailPage() {
 
                   {/* ── Special Requests ── */}
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">6. Special Requests <span className="text-gray-300 normal-case">(optional)</span></label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">5. Special Requests <span className="text-gray-300 normal-case">(optional)</span></label>
                     <textarea value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} rows={2} placeholder="Any special requirements..."
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 resize-none bg-gray-50" />
                   </div>
@@ -802,7 +885,7 @@ export default function HostelDetailPage() {
                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Price Breakdown</h4>
                     <div className="space-y-2.5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">{fc(getUnitPrice())} × {duration} {bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}{duration > 1 ? "s" : ""}</span>
+                        <span className="text-gray-500">{fc(getUnitPrice())} × {effectiveDuration} {bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}{effectiveDuration > 1 ? "s" : ""}</span>
                         <span className="font-medium">{fc(getSubtotal())}</span>
                       </div>
 
