@@ -60,6 +60,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         status: hostel.status,
         submitted_at: hostel.submitted_at,
         created_at: hostel.created_at,
+        advance_payment_enabled: hostel.advance_payment_enabled,
+        advance_payment_amount: hostel.advance_payment_amount,
+        advance_payment_period: hostel.advance_payment_period,
+        advance_payment_period_type: hostel.advance_payment_period_type,
+        advance_payment_description: hostel.advance_payment_description,
       },
     });
   } catch (e: any) {
@@ -128,6 +133,23 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     if (body.total_rooms !== undefined) { fields.push("total_rooms = ?"); values.push(parseInt(body.total_rooms) || 0); }
     if (body.total_beds !== undefined) { fields.push("total_beds = ?"); values.push(parseInt(body.total_beds) || 0); }
 
+    // Advance deposit settings
+    if (body.advance_payment_enabled !== undefined) {
+      fields.push("advance_payment_enabled = ?");
+      values.push(body.advance_payment_enabled ? 1 : 0);
+      if (body.advance_payment_enabled) {
+        if (body.advance_payment_amount !== undefined) { fields.push("advance_payment_amount = ?"); values.push(parseFloat(body.advance_payment_amount) || null); }
+        if (body.advance_payment_period !== undefined) { fields.push("advance_payment_period = ?"); values.push(parseInt(body.advance_payment_period) || null); }
+        if (body.advance_payment_period_type !== undefined) { fields.push("advance_payment_period_type = ?"); values.push(body.advance_payment_period_type); }
+        if (body.advance_payment_description !== undefined) { fields.push("advance_payment_description = ?"); values.push(body.advance_payment_description || null); }
+      } else {
+        fields.push("advance_payment_amount = NULL");
+        fields.push("advance_payment_period = NULL");
+        fields.push("advance_payment_period_type = 'month'");
+        fields.push("advance_payment_description = NULL");
+      }
+    }
+
     if (fields.length === 0) {
       return errorResponse("No fields to update", 400);
     }
@@ -174,6 +196,11 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
         amenities,
         custom_fields: customFields,
         status: updated.status,
+        advance_payment_enabled: updated.advance_payment_enabled,
+        advance_payment_amount: updated.advance_payment_amount,
+        advance_payment_period: updated.advance_payment_period,
+        advance_payment_period_type: updated.advance_payment_period_type,
+        advance_payment_description: updated.advance_payment_description,
       },
     }, "Business settings updated successfully");
   } catch (e: any) {

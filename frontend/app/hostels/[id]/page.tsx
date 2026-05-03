@@ -57,6 +57,13 @@ interface Hostel {
   advance_payment_description?: string;
 }
 
+interface TaxInfo {
+  id: number;
+  name: string;
+  rate: number;
+  type: string;
+}
+
 export default function HostelDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -67,6 +74,10 @@ export default function HostelDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Tax state
+  const [taxes, setTaxes] = useState<TaxInfo[]>([]);
+  const [taxInclusive, setTaxInclusive] = useState(false);
 
   // Booking modal state
   const [bookingModal, setBookingModal] = useState(false);
@@ -93,6 +104,21 @@ export default function HostelDetailPage() {
   const advPeriod = Number(hostel?.advance_payment_period) || 0;
   const advPeriodType = hostel?.advance_payment_period_type || "month";
   const advDescription = hostel?.advance_payment_description || "";
+
+  // Fetch taxes on mount
+  useEffect(() => {
+    const fetchTaxes = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/taxes/public`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          setTaxes(data.data.taxes || []);
+          setTaxInclusive(data.data.tax_inclusive || false);
+        }
+      } catch {}
+    };
+    fetchTaxes();
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem("hostel_location");
@@ -137,12 +163,43 @@ export default function HostelDetailPage() {
     ? getDistance(userLocation.lat, userLocation.lng, hostel.latitude, hostel.longitude).toFixed(1)
     : null;
 
-  const calculateTotal = () => {
+  // ─── Price calculations with tax ───
+
+  const getUnitPrice = () => {
     if (!selectedRoom || !bookingType) return 0;
     const price = bookingType === "hourly" ? selectedRoom.price_per_hour
       : bookingType === "daily" ? selectedRoom.price_per_day
       : selectedRoom.price_per_month;
-    return (price || 0) * duration;
+    return price || 0;
+  };
+
+  const getSubtotal = () => getUnitPrice() * duration;
+
+  const getTaxBreakdown = () => {
+    const sub = getSubtotal();
+    if (sub <= 0) return { totalTax: 0, items: [], grandTotal: 0 };
+    let totalTax = 0;
+    const items: { name: string; amount: number }[] = [];
+    for (const tax of taxes) {
+      let amt = 0;
+      if (tax.type === "percentage") {
+        if (taxInclusive) {
+          amt = (sub * tax.rate) / (100 + tax.rate);
+        } else {
+          amt = (sub * tax.rate) / 100;
+        }
+      } else {
+        amt = tax.rate;
+      }
+      amt = Math.round(amt * 100) / 100;
+      if (amt > 0) {
+        totalTax += amt;
+        items.push({ name: `${tax.name} (${tax.rate}${tax.type === "percentage" ? "%" : ""})`, amount: amt });
+      }
+    }
+    totalTax = Math.round(totalTax * 100) / 100;
+    const grandTotal = taxInclusive ? sub : sub + totalTax;
+    return { totalTax, items, grandTotal: Math.round(grandTotal * 100) / 100 };
   };
 
   const openBooking = (room: Room) => {
@@ -247,6 +304,8 @@ export default function HostelDetailPage() {
     );
   }
 
+  const taxInfo = getTaxBreakdown();
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PublicHeader />
@@ -264,24 +323,19 @@ export default function HostelDetailPage() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-        {/* Back button */}
         <button onClick={() => router.back()} className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-white/20 backdrop-blur-md rounded-xl text-white text-sm font-medium hover:bg-white/30 transition z-10">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Back
         </button>
 
-        {/* Title bar */}
         <div className="absolute bottom-0 left-0 right-0 p-5 md:p-8">
           <div className="max-w-6xl mx-auto flex items-end justify-between gap-4">
             <div className="flex items-end gap-4">
-              {/* Logo */}
               <div className="hidden md:block w-16 h-16 rounded-2xl border-2 border-white/50 overflow-hidden bg-white shadow-xl shrink-0">
                 {hostel.logo ? (
                   <img src={hostel.logo} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-2xl">
-                    {hostel.name?.[0]?.toUpperCase()}
-                  </div>
+                  <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-2xl">{hostel.name?.[0]?.toUpperCase()}</div>
                 )}
               </div>
               <div>
@@ -313,10 +367,10 @@ export default function HostelDetailPage() {
         {/* ── Quick Stats ── */}
         <div className="grid grid-cols-4 gap-3 -mt-6 mb-8 relative z-10">
           {[
-            { label: "Rooms", value: hostel.total_rooms, icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
-            { label: "Beds", value: hostel.total_beds, icon: "M3 7h18M3 12h18m-9 5h9" },
-            { label: "Check-in", value: hostel.check_in_time || "—", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-            { label: "Check-out", value: hostel.check_out_time || "—", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+            { label: "Rooms", value: hostel.total_rooms },
+            { label: "Beds", value: hostel.total_beds },
+            { label: "Check-in", value: hostel.check_in_time || "—" },
+            { label: "Check-out", value: hostel.check_out_time || "—" },
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-xl p-3 shadow-md border border-gray-100 text-center">
               <div className="text-lg md:text-2xl font-bold text-emerald-600">{s.value}</div>
@@ -439,7 +493,7 @@ export default function HostelDetailPage() {
                               )}
                             </div>
 
-                            {/* Price + Book */}
+                            {/* Price */}
                             <div className="text-right shrink-0">
                               {room.price_per_month && (
                                 <div className="text-lg font-bold text-emerald-700">{fc(room.price_per_month)}<span className="text-xs font-normal text-gray-400">/mo</span></div>
@@ -512,7 +566,6 @@ export default function HostelDetailPage() {
 
           {/* ══════════ SIDEBAR ══════════ */}
           <div className="space-y-5">
-            {/* Contact */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <h3 className="text-sm font-bold text-gray-800 mb-4">Contact</h3>
               <div className="space-y-2.5">
@@ -535,7 +588,6 @@ export default function HostelDetailPage() {
               </div>
             </div>
 
-            {/* Quick Summary */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <h3 className="text-sm font-bold text-gray-800 mb-3">Quick Summary</h3>
               <div className="space-y-3 text-sm">
@@ -554,7 +606,6 @@ export default function HostelDetailPage() {
               </div>
             </div>
 
-            {/* Advance Deposit Sidebar Card */}
             {advEnabled && advAmount > 0 && (
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-5 border border-amber-200">
                 <div className="flex items-center gap-2 mb-3">
@@ -585,7 +636,7 @@ export default function HostelDetailPage() {
       </div>
 
       {/* ══════════════════════════════════════════
-           BOOKING MODAL — REDESIGNED
+           BOOKING MODAL
           ══════════════════════════════════════════ */}
       {bookingModal && selectedRoom && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={() => setBookingModal(false)}>
@@ -604,10 +655,14 @@ export default function HostelDetailPage() {
                   <div className="flex justify-between"><span className="text-gray-500">Room</span><span className="font-semibold">{selectedRoom.room_number} ({roomTypeLabel(selectedRoom.type)})</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Type</span><span className="font-semibold capitalize">{bookingSuccess.booking_type}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-semibold">{bookingSuccess.duration} {bookingSuccess.booking_type === "hourly" ? "hour(s)" : bookingSuccess.booking_type === "daily" ? "day(s)" : "month(s)"}</span></div>
-                  <div className="flex justify-between border-t pt-2"><span className="text-gray-500">Total</span><span className="font-bold text-emerald-700">{fc(bookingSuccess.total_amount)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span className="font-medium">{fc(bookingSuccess.unit_price * bookingSuccess.duration)}</span></div>
+                  {bookingSuccess.tax_amount > 0 && (
+                    <div className="flex justify-between"><span className="text-gray-500">Tax</span><span className="font-medium">{fc(bookingSuccess.tax_amount)}</span></div>
+                  )}
+                  <div className="flex justify-between border-t border-gray-300 pt-2"><span className="text-gray-800 font-bold">Total</span><span className="font-bold text-emerald-700">{fc(bookingSuccess.total_amount)}</span></div>
                   {bookingSuccess.advance_payment && Number(bookingSuccess.advance_payment.amount) > 0 && (
                     <div className="flex justify-between bg-amber-50 -mx-4 px-4 py-2 rounded-lg">
-                      <span className="text-amber-700 font-medium">Advance Deposit</span>
+                      <span className="text-amber-700 font-medium">💰 Advance Deposit</span>
                       <span className="font-bold text-amber-800">{fc(Number(bookingSuccess.advance_payment.amount))}</span>
                     </div>
                   )}
@@ -646,11 +701,11 @@ export default function HostelDetailPage() {
                       {selectedRoom.price_per_hour && (
                         <button onClick={() => { setBookingType("hourly"); setDuration(1); }}
                           className={`relative p-3 rounded-xl border-2 text-center transition-all ${bookingType === "hourly" ? "border-emerald-500 bg-emerald-50 shadow-md shadow-emerald-500/10" : "border-gray-200 hover:border-gray-300"}`}>
-                            {bookingType === "hourly" && <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center"><svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>}
-                            <div className="text-[10px] text-gray-500 font-medium">Hourly</div>
-                            <div className="text-sm font-bold text-emerald-700 mt-0.5">{fc(selectedRoom.price_per_hour)}</div>
-                          </button>
-                        )}
+                          {bookingType === "hourly" && <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center"><svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>}
+                          <div className="text-[10px] text-gray-500 font-medium">Hourly</div>
+                          <div className="text-sm font-bold text-emerald-700 mt-0.5">{fc(selectedRoom.price_per_hour)}</div>
+                        </button>
+                      )}
                       {selectedRoom.price_per_day && (
                         <button onClick={() => { setBookingType("daily"); setDuration(1); }}
                           className={`relative p-3 rounded-xl border-2 text-center transition-all ${bookingType === "daily" ? "border-emerald-500 bg-emerald-50 shadow-md shadow-emerald-500/10" : "border-gray-200 hover:border-gray-300"}`}>
@@ -679,8 +734,7 @@ export default function HostelDetailPage() {
                       <button onClick={() => setDuration(Math.max(1, duration - 1))} className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 text-lg font-bold text-gray-600 transition">−</button>
                       <div className="flex-1 text-center">
                         <span className="text-3xl font-bold text-gray-800">{duration}</span>
-                        <span className="text-sm text-gray-400 ml-1">{bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}</span>
-                        {duration > 1 && <span className="text-sm text-gray-400">s</span>}
+                        <span className="text-sm text-gray-400 ml-1">{bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}{duration > 1 ? "s" : ""}</span>
                       </div>
                       <button onClick={() => setDuration(duration + 1)} className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 text-lg font-bold text-gray-600 transition">+</button>
                     </div>
@@ -743,18 +797,29 @@ export default function HostelDetailPage() {
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 resize-none bg-gray-50" />
                   </div>
 
-                  {/* ── Price Breakdown ── */}
+                  {/* ── Price Breakdown (with real tax) ── */}
                   <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Price Breakdown</h4>
                     <div className="space-y-2.5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">{fc(bookingType === "hourly" ? (selectedRoom.price_per_hour || 0) : bookingType === "daily" ? (selectedRoom.price_per_day || 0) : (selectedRoom.price_per_month || 0))} × {duration} {bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}{duration > 1 ? "s" : ""}</span>
-                        <span className="font-medium">{fc(calculateTotal())}</span>
+                        <span className="text-gray-500">{fc(getUnitPrice())} × {duration} {bookingType === "hourly" ? "hr" : bookingType === "daily" ? "day" : "mo"}{duration > 1 ? "s" : ""}</span>
+                        <span className="font-medium">{fc(getSubtotal())}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Taxes</span>
-                        <span className="text-gray-400 text-xs">Calculated at checkout</span>
-                      </div>
+
+                      {/* Tax items */}
+                      {taxInfo.items.length > 0 ? (
+                        taxInfo.items.map((item, i) => (
+                          <div key={i} className="flex justify-between">
+                            <span className="text-gray-500">{item.name}</span>
+                            <span className="font-medium">{fc(item.amount)}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Tax</span>
+                          <span className="text-gray-400 text-xs">{fc(0)}</span>
+                        </div>
+                      )}
 
                       {/* Advance Deposit */}
                       {advEnabled && advAmount > 0 && (
@@ -769,7 +834,7 @@ export default function HostelDetailPage() {
 
                       <div className="border-t border-gray-300 pt-2 flex justify-between items-center">
                         <span className="font-bold text-gray-800">Estimated Total</span>
-                        <span className="font-bold text-emerald-700 text-lg">{fc(calculateTotal())}</span>
+                        <span className="font-bold text-emerald-700 text-lg">{fc(taxInfo.grandTotal)}</span>
                       </div>
                     </div>
                   </div>
@@ -780,7 +845,7 @@ export default function HostelDetailPage() {
                     {bookingLoading ? (
                       <><svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Processing...</>
                     ) : (
-                      <>Confirm Booking — {fc(calculateTotal())}</>
+                      <>Confirm Booking — {fc(taxInfo.grandTotal)}</>
                     )}
                   </button>
 
